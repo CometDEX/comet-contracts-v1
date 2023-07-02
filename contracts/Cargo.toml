@@ -1,0 +1,15 @@
+[package]
+name = "contracts"
+description = "Comet Contracts"
+version = "0.0.6"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+fixed-point-math = "0.0.2"
+soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }

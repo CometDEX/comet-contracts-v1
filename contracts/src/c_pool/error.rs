@@ -1,0 +1,42 @@
+use soroban_sdk::contracterror;
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum Error {
+    ErrFinalized = 1,
+    ErrNegative = 2,
+    ErrMinFee = 3,
+    ErrMaxFee = 4,
+    ErrNotController = 5,
+    ErrNotFinalized = 6,
+    AlreadyInitialized = 7,
+    ErrIsBound = 8,
+    ErrNotBound = 9,
+    ErrMaxTokens = 10,
+    ErrMinWeight = 11,
+    ErrMaxWeight = 12,
+    ErrMinBalance = 13,
+    ErrFreezeOnlyWithdrawals = 14,
+    ErrMinTokens = 15,
+    ErrSwapNotPublic = 16,
+    ErrMaxInRatio = 17,
+    ErrMathApprox = 18,
+    ErrLimitIn = 19,
+    ErrLimitOut = 20,
+    ErrMaxOutRatio = 21,
+    ErrBadLimitPrice = 22,
+    ErrLimitPrice = 23,
+    ErrMaxTotalWeight = 24,
+    ErrTokenAmountIsNegative = 25,
+    ErrNotAuthorizedByAdmin = 26,
+    ErrInsufficientAllowance = 27,
+    ErrDeauthorized = 28,
+    ErrInsufficientBalance = 29,
+    ErrAddOverflow = 30,
+    ErrSubUnderflow = 31,
+    ErrDivInternal = 32,
+    ErrMulOverflow = 33,
+    ErrCPowBaseTooLow = 34,
+    ErrCPowBaseTooHigh = 35,
+}
