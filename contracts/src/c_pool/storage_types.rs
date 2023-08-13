@@ -1,6 +1,6 @@
 //! Declaration of the Storage Keys
 use soroban_sdk::{contracttype, Address, Map, Vec};
-
+pub(crate) const BALANCE_BUMP_AMOUNT: u32 = 518400; // 30 days
 // Token Details Struct
 #[contracttype]
 #[derive(Clone, Default, Debug, Eq, PartialEq)]

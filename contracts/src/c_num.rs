@@ -32,7 +32,7 @@ pub fn c_add(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
     let c = a.checked_add(b);
     match c {
         Some(val) => Ok(val),
-        None => panic_with_error!(e, Error::ErrAddOverflow),
+        None => return Err(Error::ErrAddOverflow),
     }
 }
 
@@ -40,7 +40,7 @@ pub fn c_add(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
 pub fn c_sub(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
     let (c, flag) = c_sub_sign(a, b);
     if flag {
-        panic_with_error!(e, Error::ErrSubUnderflow);
+        return Err(Error::ErrSubUnderflow);
     }
     Ok(c)
 }
@@ -58,7 +58,7 @@ pub fn c_sub_sign(a: i128, b: i128) -> (i128, bool) {
 pub fn c_mul(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
     match a.fixed_mul_floor(b, BONE) {
         Some(val) => Ok(val),
-        None => panic_with_error!(e, Error::ErrMulOverflow),
+        None => return Err(Error::ErrMulOverflow),
     }
 }
 
@@ -66,7 +66,7 @@ pub fn c_mul(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
 pub fn c_div(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
     match a.fixed_div_floor(b, BONE) {
         Some(val) => Ok(val),
-        None => panic_with_error!(e, Error::ErrDivInternal),
+        None => return Err(Error::ErrDivInternal),
     }
 }
 
@@ -97,11 +97,11 @@ pub fn c_powi(e: &Env, a: i128, n: i128) -> i128 {
 // Calculate Power of a Base Value
 pub fn c_pow(e: &Env, base: i128, exp: i128) -> Result<i128, Error> {
     if base < MIN_CPOW_BASE {
-        panic_with_error!(e, Error::ErrCPowBaseTooLow);
+        return Err(Error::ErrCPowBaseTooLow);
     }
 
     if base > MAX_CPOW_BASE {
-        panic_with_error!(e, Error::ErrCPowBaseTooHigh);
+        return Err(Error::ErrCPowBaseTooHigh);
     }
 
     let whole = c_floor(e, exp);

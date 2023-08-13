@@ -7,7 +7,7 @@ pub mod allowance;
 // LP Token Balance Module
 pub mod balance;
 // Pool Contract + LP Token Module
-pub mod contract;
+pub mod comet;
 // Events Module
 pub mod events;
 // Contract Storage Read and Write Module

@@ -5,18 +5,16 @@ use crate::c_pool::error::Error;
 
 use super::{
     balance::{receive_balance, spend_balance},
-    contract::{self, CometPoolContract, CometPoolTrait},
+    comet::{self, CometPoolContract, CometPoolTrait},
     events::{burn_event, transfer_event},
     metadata::{get_token_share, get_total_shares, put_total_shares},
 };
 
-pub mod token {
-    soroban_sdk::contractimport!(file = "../soroban_token_spec.wasm");
-}
+use soroban_sdk::token::Client;
 
 // Transfers the Specific Token from the User’s Address to the Contract’s Address
 pub fn pull_underlying(e: &Env, token: &Address, from: Address, amount: i128) {
-    token::Client::new(e, &token.contract_id().unwrap()).xfer_from(
+    Client::new(e, token).transfer_from(
         &e.current_contract_address(),
         &from,
         &e.current_contract_address(),
@@ -26,11 +24,7 @@ pub fn pull_underlying(e: &Env, token: &Address, from: Address, amount: i128) {
 
 // Transfers the Specific Token from the Contract’s Address to the given 'to' Address
 pub fn push_underlying(e: &Env, token: &Address, to: Address, amount: i128) {
-    token::Client::new(e, &token.contract_id().unwrap()).xfer(
-        &e.current_contract_address(),
-        &to,
-        &amount,
-    );
+    Client::new(e, token).transfer(&e.current_contract_address(), &to, &amount);
 }
 
 // Mint the given amount of LP Tokens

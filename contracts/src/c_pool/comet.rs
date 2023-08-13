@@ -1,15 +1,5 @@
 //! Liquidity Pool and Token Implementation
 use super::{
-    metadata::{
-        get_token_share, get_total_shares, put_total_shares, read_controller, read_factory,
-        read_record, read_swap_fee, read_tokens, read_total_weight, write_record, write_tokens,
-        write_total_weight,
-    },
-    storage_types::{DataKey, Record},
-    token_utility::{self, check_nonnegative_amount},
-};
-
-use super::{
     admin::{check_admin, has_administrator, write_administrator},
     allowance::{read_allowance, spend_allowance, write_allowance},
     balance::{is_authorized, read_balance, receive_balance, spend_balance, write_authorization},
@@ -19,6 +9,17 @@ use super::{
     },
     metadata::{read_decimal, read_name, read_symbol, write_decimal, write_name, write_symbol},
 };
+use super::{
+    metadata::{
+        get_token_share, get_total_shares, put_total_shares, read_controller, read_factory,
+        read_record, read_swap_fee, read_tokens, read_total_weight, write_record, write_tokens,
+        write_total_weight,
+    },
+    storage_types::{DataKey, Record},
+    token_utility::{self, check_nonnegative_amount},
+};
+use soroban_sdk::{token, contract, symbol_short};
+use soroban_sdk::token::Client;
 
 use crate::{
     c_consts::{
@@ -33,7 +34,7 @@ use crate::{
     },
     c_num::{c_add, c_div, c_mul, c_sub},
     c_pool::{
-        contract,
+        comet,
         error::Error,
         events::{ExitEvent, JoinEvent, SwapEvent},
         metadata::{
@@ -43,7 +44,6 @@ use crate::{
         },
         token_utility::{
             burn_shares, mint_shares, pull_shares, pull_underlying, push_shares, push_underlying,
-            token,
         },
     },
 };
@@ -52,6 +52,8 @@ use soroban_sdk::{
     xdr::SurveyMessageResponseType, Address, Bytes, BytesN, Env, Map, Symbol, Vec,
 };
 
+
+#[contract]
 pub struct CometPoolContract;
 
 pub trait CometPoolTrait {
@@ -113,7 +115,7 @@ pub trait CometPoolTrait {
 
     fn is_bound(e: Env, t: Address) -> bool;
 
-    fn share_id(e: Env) -> BytesN<32>;
+    fn share_id(e: Env) -> Address;
 
     fn is_public_swap(e: Env) -> bool;
 
@@ -130,6 +132,8 @@ pub trait CometPoolTrait {
     fn set_freeze_status(e: Env, caller: Address, val: bool);
 
     fn init(e: Env, factory: Address, controller: Address);
+
+    fn bundle_bind(e: Env, token: Vec<Address>, balance: Vec<i128>, denorm: Vec<i128>);
 
     fn get_controller(e: Env) -> Address;
 
@@ -198,6 +202,8 @@ pub trait CometPoolTrait {
         max_pool_amount_in: i128,
         user: Address,
     ) -> i128;
+
+    
 }
 
 #[contractimpl]
@@ -207,7 +213,7 @@ impl CometPoolTrait for CometPoolContract {
         // Check if the Contract Storage is already initialized
         assert_with_error!(
             &e,
-            !e.storage().has(&DataKey::Factory),
+            !e.storage().persistent().has(&DataKey::Factory),
             Error::AlreadyInitialized
         );
 
@@ -225,7 +231,7 @@ impl CometPoolTrait for CometPoolContract {
         let symbol = Bytes::from_slice(&e, b"CPAL");
 
         // Current Contract is the LP Token as well
-        put_token_share(&e, val.contract_id().unwrap());
+        put_token_share(&e, val.clone());
 
         // Set the Total Supply of the LP Token as 0
         put_total_shares(&e, 0);
@@ -239,6 +245,17 @@ impl CometPoolTrait for CometPoolContract {
 
         // Initialize the LP Token
         Self::initialize(e, val.clone(), 7u32, name, symbol);
+    }
+
+    fn bundle_bind(e: Env, token: Vec<Address>, balance: Vec<i128>, denorm: Vec<i128>) {
+        // token::Client::approve()
+        let controller: Address = read_controller(&e).clone();
+
+        for i in 0..token.len() {
+            // Client::new(e, token)
+            token::Client::new(&e, &token.get(i).unwrap()).approve(&(controller.clone()), &e.current_contract_address(), &balance.get(i).unwrap(), &1000);
+            Self::bind(e.clone(), token.get(i).unwrap(), balance.get(i).unwrap(), denorm.get(i).unwrap(), controller.clone() );
+        }
     }
 
     // Binds tokens to the Pool
@@ -264,9 +281,10 @@ impl CometPoolTrait for CometPoolContract {
         let mut tokens_arr = read_tokens(&e);
         let mut record_map = e
             .storage()
+            .persistent()
             .get(&key_rec)
-            .unwrap_or(Ok(Map::<Address, Record>::new(&e))) // if no members on vector
-            .unwrap();
+            .unwrap_or(Map::<Address, Record>::new(&e)); // if no members on vector
+            
 
         let record = Record {
             bound: true,
@@ -304,7 +322,7 @@ impl CometPoolTrait for CometPoolContract {
         assert_with_error!(&e, balance >= MIN_BALANCE, Error::ErrMinBalance);
 
         let mut record_map: Map<Address, Record> = read_record(&e);
-        let mut record = record_map.get(token.clone()).unwrap().unwrap();
+        let mut record = record_map.get(token.clone()).unwrap();
         let old_weight = record.denorm;
         let mut total_weight = read_total_weight(&e);
 
@@ -357,7 +375,7 @@ impl CometPoolTrait for CometPoolContract {
         assert_with_error!(&e, user == controller, Error::ErrNotController);
         controller.require_auth();
         let mut record_map: Map<Address, Record> = read_record(&e);
-        let mut record = record_map.get(token.clone()).unwrap().unwrap();
+        let mut record = record_map.get(token.clone()).unwrap();
         let token_balance = record.balance;
         let token_exit_fee = c_mul(&e, token_balance, EXIT_FEE).unwrap();
         let curr_weight = read_total_weight(&e);
@@ -365,12 +383,12 @@ impl CometPoolTrait for CometPoolContract {
         let index = record.index;
         let last = read_tokens(&e).len() - 1;
         let mut tokens = read_tokens(&e);
-        let index_token = tokens.get(index).unwrap().unwrap();
-        let last_token = tokens.get(last).unwrap().unwrap();
+        let index_token = tokens.get(index).unwrap();
+        let last_token = tokens.get(last).unwrap();
         tokens.set(index, last_token.clone());
         tokens.pop_back();
         write_tokens(&e, tokens);
-        let mut record_current = record_map.get(last_token.clone()).unwrap().unwrap();
+        let mut record_current = record_map.get(last_token.clone()).unwrap();
         record_current.index = index;
         record.balance = 0;
         record.bound = false;
@@ -414,10 +432,9 @@ impl CometPoolTrait for CometPoolContract {
         assert_with_error!(&e, check_record_bound(&e, t.clone()), Error::ErrNotBound);
         let mut records = read_record(&e);
 
-        let mut rec = records.get(t.clone()).unwrap().unwrap();
+        let mut rec = records.get(t.clone()).unwrap();
         // log!(&e, "Earlier {}", rec.balance);
-        rec.balance = token::Client::new(&e, &t.contract_id().unwrap())
-            .balance(&e.current_contract_address());
+        rec.balance = token::Client::new(&e, &t).balance(&e.current_contract_address());
         // log!(&e, "Later {}", rec.balance);
         records.set(t, rec);
         write_record(&e, records);
@@ -440,8 +457,8 @@ impl CometPoolTrait for CometPoolContract {
         let tokens = read_tokens(&e);
         let mut records = read_record(&e);
         for i in 0..tokens.len() {
-            let t = tokens.get(i).unwrap().unwrap();
-            let mut rec = records.get(t.clone()).unwrap().unwrap();
+            let t = tokens.get(i).unwrap();
+            let mut rec = records.get(t.clone()).unwrap();
             let token_amount_in = c_add(&e, c_mul(&e, ratio, rec.balance).unwrap(), 1).unwrap();
             if token_amount_in == 0 {
                 panic_with_error!(&e, Error::ErrMathApprox);
@@ -449,11 +466,11 @@ impl CometPoolTrait for CometPoolContract {
 
             assert_with_error!(
                 &e,
-                max_amounts_in.get(i).unwrap().unwrap() > 0,
+                max_amounts_in.get(i).unwrap() > 0,
                 Error::ErrNegative
             );
 
-            if token_amount_in > max_amounts_in.get(i).unwrap().unwrap() {
+            if token_amount_in > max_amounts_in.get(i).unwrap() {
                 panic_with_error!(&e, Error::ErrLimitIn);
             }
             rec.balance = c_add(&e, rec.balance, token_amount_in).unwrap();
@@ -464,7 +481,7 @@ impl CometPoolTrait for CometPoolContract {
                 token_amount_in,
             };
             e.events()
-                .publish((Symbol::short("LOG"), Symbol::short("JOIN")), event);
+                .publish((symbol_short!("LOG"), symbol_short!("JOIN")), event);
             pull_underlying(&e, &t, user.clone(), token_amount_in);
         }
 
@@ -485,27 +502,23 @@ impl CometPoolTrait for CometPoolContract {
         assert_with_error!(&e, ratio != 0, Error::ErrMathApprox);
         pull_shares(&e, user.clone(), pool_amount_in);
         let share_contract_id = get_token_share(&e);
-        push_shares(
-            &e,
-            Address::from_contract_id(&e, &share_contract_id),
-            EXIT_FEE,
-        );
+        push_shares(&e, share_contract_id, EXIT_FEE);
         burn_shares(&e, pai_after_exit_fee);
         let tokens = read_tokens(&e);
         let mut records = read_record(&e);
         for i in 0..tokens.len() {
-            let t = tokens.get(i).unwrap().unwrap();
-            let mut rec = records.get(t.clone()).unwrap().unwrap();
+            let t = tokens.get(i).unwrap();
+            let mut rec = records.get(t.clone()).unwrap();
             let token_amount_out = c_mul(&e, ratio, rec.balance).unwrap();
             assert_with_error!(&e, token_amount_out != 0, Error::ErrMathApprox);
             assert_with_error!(
                 &e,
-                min_amounts_out.get(i).unwrap().unwrap() >= 0,
+                min_amounts_out.get(i).unwrap() >= 0,
                 Error::ErrNegative
             );
             assert_with_error!(
                 &e,
-                token_amount_out >= min_amounts_out.get(i).unwrap().unwrap(),
+                token_amount_out >= min_amounts_out.get(i).unwrap(),
                 Error::ErrLimitOut
             );
             rec.balance = c_sub(&e, rec.balance, token_amount_out).unwrap();
@@ -516,7 +529,7 @@ impl CometPoolTrait for CometPoolContract {
                 token_amount_out,
             };
             e.events()
-                .publish((Symbol::short("LOG"), Symbol::short("EXIT")), event);
+                .publish((symbol_short!("LOG"), symbol_short!("EXIT")), event);
             push_underlying(&e, &t, user.clone(), token_amount_out)
         }
 
@@ -553,8 +566,8 @@ impl CometPoolTrait for CometPoolContract {
         );
 
         user.require_auth();
-        let mut in_record = read_record(&e).get(token_in.clone()).unwrap().unwrap();
-        let mut out_record = read_record(&e).get(token_out.clone()).unwrap().unwrap();
+        let mut in_record = read_record(&e).get(token_in.clone()).unwrap();
+        let mut out_record = read_record(&e).get(token_out.clone()).unwrap();
         assert_with_error!(
             &e,
             token_amount_in <= c_mul(&e, in_record.balance, MAX_IN_RATIO).unwrap(),
@@ -614,7 +627,7 @@ impl CometPoolTrait for CometPoolContract {
             token_amount_out,
         };
         e.events()
-            .publish((Symbol::short("LOG"), Symbol::short("SWAP")), event);
+            .publish((symbol_short!("LOG"), symbol_short!("SWAP")), event);
 
         pull_underlying(&e, &token_in, user.clone(), token_amount_in);
         push_underlying(&e, &token_out, user, token_amount_out);
@@ -657,8 +670,8 @@ impl CometPoolTrait for CometPoolContract {
         assert_with_error!(&e, read_public_swap(&e), Error::ErrSwapNotPublic);
 
         user.require_auth();
-        let mut in_record = read_record(&e).get(token_in.clone()).unwrap().unwrap();
-        let mut out_record = read_record(&e).get(token_out.clone()).unwrap().unwrap();
+        let mut in_record = read_record(&e).get(token_in.clone()).unwrap();
+        let mut out_record = read_record(&e).get(token_out.clone()).unwrap();
         assert_with_error!(
             &e,
             token_amount_out <= c_mul(&e, out_record.balance, MAX_OUT_RATIO).unwrap(),
@@ -719,7 +732,7 @@ impl CometPoolTrait for CometPoolContract {
             token_amount_out,
         };
         e.events()
-            .publish((Symbol::short("LOG"), Symbol::short("SWAP")), event);
+            .publish((symbol_short!("LOG"), symbol_short!("SWAP")), event);
 
         pull_underlying(&e, &token_in, user.clone(), token_amount_in);
         push_underlying(&e, &token_out, user, token_amount_out);
@@ -760,14 +773,13 @@ impl CometPoolTrait for CometPoolContract {
                     read_record(&e)
                         .get(token_in.clone())
                         .unwrap()
-                        .unwrap()
                         .balance,
                     MAX_IN_RATIO
                 )
                 .unwrap(),
             Error::ErrMaxInRatio
         );
-        let mut in_record = read_record(&e).get(token_in.clone()).unwrap().unwrap();
+        let mut in_record = read_record(&e).get(token_in.clone()).unwrap();
         let pool_amount_out = calc_lp_token_amount_given_token_deposits_in(
             &e,
             in_record.balance,
@@ -794,7 +806,7 @@ impl CometPoolTrait for CometPoolContract {
             token_amount_in,
         };
         e.events()
-            .publish((Symbol::short("LOG"), Symbol::short("JOIN")), event);
+            .publish((symbol_short!("LOG"), symbol_short!("JOIN")), event);
 
         pull_underlying(&e, &token_in, user.clone(), token_amount_in);
         mint_shares(e, user, pool_amount_out);
@@ -822,7 +834,7 @@ impl CometPoolTrait for CometPoolContract {
             Error::ErrNotBound
         );
 
-        let mut in_record: Record = read_record(&e).get(token_in.clone()).unwrap().unwrap();
+        let mut in_record: Record = read_record(&e).get(token_in.clone()).unwrap();
 
         let token_amount_in = calc_token_deposits_in_given_lp_token_amount(
             &e,
@@ -843,7 +855,6 @@ impl CometPoolTrait for CometPoolContract {
                     read_record(&e)
                         .get(token_in.clone())
                         .unwrap()
-                        .unwrap()
                         .balance,
                     MAX_IN_RATIO
                 )
@@ -862,7 +873,7 @@ impl CometPoolTrait for CometPoolContract {
             token_amount_in,
         };
         e.events()
-            .publish((Symbol::short("LOG"), Symbol::short("JOIN")), event);
+            .publish((symbol_short!("LOG"), symbol_short!("JOIN")), event);
 
         pull_underlying(&e, &token_in, user.clone(), token_amount_in);
         mint_shares(e, user, pool_amount_out);
@@ -891,7 +902,7 @@ impl CometPoolTrait for CometPoolContract {
             Error::ErrNotBound
         );
 
-        let mut out_record: Record = read_record(&e).get(token_out.clone()).unwrap().unwrap();
+        let mut out_record: Record = read_record(&e).get(token_out.clone()).unwrap();
 
         let token_amount_out = calc_token_withdrawal_amount_given_lp_token_amount(
             &e,
@@ -912,7 +923,6 @@ impl CometPoolTrait for CometPoolContract {
                     read_record(&e)
                         .get(token_out.clone())
                         .unwrap()
-                        .unwrap()
                         .balance,
                     MAX_OUT_RATIO
                 )
@@ -928,7 +938,7 @@ impl CometPoolTrait for CometPoolContract {
             token_amount_out,
         };
         e.events()
-            .publish((Symbol::short("LOG"), Symbol::short("EXIT")), event);
+            .publish((symbol_short!("LOG"), symbol_short!("EXIT")), event);
 
         pull_shares(&e, user.clone(), pool_amount_in);
         burn_shares(&e, c_sub(&e, pool_amount_in, EXIT_FEE).unwrap());
@@ -968,14 +978,13 @@ impl CometPoolTrait for CometPoolContract {
                     read_record(&e)
                         .get(token_out.clone())
                         .unwrap()
-                        .unwrap()
                         .balance,
                     MAX_OUT_RATIO
                 )
                 .unwrap(),
             Error::ErrMaxOutRatio
         );
-        let mut out_record: Record = read_record(&e).get(token_out.clone()).unwrap().unwrap();
+        let mut out_record: Record = read_record(&e).get(token_out.clone()).unwrap();
         let pool_amount_in = calc_lp_token_amount_given_token_withdrawal_amount(
             &e,
             out_record.balance,
@@ -996,7 +1005,7 @@ impl CometPoolTrait for CometPoolContract {
             token_amount_out,
         };
         e.events()
-            .publish((Symbol::short("LOG"), Symbol::short("EXIT")), event);
+            .publish((symbol_short!("LOG"), symbol_short!("EXIT")), event);
 
         pull_shares(&e, user.clone(), pool_amount_in);
         burn_shares(&e, c_sub(&e, pool_amount_in, EXIT_FEE).unwrap());
@@ -1075,7 +1084,7 @@ impl CometPoolTrait for CometPoolContract {
 
     // Get the balance of the Token
     fn get_balance(e: Env, token: Address) -> i128 {
-        let val = read_record(&e).get(token).unwrap().unwrap();
+        let val = read_record(&e).get(token).unwrap();
         assert_with_error!(&e, val.bound, Error::ErrNotBound);
         val.balance
     }
@@ -1087,7 +1096,7 @@ impl CometPoolTrait for CometPoolContract {
             check_record_bound(&e, token.clone()),
             Error::ErrNotBound
         );
-        let val = read_record(&e).get(token).unwrap().unwrap();
+        let val = read_record(&e).get(token).unwrap();
         val.denorm
     }
 
@@ -1098,14 +1107,14 @@ impl CometPoolTrait for CometPoolContract {
             check_record_bound(&e, token.clone()),
             Error::ErrNotBound
         );
-        let val = read_record(&e).get(token).unwrap().unwrap();
+        let val = read_record(&e).get(token).unwrap();
         c_div(&e, val.denorm, read_total_weight(&e)).unwrap()
     }
 
     // Calculate the spot considering the swap fee
     fn get_spot_price(e: Env, token_in: Address, token_out: Address) -> i128 {
-        let in_record = read_record(&e).get(token_in).unwrap().unwrap();
-        let out_record: Record = read_record(&e).get(token_out).unwrap().unwrap();
+        let in_record = read_record(&e).get(token_in).unwrap();
+        let out_record: Record = read_record(&e).get(token_out).unwrap();
         calc_spot_price(
             &e,
             in_record.balance,
@@ -1123,8 +1132,8 @@ impl CometPoolTrait for CometPoolContract {
 
     // Get the spot price without considering the swap fee
     fn get_spot_price_sans_fee(e: Env, token_in: Address, token_out: Address) -> i128 {
-        let in_record = read_record(&e).get(token_in).unwrap().unwrap();
-        let out_record = read_record(&e).get(token_out).unwrap().unwrap();
+        let in_record = read_record(&e).get(token_in).unwrap();
+        let out_record = read_record(&e).get(token_out).unwrap();
         calc_spot_price(
             &e,
             in_record.balance,
@@ -1136,7 +1145,7 @@ impl CometPoolTrait for CometPoolContract {
     }
 
     // Get LP Token Address
-    fn share_id(e: Env) -> BytesN<32> {
+    fn share_id(e: Env) -> Address {
         get_token_share(&e)
     }
 
@@ -1152,7 +1161,7 @@ impl CometPoolTrait for CometPoolContract {
 
     // Check if the token Address is bound to the pool
     fn is_bound(e: Env, t: Address) -> bool {
-        read_record(&e).get(t).unwrap().unwrap().bound
+        read_record(&e).get(t).unwrap().bound
     }
 
     // Initialize the LP Token
