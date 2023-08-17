@@ -31,7 +31,7 @@ fn create_and_init_token_contract<'a>(
     name: &'a str,
     symbol: &'a str,
 ) -> test_token::Client<'a> {
-    let token_id = env.register_contract_wasm(None, *include_bytes!("/root/comet-contracts/target/wasm32-unknown-unknown/release/soroban_token_contract.wasm"));
+    let token_id = env.register_contract_wasm(None, test_token::WASM);
     let client = test_token::Client::new(&env, &token_id);
     client.initialize(
         &admin_id,
