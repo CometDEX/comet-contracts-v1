@@ -1,11 +1,15 @@
 #![no_std]
 #![allow(unused)]
-use soroban_sdk::{contractimpl, contracttype, Address, Bytes, BytesN, Env, Symbol, Vec, contract, symbol_short, vec, IntoVal, Val};
+use soroban_sdk::{contractimpl, contracttype, Address, Bytes, BytesN, Env, Symbol, Vec, contract, symbol_short, vec, IntoVal, Val, unwrap::UnwrapOptimized, assert_with_error};
 
 // Importing the Pool Contract WASM
 mod contract {
     soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/contracts.wasm");
 }
+
+// Errors Listed
+pub mod error;
+use crate::error::Error;
 
 // Keys which will give access to the corresponding data
 #[derive(Clone)]
@@ -37,9 +41,10 @@ pub struct Factory;
 impl Factory {
     // Initialize the Admin for the Factory Contract
     pub fn init(e: Env, user: Address) {
-        assert!(
+        assert_with_error!(
+            &e,
             !e.storage().persistent().has(&DataKeyFactory::Admin),
-            "admin already initialized"
+            Error::AlreadyInitialized
         );
         user.require_auth();
         let key = DataKeyFactory::Admin;
@@ -78,9 +83,13 @@ impl Factory {
 
     // Set a new admin for the factory contract
     pub fn set_c_admin(e: Env, caller: Address, user: Address) {
-        assert!(
-            caller == e.storage().persistent().get::<DataKeyFactory, Address>(&DataKeyFactory::Admin).unwrap(),
-            "ERR_NOT_CONTROLLER"
+        assert_with_error!(
+            &e,
+            caller == e.storage()
+                .persistent()
+                .get::<DataKeyFactory, Address>(&DataKeyFactory::Admin)
+                .unwrap_optimized(),
+            Error::ErrNotController
         );
         caller.require_auth();
         e.storage().persistent().set(&DataKeyFactory::Admin, &user);
@@ -94,7 +103,7 @@ impl Factory {
 
     // Get the Current Admin of the Factory Contract
     pub fn get_c_admin(e: Env) -> Address {
-        e.storage().persistent().get::<DataKeyFactory, Address>(&DataKeyFactory::Admin).unwrap()
+        e.storage().persistent().get::<DataKeyFactory, Address>(&DataKeyFactory::Admin).unwrap_optimized()
     }
 
     // Returns true if the passed Address is a valid Pool
@@ -104,9 +113,13 @@ impl Factory {
     }
 
     pub fn collect(e: Env, caller: Address, addr: Address) {
-        assert!(
-            caller == e.storage().persistent().get::<DataKeyFactory, Address>(&DataKeyFactory::Admin).unwrap(),
-            "ERR_NOT_ADMIN"
+        assert_with_error!(
+            &e,
+            caller == e.storage()
+                .persistent()
+                .get::<DataKeyFactory, Address>(&DataKeyFactory::Admin)
+                .unwrap_optimized(),
+            Error::ErrNotController
         );
         caller.require_auth();
         let curr =  &e.current_contract_address().clone();

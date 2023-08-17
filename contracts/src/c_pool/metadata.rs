@@ -1,7 +1,7 @@
 //! Utilities to read and write contract's storage
 
 use crate::c_pool::storage_types::DataKey;
-use soroban_sdk::{vec, Address, Bytes, BytesN, Env, Map, Vec};
+use soroban_sdk::{vec, Address, Bytes, BytesN, Env, Map, Vec, unwrap::UnwrapOptimized};
 
 use super::storage_types::{DataKeyToken, Record};
 
@@ -39,7 +39,7 @@ pub fn write_record(e: &Env, new_map: Map<Address, Record>) {
 // Read Factory
 pub fn read_factory(e: &Env) -> Address {
     let key = DataKey::Factory;
-    e.storage().persistent().get::<DataKey, Address>(&key).unwrap()
+    e.storage().persistent().get::<DataKey, Address>(&key).unwrap_optimized()
 }
 // Write Factory
 pub fn write_factory(e: &Env, d: Address) {
@@ -49,7 +49,7 @@ pub fn write_factory(e: &Env, d: Address) {
 // Read Controller
 pub fn read_controller(e: &Env) -> Address {
     let key = DataKey::Controller;
-    e.storage().persistent().get::<DataKey, Address>(&key).unwrap()
+    e.storage().persistent().get::<DataKey, Address>(&key).unwrap_optimized()
 }
 
 // Write Controller
@@ -91,7 +91,7 @@ pub fn write_total_weight(e: &Env, d: i128) {
 
 //Read Token Share
 pub fn get_token_share(e: &Env) -> Address {
-    e.storage().persistent().get::<DataKey, Address>(&DataKey::TokenShare).unwrap()
+    e.storage().persistent().get::<DataKey, Address>(&DataKey::TokenShare).unwrap_optimized()
 }
 
 // Update Token Share
@@ -101,7 +101,7 @@ pub fn put_token_share(e: &Env, contract_id: Address) {
 
 // Read Total Shares
 pub fn get_total_shares(e: &Env) -> i128 {
-    e.storage().persistent().get::<DataKey, i128>(&DataKey::TotalShares).unwrap()
+    e.storage().persistent().get::<DataKey, i128>(&DataKey::TotalShares).unwrap_optimized()
 }
 
 // Update Total Shares
@@ -111,7 +111,7 @@ pub fn put_total_shares(e: &Env, amount: i128) {
 
 // Read Finalize
 pub fn read_finalize(e: &Env) -> bool {
-    e.storage().persistent().get::<DataKey, bool>(&DataKey::Finalize).unwrap()
+    e.storage().persistent().get::<DataKey, bool>(&DataKey::Finalize).unwrap_optimized()
 }
 
 // Write Finalize
@@ -121,7 +121,7 @@ pub fn write_finalize(e: &Env, val: bool) {
 
 // Read Public Swap
 pub fn read_public_swap(e: &Env) -> bool {
-    e.storage().persistent().get::<DataKey, bool>(&DataKey::PublicSwap).unwrap()
+    e.storage().persistent().get::<DataKey, bool>(&DataKey::PublicSwap).unwrap_optimized()
 }
 
 // Write Public Swap
@@ -141,7 +141,7 @@ pub fn check_record_bound(e: &Env, token: Address) -> bool {
 
     let key_existence = val.contains_key(token.clone());
     if key_existence {
-        val.get(token).unwrap().bound
+        val.get(token).unwrap_optimized().bound
     } else {
         false
     }
@@ -162,7 +162,7 @@ pub fn write_freeze(e: &Env, d: bool) {
 // Read LP Token Decimals
 pub fn read_decimal(e: &Env) -> u32 {
     let key = DataKeyToken::Decimals;
-    e.storage().persistent().get::<DataKeyToken, u32>(&key).unwrap()
+    e.storage().persistent().get::<DataKeyToken, u32>(&key).unwrap_optimized()
 }
 
 // Write LP Token Decimals
@@ -174,7 +174,7 @@ pub fn write_decimal(e: &Env, d: u8) {
 // Read Name of the LP Token
 pub fn read_name(e: &Env) -> Bytes {
     let key = DataKeyToken::Name;
-    e.storage().persistent().get::<DataKeyToken, Bytes>(&key).unwrap()
+    e.storage().persistent().get::<DataKeyToken, Bytes>(&key).unwrap_optimized()
 }
 
 // Write Name of the LP Token
@@ -186,7 +186,7 @@ pub fn write_name(e: &Env, d: Bytes) {
 // Read Symbol of the LP Token
 pub fn read_symbol(e: &Env) -> Bytes {
     let key = DataKeyToken::Symbol;
-    e.storage().persistent().get::<DataKeyToken, Bytes>(&key).unwrap()
+    e.storage().persistent().get::<DataKeyToken, Bytes>(&key).unwrap_optimized()
 }
 
 // Write Symbol of the LP Token

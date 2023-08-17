@@ -2,7 +2,7 @@
 
 use c_consts::BONE;
 use fixed_point_math::{FixedPoint, STROOP};
-use soroban_sdk::{panic_with_error, Env};
+use soroban_sdk::{panic_with_error, Env, unwrap::UnwrapOptimized};
 
 use crate::{
     c_consts::{self, CPOW_PRECISION, MAX_CPOW_BASE, MIN_CPOW_BASE},
@@ -48,9 +48,9 @@ pub fn c_sub(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
 // Determine the sign of the input numbers
 pub fn c_sub_sign(a: i128, b: i128) -> (i128, bool) {
     if a >= b {
-        (a.checked_sub(b).unwrap(), false)
+        (a.checked_sub(b).unwrap_optimized(), false)
     } else {
-        (b.checked_sub(a).unwrap(), true)
+        (b.checked_sub(a).unwrap_optimized(), true)
     }
 }
 
@@ -79,16 +79,16 @@ pub fn c_powi(e: &Env, a: i128, n: i128) -> i128 {
     };
 
     let mut a = a;
-    let mut n = n.checked_div(2).unwrap();
+    let mut n = n.checked_div(2).unwrap_optimized();
 
     while n != 0 {
-        a = c_mul(e, a, a).unwrap();
+        a = c_mul(e, a, a).unwrap_optimized();
 
         if n.checked_rem_euclid(2).unwrap_or(0) != 0 {
-            z = c_mul(e, z, a).unwrap();
+            z = c_mul(e, z, a).unwrap_optimized();
         }
 
-        n = n.checked_div(2).unwrap();
+        n = n.checked_div(2).unwrap_optimized();
     }
 
     z
@@ -106,7 +106,7 @@ pub fn c_pow(e: &Env, base: i128, exp: i128) -> Result<i128, Error> {
 
     let whole = c_floor(e, exp);
 
-    let remain = c_sub(e, exp, whole).unwrap();
+    let remain = c_sub(e, exp, whole).unwrap_optimized();
 
     let whole_pow = c_powi(e, base, c_toi(e, whole));
 
@@ -115,7 +115,7 @@ pub fn c_pow(e: &Env, base: i128, exp: i128) -> Result<i128, Error> {
     }
 
     let partial_result = c_pow_approx(e, base, remain, CPOW_PRECISION);
-    Ok(c_mul(e, whole_pow, partial_result).unwrap())
+    Ok(c_mul(e, whole_pow, partial_result).unwrap_optimized())
 }
 
 // Calculate approximate Power Value
@@ -127,10 +127,10 @@ pub fn c_pow_approx(e: &Env, base: i128, exp: i128, precision: i128) -> i128 {
     let mut negative = false;
     let mut i: i128 = 1;
     while term >= precision {
-        let big_k = i.checked_mul(BONE).unwrap();
-        let (c, cneg) = c_sub_sign(a, c_sub(e, big_k, BONE).unwrap());
-        term = c_mul(e, term, c_mul(e, c, x).unwrap()).unwrap();
-        term = c_div(e, term, big_k).unwrap();
+        let big_k = i.checked_mul(BONE).unwrap_optimized();
+        let (c, cneg) = c_sub_sign(a, c_sub(e, big_k, BONE).unwrap_optimized());
+        term = c_mul(e, term, c_mul(e, c, x).unwrap_optimized()).unwrap_optimized();
+        term = c_div(e, term, big_k).unwrap_optimized();
 
         if term == 0 {
             break;
@@ -145,12 +145,12 @@ pub fn c_pow_approx(e: &Env, base: i128, exp: i128, precision: i128) -> i128 {
         }
 
         if negative {
-            sum = c_sub(e, sum, term).unwrap();
+            sum = c_sub(e, sum, term).unwrap_optimized();
         } else {
-            sum = c_add(e, sum, term).unwrap();
+            sum = c_add(e, sum, term).unwrap_optimized();
         }
 
-        i = i.checked_add(1).unwrap();
+        i = i.checked_add(1).unwrap_optimized();
     }
 
     sum
