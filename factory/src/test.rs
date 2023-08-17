@@ -17,14 +17,14 @@ fn test_factory() {
     env.mock_all_auths();
     let client = FactoryClient::new(&env, &env.register_contract(None, Factory));
     let user = soroban_sdk::Address::random(&env);
-    client.init(&user);
     env.budget().reset_unlimited();
     let wasm_hash = env.deployer().upload_contract_wasm(contract::WASM);
-    // let salt = BytesN::from_array(&env, &[0; 32]);
+
+    client.init(&user, &wasm_hash);
 
     let pool_controller = soroban_sdk::Address::random(&env);
     let salt = BytesN::from_array(&env, &[0; 32]);
-    let contract_id = client.new_c_pool(&salt, &wasm_hash, &pool_controller);
+    let contract_id = client.new_c_pool(&salt, &pool_controller);
     assert_eq!(client.is_c_pool(&contract_id.clone()), true);
     let new_admin = soroban_sdk::Address::random(&env);
     client.set_c_admin(&user, &new_admin);
