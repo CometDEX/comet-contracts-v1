@@ -15,7 +15,7 @@ use super::{
         read_record, read_swap_fee, read_tokens, read_total_weight, write_record, write_tokens,
         write_total_weight,
     },
-    storage_types::{DataKey, Record},
+    storage_types::{DataKey, Record, BALANCE_BUMP_AMOUNT, SHARED_BUMP_AMOUNT},
     token_utility::{self, check_nonnegative_amount},
 };
 
@@ -213,7 +213,7 @@ impl CometPoolTrait for CometPoolContract {
         // Check if the Contract Storage is already initialized
         assert_with_error!(
             &e,
-            !e.storage().persistent().has(&DataKey::Factory),
+            !e.storage().instance().has(&DataKey::Factory),
             Error::AlreadyInitialized
         );
 
@@ -430,6 +430,7 @@ impl CometPoolTrait for CometPoolContract {
     // Absorbing tokens into the pool directly sent to the current contract
     fn gulp(e: Env, t: Address) {
         assert_with_error!(&e, check_record_bound(&e, t.clone()), Error::ErrNotBound);
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
         let mut records = read_record(&e);
 
         let mut rec = records.get(t.clone()).unwrap_optimized();
@@ -448,6 +449,7 @@ impl CometPoolTrait for CometPoolContract {
 
         user.require_auth();
 
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
         let pool_total = get_total_shares(&e);
         let ratio = c_add(&e, c_div(&e, pool_amount_out, pool_total).unwrap_optimized(), 1).unwrap_optimized();
 
@@ -493,6 +495,7 @@ impl CometPoolTrait for CometPoolContract {
     fn exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128>, user: Address) {
         assert_with_error!(&e, pool_amount_in >= 0, Error::ErrNegative);
 
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
         user.require_auth();
         assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
         let pool_total = get_total_shares(&e);
@@ -564,6 +567,8 @@ impl CometPoolTrait for CometPoolContract {
             check_record_bound(&e, token_out.clone()),
             Error::ErrNotBound
         );
+
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
 
         user.require_auth();
         let mut in_record = read_record(&e).get(token_in.clone()).unwrap_optimized();
@@ -668,6 +673,8 @@ impl CometPoolTrait for CometPoolContract {
             Error::ErrNotBound
         );
         assert_with_error!(&e, read_public_swap(&e), Error::ErrSwapNotPublic);
+
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
 
         user.require_auth();
         let mut in_record = read_record(&e).get(token_in.clone()).unwrap_optimized();
@@ -779,6 +786,9 @@ impl CometPoolTrait for CometPoolContract {
                 .unwrap_optimized(),
             Error::ErrMaxInRatio
         );
+
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+
         let mut in_record = read_record(&e).get(token_in.clone()).unwrap_optimized();
         let pool_amount_out = calc_lp_token_amount_given_token_deposits_in(
             &e,
@@ -833,6 +843,8 @@ impl CometPoolTrait for CometPoolContract {
             check_record_bound(&e, token_in.clone()),
             Error::ErrNotBound
         );
+
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
 
         let mut in_record: Record = read_record(&e).get(token_in.clone()).unwrap_optimized();
 
@@ -901,6 +913,8 @@ impl CometPoolTrait for CometPoolContract {
             check_record_bound(&e, token_out.clone()),
             Error::ErrNotBound
         );
+
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
 
         let mut out_record: Record = read_record(&e).get(token_out.clone()).unwrap_optimized();
 
@@ -984,6 +998,9 @@ impl CometPoolTrait for CometPoolContract {
                 .unwrap_optimized(),
             Error::ErrMaxOutRatio
         );
+
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+
         let mut out_record: Record = read_record(&e).get(token_out.clone()).unwrap_optimized();
         let pool_amount_in = calc_lp_token_amount_given_token_withdrawal_amount(
             &e,
@@ -1176,21 +1193,22 @@ impl CometPoolTrait for CometPoolContract {
         write_symbol(&e, symbol);
     }
 
+    // TODO: Update allowance, incr_allow, and decr_allow to new token interface
     // Check the allowance of the spender approved by the 'from' address
     fn allowance(e: Env, from: Address, spender: Address) -> i128 {
-        read_allowance(&e, from, spender)
+        read_allowance(&e, from, spender).amount
     }
 
     // Increment the allowance for the spender approved by the 'from' address
     fn incr_allow(e: Env, from: Address, spender: Address, amount: i128) {
         from.require_auth();
         check_nonnegative_amount(&e, amount);
-        let allowance = read_allowance(&e, from.clone(), spender.clone());
+        let allowance = read_allowance(&e, from.clone(), spender.clone()).amount;
         let new_allowance = allowance
             .checked_add(amount)
             .expect("Updated allowance doesn't fit in an i128");
 
-        write_allowance(&e, from.clone(), spender.clone(), new_allowance);
+        write_allowance(&e, from.clone(), spender.clone(), new_allowance, BALANCE_BUMP_AMOUNT);
         incr_allow_event(&e, from, spender, amount);
     }
 
@@ -1201,10 +1219,10 @@ impl CometPoolTrait for CometPoolContract {
         check_nonnegative_amount(&e, amount);
 
         let allowance = read_allowance(&e, from.clone(), spender.clone());
-        if amount >= allowance {
-            write_allowance(&e, from.clone(), spender.clone(), 0);
+        if amount >= allowance.amount {
+            write_allowance(&e, from.clone(), spender.clone(), 0, allowance.expiration_ledger);
         } else {
-            write_allowance(&e, from.clone(), spender.clone(), allowance - amount);
+            write_allowance(&e, from.clone(), spender.clone(), allowance.amount - amount, allowance.expiration_ledger);
         }
         decr_allow_event(&e, from, spender, amount);
     }
@@ -1226,6 +1244,7 @@ impl CometPoolTrait for CometPoolContract {
 
     // Tranfer the LP Token
     fn xfer(e: Env, from: Address, to: Address, amount: i128) {
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
         from.require_auth();
         check_nonnegative_amount(&e, amount);
         spend_balance(&e, from.clone(), amount);
@@ -1235,6 +1254,7 @@ impl CometPoolTrait for CometPoolContract {
 
     // Transfrom 'from' address to 'to' address by the 'spender' address
     fn xfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128) {
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
         spender.require_auth();
         check_nonnegative_amount(&e, amount);
         spend_allowance(&e, from.clone(), spender, amount);
@@ -1245,6 +1265,7 @@ impl CometPoolTrait for CometPoolContract {
 
     // Burn the LP Token from the wallet
     fn burn(e: Env, from: Address, amount: i128) {
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
         from.require_auth();
         check_nonnegative_amount(&e, amount);
         spend_balance(&e, from.clone(), amount);
@@ -1253,6 +1274,7 @@ impl CometPoolTrait for CometPoolContract {
 
     // Helps the spender burn the LP Token from 'from' Address
     fn burn_from(e: Env, spender: Address, from: Address, amount: i128) {
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
         spender.require_auth();
         check_nonnegative_amount(&e, amount);
         spend_allowance(&e, from.clone(), spender, amount);

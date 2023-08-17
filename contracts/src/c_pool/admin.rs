@@ -8,19 +8,19 @@ use soroban_sdk::{panic_with_error, Address, Env, unwrap::UnwrapOptimized};
 // Return true if the Admin of the LP token is set, else false
 pub fn has_administrator(e: &Env) -> bool {
     let key = DataKeyToken::Admin;
-    e.storage().persistent().has(&key)
+    e.storage().instance().has(&key)
 }
 
 // Read the Administrator of the LP Token
 fn read_administrator(e: &Env) -> Address {
     let key = DataKeyToken::Admin;
-    e.storage().persistent().get::<DataKeyToken, Address>(&key).unwrap_optimized()
+    e.storage().instance().get::<DataKeyToken, Address>(&key).unwrap_optimized()
 }
 
 // Write the Administrator of the LP Token
 pub fn write_administrator(e: &Env, id: &Address) {
     let key = DataKeyToken::Admin;
-    e.storage().persistent().set(&key, id);
+    e.storage().instance().set(&key, id);
 }
 
 // Check if the provided address matches the actual admin
