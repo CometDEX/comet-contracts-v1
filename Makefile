@@ -4,7 +4,8 @@ test: build
 	cargo test --all --tests
 
 build:
-	soroban contract build
+	cargo rustc --manifest-path=factory/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release
+	cargo rustc --manifest-path=contracts/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release
 	mkdir -p target/wasm32-unknown-unknown/optimized
 	soroban contract optimize \
 		--wasm target/wasm32-unknown-unknown/release/contracts.wasm \
