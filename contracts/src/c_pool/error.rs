@@ -1,7 +1,7 @@
 use soroban_sdk::contracterror;
 
 #[contracterror]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u32)]
 pub enum Error {
     ErrFinalized = 1,
@@ -39,4 +39,5 @@ pub enum Error {
     ErrMulOverflow = 33,
     ErrCPowBaseTooLow = 34,
     ErrCPowBaseTooHigh = 35,
+    ErrInvalidExpirationLedger = 36,
 }

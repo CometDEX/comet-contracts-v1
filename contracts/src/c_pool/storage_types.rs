@@ -1,6 +1,9 @@
 //! Declaration of the Storage Keys
 use soroban_sdk::{contracttype, Address, Map, Vec};
+
+pub(crate) const SHARED_BUMP_AMOUNT: u32 = 69120; // 4 days
 pub(crate) const BALANCE_BUMP_AMOUNT: u32 = 518400; // 30 days
+
 // Token Details Struct
 #[contracttype]
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
@@ -47,4 +50,10 @@ pub enum DataKeyToken {
 pub struct AllowanceDataKey {
     pub from: Address,
     pub spender: Address,
+}
+
+#[contracttype]
+pub struct AllowanceValue {
+    pub amount: i128,
+    pub expiration_ledger: u32,
 }

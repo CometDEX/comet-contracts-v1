@@ -3,6 +3,7 @@ extern crate std;
 use std::println;
 
 use soroban_sdk::Env;
+use soroban_sdk::unwrap::UnwrapOptimized;
 
 use crate::c_num::c_add;    
 use crate::c_num::c_div;
@@ -15,7 +16,7 @@ use crate::c_pool::error::Error;
 fn test_c_add_overflow() {
     let env: Env = Env::default();
     assert_eq!(
-        c_add(&env, 1, i128::MAX).err().unwrap(),
+        c_add(&env, 1, i128::MAX).err().unwrap_optimized(),
         Error::ErrAddOverflow
     );
 }
@@ -23,14 +24,14 @@ fn test_c_add_overflow() {
 #[test]
 fn test_c_sub_underflow() {
     let env: Env = Env::default();
-    assert_eq!(c_sub(&env, 1, 2).err().unwrap(), Error::ErrSubUnderflow);
+    assert_eq!(c_sub(&env, 1, 2).err().unwrap_optimized(), Error::ErrSubUnderflow);
 }
 
 #[test]
 fn test_c_mul_overflow() {
     let env: Env = Env::default();
     assert_eq!(
-        c_mul(&env, 2, i128::MAX).err().unwrap(),
+        c_mul(&env, 2, i128::MAX).err().unwrap_optimized(),
         Error::ErrMulOverflow
     );
 }
@@ -38,20 +39,20 @@ fn test_c_mul_overflow() {
 #[test]
 fn test_c_div_error_on_div_by_zero() {
     let env: Env = Env::default();
-    assert_eq!(c_div(&env, 1, 0).err().unwrap(), Error::ErrDivInternal);
+    assert_eq!(c_div(&env, 1, 0).err().unwrap_optimized(), Error::ErrDivInternal);
 }
 
 #[test]
 fn test_c_pow() {
     let env: Env = Env::default();
-    assert_eq!(c_pow(&env, 0, 2).err().unwrap(), Error::ErrCPowBaseTooLow)
+    assert_eq!(c_pow(&env, 0, 2).err().unwrap_optimized(), Error::ErrCPowBaseTooLow)
 }
 
 #[test]
 fn test_c_pow_high() {
     let env: Env = Env::default();
     assert_eq!(
-        c_pow(&env, i128::MAX, 2).err().unwrap(),
+        c_pow(&env, i128::MAX, 2).err().unwrap_optimized(),
         Error::ErrCPowBaseTooHigh
     );
 }
