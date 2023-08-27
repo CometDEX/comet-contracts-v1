@@ -1076,7 +1076,7 @@ export async function isBound<R extends ResponseTypes = undefined>({t}: {t: Addr
     });
 }
 
-export async function initialize<R extends ResponseTypes = undefined>({admin, decimal, name, symbol}: {admin: Address, decimal: u32, name: Buffer, symbol: Buffer}, options: {
+export async function initialize<R extends ResponseTypes = undefined>({admin, decimal, name, symbol}: {admin: Address, decimal: u32, name: string, symbol: string}, options: {
   /**
    * The fee to pay for the transaction. Default: 100.
    */
@@ -1098,8 +1098,8 @@ export async function initialize<R extends ResponseTypes = undefined>({admin, de
         method: 'initialize',
         args: [((i) => addressToScVal(i))(admin),
         ((i) => xdr.ScVal.scvU32(i))(decimal),
-        ((i) => xdr.ScVal.scvBytes(i))(name),
-        ((i) => xdr.ScVal.scvBytes(i))(symbol)],
+        ((i) => xdr.ScVal.scvString(i))(name),
+        ((i) => xdr.ScVal.scvString(i))(symbol)],
         ...options,
         parseResultXdr: () => {},
     });
@@ -1134,7 +1134,7 @@ export async function allowance<R extends ResponseTypes = undefined>({from, spen
     });
 }
 
-export async function incrAllow<R extends ResponseTypes = undefined>({from, spender, amount}: {from: Address, spender: Address, amount: i128}, options: {
+export async function approve<R extends ResponseTypes = undefined>({from, spender, amount, expiration_ledger}: {from: Address, spender: Address, amount: i128, expiration_ledger: u32}, options: {
   /**
    * The fee to pay for the transaction. Default: 100.
    */
@@ -1153,38 +1153,11 @@ export async function incrAllow<R extends ResponseTypes = undefined>({from, spen
   secondsToWait?: number
 } = {}) {
     return await invoke({
-        method: 'incr_allow',
+        method: 'approve',
         args: [((i) => addressToScVal(i))(from),
         ((i) => addressToScVal(i))(spender),
-        ((i) => i128ToScVal(i))(amount)],
-        ...options,
-        parseResultXdr: () => {},
-    });
-}
-
-export async function decrAllow<R extends ResponseTypes = undefined>({from, spender, amount}: {from: Address, spender: Address, amount: i128}, options: {
-  /**
-   * The fee to pay for the transaction. Default: 100.
-   */
-  fee?: number
-  /**
-   * What type of response to return.
-   *
-   *   - `undefined`, the default, parses the returned XDR as `void`. Runs preflight, checks to see if auth/signing is required, and sends the transaction if so. If there's no error and `secondsToWait` is positive, awaits the finalized transaction.
-   *   - `'simulated'` will only simulate/preflight the transaction, even if it's a change/set method that requires auth/signing. Returns full preflight info.
-   *   - `'full'` return the full RPC response, meaning either 1. the preflight info, if it's a view/read method that doesn't require auth/signing, or 2. the `sendTransaction` response, if there's a problem with sending the transaction or if you set `secondsToWait` to 0, or 3. the `getTransaction` response, if it's a change method with no `sendTransaction` errors and a positive `secondsToWait`.
-   */
-  responseType?: R
-  /**
-   * If the simulation shows that this invocation requires auth/signing, `invoke` will wait `secondsToWait` seconds for the transaction to complete before giving up and returning the incomplete {@link SorobanClient.SorobanRpc.GetTransactionResponse} results (or attempting to parse their probably-missing XDR with `parseResultXdr`, depending on `responseType`). Set this to `0` to skip waiting altogether, which will return you {@link SorobanClient.SorobanRpc.SendTransactionResponse} more quickly, before the transaction has time to be included in the ledger. Default: 10.
-   */
-  secondsToWait?: number
-} = {}) {
-    return await invoke({
-        method: 'decr_allow',
-        args: [((i) => addressToScVal(i))(from),
-        ((i) => addressToScVal(i))(spender),
-        ((i) => i128ToScVal(i))(amount)],
+        ((i) => i128ToScVal(i))(amount),
+        ((i) => xdr.ScVal.scvU32(i))(expiration_ledger)],
         ...options,
         parseResultXdr: () => {},
     });
@@ -1218,7 +1191,7 @@ export async function balance<R extends ResponseTypes = undefined>({id}: {id: Ad
     });
 }
 
-export async function spendable<R extends ResponseTypes = undefined>({id}: {id: Address}, options: {
+export async function spendableBalance<R extends ResponseTypes = undefined>({id}: {id: Address}, options: {
   /**
    * The fee to pay for the transaction. Default: 100.
    */
@@ -1237,7 +1210,7 @@ export async function spendable<R extends ResponseTypes = undefined>({id}: {id: 
   secondsToWait?: number
 } = {}) {
     return await invoke({
-        method: 'spendable',
+        method: 'spendable_balance',
         args: [((i) => addressToScVal(i))(id)],
         ...options,
         parseResultXdr: (xdr): i128 => {
@@ -1274,7 +1247,7 @@ export async function authorized<R extends ResponseTypes = undefined>({id}: {id:
     });
 }
 
-export async function xfer<R extends ResponseTypes = undefined>({from, to, amount}: {from: Address, to: Address, amount: i128}, options: {
+export async function transfer<R extends ResponseTypes = undefined>({from, to, amount}: {from: Address, to: Address, amount: i128}, options: {
   /**
    * The fee to pay for the transaction. Default: 100.
    */
@@ -1293,7 +1266,7 @@ export async function xfer<R extends ResponseTypes = undefined>({from, to, amoun
   secondsToWait?: number
 } = {}) {
     return await invoke({
-        method: 'xfer',
+        method: 'transfer',
         args: [((i) => addressToScVal(i))(from),
         ((i) => addressToScVal(i))(to),
         ((i) => i128ToScVal(i))(amount)],
@@ -1302,7 +1275,7 @@ export async function xfer<R extends ResponseTypes = undefined>({from, to, amoun
     });
 }
 
-export async function xferFrom<R extends ResponseTypes = undefined>({spender, from, to, amount}: {spender: Address, from: Address, to: Address, amount: i128}, options: {
+export async function transferFrom<R extends ResponseTypes = undefined>({spender, from, to, amount}: {spender: Address, from: Address, to: Address, amount: i128}, options: {
   /**
    * The fee to pay for the transaction. Default: 100.
    */
@@ -1321,7 +1294,7 @@ export async function xferFrom<R extends ResponseTypes = undefined>({spender, fr
   secondsToWait?: number
 } = {}) {
     return await invoke({
-        method: 'xfer_from',
+        method: 'transfer_from',
         args: [((i) => addressToScVal(i))(spender),
         ((i) => addressToScVal(i))(from),
         ((i) => addressToScVal(i))(to),
@@ -1386,7 +1359,7 @@ export async function burnFrom<R extends ResponseTypes = undefined>({spender, fr
     });
 }
 
-export async function clawback<R extends ResponseTypes = undefined>({admin, from, amount}: {admin: Address, from: Address, amount: i128}, options: {
+export async function clawback<R extends ResponseTypes = undefined>({from, amount}: {from: Address, amount: i128}, options: {
   /**
    * The fee to pay for the transaction. Default: 100.
    */
@@ -1406,15 +1379,14 @@ export async function clawback<R extends ResponseTypes = undefined>({admin, from
 } = {}) {
     return await invoke({
         method: 'clawback',
-        args: [((i) => addressToScVal(i))(admin),
-        ((i) => addressToScVal(i))(from),
+        args: [((i) => addressToScVal(i))(from),
         ((i) => i128ToScVal(i))(amount)],
         ...options,
         parseResultXdr: () => {},
     });
 }
 
-export async function setAuth<R extends ResponseTypes = undefined>({admin, id, authorize}: {admin: Address, id: Address, authorize: boolean}, options: {
+export async function setAuthorized<R extends ResponseTypes = undefined>({id, authorize}: {id: Address, authorize: boolean}, options: {
   /**
    * The fee to pay for the transaction. Default: 100.
    */
@@ -1433,16 +1405,15 @@ export async function setAuth<R extends ResponseTypes = undefined>({admin, id, a
   secondsToWait?: number
 } = {}) {
     return await invoke({
-        method: 'set_auth',
-        args: [((i) => addressToScVal(i))(admin),
-        ((i) => addressToScVal(i))(id),
+        method: 'set_authorized',
+        args: [((i) => addressToScVal(i))(id),
         ((i) => xdr.ScVal.scvBool(i))(authorize)],
         ...options,
         parseResultXdr: () => {},
     });
 }
 
-export async function mint<R extends ResponseTypes = undefined>({admin, to, amount}: {admin: Address, to: Address, amount: i128}, options: {
+export async function mint<R extends ResponseTypes = undefined>({to, amount}: {to: Address, amount: i128}, options: {
   /**
    * The fee to pay for the transaction. Default: 100.
    */
@@ -1462,15 +1433,14 @@ export async function mint<R extends ResponseTypes = undefined>({admin, to, amou
 } = {}) {
     return await invoke({
         method: 'mint',
-        args: [((i) => addressToScVal(i))(admin),
-        ((i) => addressToScVal(i))(to),
+        args: [((i) => addressToScVal(i))(to),
         ((i) => i128ToScVal(i))(amount)],
         ...options,
         parseResultXdr: () => {},
     });
 }
 
-export async function setAdmin<R extends ResponseTypes = undefined>({admin, new_admin}: {admin: Address, new_admin: Address}, options: {
+export async function setAdmin<R extends ResponseTypes = undefined>({new_admin}: {new_admin: Address}, options: {
   /**
    * The fee to pay for the transaction. Default: 100.
    */
@@ -1490,8 +1460,7 @@ export async function setAdmin<R extends ResponseTypes = undefined>({admin, new_
 } = {}) {
     return await invoke({
         method: 'set_admin',
-        args: [((i) => addressToScVal(i))(admin),
-        ((i) => addressToScVal(i))(new_admin)],
+        args: [((i) => addressToScVal(i))(new_admin)],
         ...options,
         parseResultXdr: () => {},
     });
@@ -1532,7 +1501,7 @@ export async function name<R extends ResponseTypes = undefined>(options: {
   /**
    * What type of response to return.
    *
-   *   - `undefined`, the default, parses the returned XDR as `Buffer`. Runs preflight, checks to see if auth/signing is required, and sends the transaction if so. If there's no error and `secondsToWait` is positive, awaits the finalized transaction.
+   *   - `undefined`, the default, parses the returned XDR as `string`. Runs preflight, checks to see if auth/signing is required, and sends the transaction if so. If there's no error and `secondsToWait` is positive, awaits the finalized transaction.
    *   - `'simulated'` will only simulate/preflight the transaction, even if it's a change/set method that requires auth/signing. Returns full preflight info.
    *   - `'full'` return the full RPC response, meaning either 1. the preflight info, if it's a view/read method that doesn't require auth/signing, or 2. the `sendTransaction` response, if there's a problem with sending the transaction or if you set `secondsToWait` to 0, or 3. the `getTransaction` response, if it's a change method with no `sendTransaction` errors and a positive `secondsToWait`.
    */
@@ -1545,7 +1514,7 @@ export async function name<R extends ResponseTypes = undefined>(options: {
     return await invoke({
         method: 'name',
         ...options,
-        parseResultXdr: (xdr): Buffer => {
+        parseResultXdr: (xdr): string => {
             return scValStrToJs(xdr);
         },
     });
@@ -1559,7 +1528,7 @@ export async function symbol<R extends ResponseTypes = undefined>(options: {
   /**
    * What type of response to return.
    *
-   *   - `undefined`, the default, parses the returned XDR as `Buffer`. Runs preflight, checks to see if auth/signing is required, and sends the transaction if so. If there's no error and `secondsToWait` is positive, awaits the finalized transaction.
+   *   - `undefined`, the default, parses the returned XDR as `string`. Runs preflight, checks to see if auth/signing is required, and sends the transaction if so. If there's no error and `secondsToWait` is positive, awaits the finalized transaction.
    *   - `'simulated'` will only simulate/preflight the transaction, even if it's a change/set method that requires auth/signing. Returns full preflight info.
    *   - `'full'` return the full RPC response, meaning either 1. the preflight info, if it's a view/read method that doesn't require auth/signing, or 2. the `sendTransaction` response, if there's a problem with sending the transaction or if you set `secondsToWait` to 0, or 3. the `getTransaction` response, if it's a change method with no `sendTransaction` errors and a positive `secondsToWait`.
    */
@@ -1572,7 +1541,7 @@ export async function symbol<R extends ResponseTypes = undefined>(options: {
     return await invoke({
         method: 'symbol',
         ...options,
-        parseResultXdr: (xdr): Buffer => {
+        parseResultXdr: (xdr): string => {
             return scValStrToJs(xdr);
         },
     });
@@ -1774,7 +1743,7 @@ function DataKeyFromXdr(base64Xdr: string): DataKey {
     return { tag, values } as DataKey;
 }
 
-export type DataKeyToken = {tag: "Allowance", values: [AllowanceDataKey]} | {tag: "Balance", values: [Address]} | {tag: "Nonce", values: [Address]} | {tag: "State", values: [Address]} | {tag: "Admin", values: void} | {tag: "Decimals", values: void} | {tag: "Name", values: void} | {tag: "Symbol", values: void};
+export type DataKeyToken = {tag: "Allowance", values: [AllowanceDataKey]} | {tag: "Balance", values: [Address]} | {tag: "Nonce", values: [Address]} | {tag: "State", values: [Address]} | {tag: "Admin", values: void};
 
 function DataKeyTokenToXdr(dataKeyToken?: DataKeyToken): xdr.ScVal {
     if (!dataKeyToken) {
@@ -1800,15 +1769,6 @@ function DataKeyTokenToXdr(dataKeyToken?: DataKeyToken): xdr.ScVal {
             break;
     case "Admin":
             res.push(((i) => xdr.ScVal.scvSymbol(i))("Admin"));
-            break;
-    case "Decimals":
-            res.push(((i) => xdr.ScVal.scvSymbol(i))("Decimals"));
-            break;
-    case "Name":
-            res.push(((i) => xdr.ScVal.scvSymbol(i))("Name"));
-            break;
-    case "Symbol":
-            res.push(((i) => xdr.ScVal.scvSymbol(i))("Symbol"));
             break;  
     }
     return xdr.ScVal.scvVec(res);
@@ -1854,6 +1814,36 @@ function AllowanceDataKeyFromXdr(base64Xdr: string): AllowanceDataKey {
     };
 }
 
+export interface AllowanceValue {
+  amount: i128;
+  expiration_ledger: u32;
+}
+
+function AllowanceValueToXdr(allowanceValue?: AllowanceValue): xdr.ScVal {
+    if (!allowanceValue) {
+        return xdr.ScVal.scvVoid();
+    }
+    let arr = [
+        new xdr.ScMapEntry({key: ((i)=>xdr.ScVal.scvSymbol(i))("amount"), val: ((i)=>i128ToScVal(i))(allowanceValue["amount"])}),
+        new xdr.ScMapEntry({key: ((i)=>xdr.ScVal.scvSymbol(i))("expiration_ledger"), val: ((i)=>xdr.ScVal.scvU32(i))(allowanceValue["expiration_ledger"])})
+        ];
+    return xdr.ScVal.scvMap(arr);
+}
+
+
+function AllowanceValueFromXdr(base64Xdr: string): AllowanceValue {
+    let scVal = strToScVal(base64Xdr);
+    let obj: [string, any][] = scVal.map()!.map(e => [e.key().str() as string, e.val()]);
+    let map = new Map<string, any>(obj);
+    if (!obj) {
+        throw new Error('Invalid XDR');
+    }
+    return {
+        amount: scValToJs(map.get("amount")) as unknown as i128,
+        expiration_ledger: scValToJs(map.get("expiration_ledger")) as unknown as u32
+    };
+}
+
 const Errors = [ 
 {message:""},
   {message:""},
@@ -1889,5 +1879,38 @@ const Errors = [
   {message:""},
   {message:""},
   {message:""},
+  {message:""},
   {message:""}
 ]
+export interface TokenMetadata {
+  decimal: u32;
+  name: string;
+  symbol: string;
+}
+
+function TokenMetadataToXdr(tokenMetadata?: TokenMetadata): xdr.ScVal {
+    if (!tokenMetadata) {
+        return xdr.ScVal.scvVoid();
+    }
+    let arr = [
+        new xdr.ScMapEntry({key: ((i)=>xdr.ScVal.scvSymbol(i))("decimal"), val: ((i)=>xdr.ScVal.scvU32(i))(tokenMetadata["decimal"])}),
+        new xdr.ScMapEntry({key: ((i)=>xdr.ScVal.scvSymbol(i))("name"), val: ((i)=>xdr.ScVal.scvString(i))(tokenMetadata["name"])}),
+        new xdr.ScMapEntry({key: ((i)=>xdr.ScVal.scvSymbol(i))("symbol"), val: ((i)=>xdr.ScVal.scvString(i))(tokenMetadata["symbol"])})
+        ];
+    return xdr.ScVal.scvMap(arr);
+}
+
+
+function TokenMetadataFromXdr(base64Xdr: string): TokenMetadata {
+    let scVal = strToScVal(base64Xdr);
+    let obj: [string, any][] = scVal.map()!.map(e => [e.key().str() as string, e.val()]);
+    let map = new Map<string, any>(obj);
+    if (!obj) {
+        throw new Error('Invalid XDR');
+    }
+    return {
+        decimal: scValToJs(map.get("decimal")) as unknown as u32,
+        name: scValToJs(map.get("name")) as unknown as string,
+        symbol: scValToJs(map.get("symbol")) as unknown as string
+    };
+}

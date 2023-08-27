@@ -9,7 +9,7 @@ pub mod balance;
 // Pool Contract + LP Token Module
 pub mod comet;
 // Events Module
-pub mod events;
+pub mod event;
 // Contract Storage Read and Write Module
 pub mod metadata;
 // Definition of the DataKeys for the Contract's Storage

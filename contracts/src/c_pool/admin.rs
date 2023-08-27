@@ -12,7 +12,7 @@ pub fn has_administrator(e: &Env) -> bool {
 }
 
 // Read the Administrator of the LP Token
-fn read_administrator(e: &Env) -> Address {
+pub fn read_administrator(e: &Env) -> Address {
     let key = DataKeyToken::Admin;
     e.storage().instance().get::<DataKeyToken, Address>(&key).unwrap_optimized()
 }

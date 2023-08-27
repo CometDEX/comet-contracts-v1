@@ -40,9 +40,6 @@ pub enum DataKeyToken {
     Nonce(Address),
     State(Address),
     Admin,
-    Decimals,
-    Name,
-    Symbol,
 }
 
 #[derive(Clone)]

@@ -14,8 +14,8 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.setAuth = exports.clawback = exports.burnFrom = exports.burn = exports.xferFrom = exports.xfer = exports.authorized = exports.spendable = exports.balance = exports.decrAllow = exports.incrAllow = exports.allowance = exports.initialize = exports.isBound = exports.isFinalized = exports.isPublicSwap = exports.shareId = exports.getSpotPriceSansFee = exports.getSwapFee = exports.getSpotPrice = exports.getNormalizedWeight = exports.getDenormalizedWeight = exports.getBalance = exports.getFinalTokens = exports.getCurrentTokens = exports.getNumTokens = exports.getTotalDenormalizedWeight = exports.getController = exports.getTotalSupply = exports.setFreezeStatus = exports.setPublicSwap = exports.setController = exports.setSwapFee = exports.wdrToknAmtOutGetLpToknsIn = exports.wdrToknAmtInGetLpToknsOut = exports.depLpToknAmtOutGetToknIn = exports.depToknAmtInGetLpToknsOut = exports.swapExactAmountOut = exports.swapExactAmountIn = exports.exitPool = exports.joinPool = exports.gulp = exports.finalize = exports.unbind = exports.rebind = exports.bind = exports.bundleBind = exports.init = exports.Err = exports.Ok = void 0;
-exports.symbol = exports.name = exports.decimals = exports.setAdmin = exports.mint = void 0;
+exports.mint = exports.setAuthorized = exports.clawback = exports.burnFrom = exports.burn = exports.transferFrom = exports.transfer = exports.authorized = exports.spendableBalance = exports.balance = exports.approve = exports.allowance = exports.initialize = exports.isBound = exports.isFinalized = exports.isPublicSwap = exports.shareId = exports.getSpotPriceSansFee = exports.getSwapFee = exports.getSpotPrice = exports.getNormalizedWeight = exports.getDenormalizedWeight = exports.getBalance = exports.getFinalTokens = exports.getCurrentTokens = exports.getNumTokens = exports.getTotalDenormalizedWeight = exports.getController = exports.getTotalSupply = exports.setFreezeStatus = exports.setPublicSwap = exports.setController = exports.setSwapFee = exports.wdrToknAmtOutGetLpToknsIn = exports.wdrToknAmtInGetLpToknsOut = exports.depLpToknAmtOutGetToknIn = exports.depToknAmtInGetLpToknsOut = exports.swapExactAmountOut = exports.swapExactAmountIn = exports.exitPool = exports.joinPool = exports.gulp = exports.finalize = exports.unbind = exports.rebind = exports.bind = exports.bundleBind = exports.init = exports.Err = exports.Ok = void 0;
+exports.symbol = exports.name = exports.decimals = exports.setAdmin = void 0;
 const soroban_client_1 = require("soroban-client");
 const buffer_1 = require("buffer");
 const convert_js_1 = require("./convert.js");
@@ -478,8 +478,8 @@ async function initialize({ admin, decimal, name, symbol }, options = {}) {
         method: 'initialize',
         args: [((i) => (0, convert_js_1.addressToScVal)(i))(admin),
             ((i) => soroban_client_1.xdr.ScVal.scvU32(i))(decimal),
-            ((i) => soroban_client_1.xdr.ScVal.scvBytes(i))(name),
-            ((i) => soroban_client_1.xdr.ScVal.scvBytes(i))(symbol)],
+            ((i) => soroban_client_1.xdr.ScVal.scvString(i))(name),
+            ((i) => soroban_client_1.xdr.ScVal.scvString(i))(symbol)],
         ...options,
         parseResultXdr: () => { },
     });
@@ -497,28 +497,18 @@ async function allowance({ from, spender }, options = {}) {
     });
 }
 exports.allowance = allowance;
-async function incrAllow({ from, spender, amount }, options = {}) {
+async function approve({ from, spender, amount, expiration_ledger }, options = {}) {
     return await (0, invoke_js_1.invoke)({
-        method: 'incr_allow',
+        method: 'approve',
         args: [((i) => (0, convert_js_1.addressToScVal)(i))(from),
             ((i) => (0, convert_js_1.addressToScVal)(i))(spender),
-            ((i) => (0, convert_js_1.i128ToScVal)(i))(amount)],
+            ((i) => (0, convert_js_1.i128ToScVal)(i))(amount),
+            ((i) => soroban_client_1.xdr.ScVal.scvU32(i))(expiration_ledger)],
         ...options,
         parseResultXdr: () => { },
     });
 }
-exports.incrAllow = incrAllow;
-async function decrAllow({ from, spender, amount }, options = {}) {
-    return await (0, invoke_js_1.invoke)({
-        method: 'decr_allow',
-        args: [((i) => (0, convert_js_1.addressToScVal)(i))(from),
-            ((i) => (0, convert_js_1.addressToScVal)(i))(spender),
-            ((i) => (0, convert_js_1.i128ToScVal)(i))(amount)],
-        ...options,
-        parseResultXdr: () => { },
-    });
-}
-exports.decrAllow = decrAllow;
+exports.approve = approve;
 async function balance({ id }, options = {}) {
     return await (0, invoke_js_1.invoke)({
         method: 'balance',
@@ -530,9 +520,9 @@ async function balance({ id }, options = {}) {
     });
 }
 exports.balance = balance;
-async function spendable({ id }, options = {}) {
+async function spendableBalance({ id }, options = {}) {
     return await (0, invoke_js_1.invoke)({
-        method: 'spendable',
+        method: 'spendable_balance',
         args: [((i) => (0, convert_js_1.addressToScVal)(i))(id)],
         ...options,
         parseResultXdr: (xdr) => {
@@ -540,7 +530,7 @@ async function spendable({ id }, options = {}) {
         },
     });
 }
-exports.spendable = spendable;
+exports.spendableBalance = spendableBalance;
 async function authorized({ id }, options = {}) {
     return await (0, invoke_js_1.invoke)({
         method: 'authorized',
@@ -552,9 +542,9 @@ async function authorized({ id }, options = {}) {
     });
 }
 exports.authorized = authorized;
-async function xfer({ from, to, amount }, options = {}) {
+async function transfer({ from, to, amount }, options = {}) {
     return await (0, invoke_js_1.invoke)({
-        method: 'xfer',
+        method: 'transfer',
         args: [((i) => (0, convert_js_1.addressToScVal)(i))(from),
             ((i) => (0, convert_js_1.addressToScVal)(i))(to),
             ((i) => (0, convert_js_1.i128ToScVal)(i))(amount)],
@@ -562,10 +552,10 @@ async function xfer({ from, to, amount }, options = {}) {
         parseResultXdr: () => { },
     });
 }
-exports.xfer = xfer;
-async function xferFrom({ spender, from, to, amount }, options = {}) {
+exports.transfer = transfer;
+async function transferFrom({ spender, from, to, amount }, options = {}) {
     return await (0, invoke_js_1.invoke)({
-        method: 'xfer_from',
+        method: 'transfer_from',
         args: [((i) => (0, convert_js_1.addressToScVal)(i))(spender),
             ((i) => (0, convert_js_1.addressToScVal)(i))(from),
             ((i) => (0, convert_js_1.addressToScVal)(i))(to),
@@ -574,7 +564,7 @@ async function xferFrom({ spender, from, to, amount }, options = {}) {
         parseResultXdr: () => { },
     });
 }
-exports.xferFrom = xferFrom;
+exports.transferFrom = transferFrom;
 async function burn({ from, amount }, options = {}) {
     return await (0, invoke_js_1.invoke)({
         method: 'burn',
@@ -596,44 +586,40 @@ async function burnFrom({ spender, from, amount }, options = {}) {
     });
 }
 exports.burnFrom = burnFrom;
-async function clawback({ admin, from, amount }, options = {}) {
+async function clawback({ from, amount }, options = {}) {
     return await (0, invoke_js_1.invoke)({
         method: 'clawback',
-        args: [((i) => (0, convert_js_1.addressToScVal)(i))(admin),
-            ((i) => (0, convert_js_1.addressToScVal)(i))(from),
+        args: [((i) => (0, convert_js_1.addressToScVal)(i))(from),
             ((i) => (0, convert_js_1.i128ToScVal)(i))(amount)],
         ...options,
         parseResultXdr: () => { },
     });
 }
 exports.clawback = clawback;
-async function setAuth({ admin, id, authorize }, options = {}) {
+async function setAuthorized({ id, authorize }, options = {}) {
     return await (0, invoke_js_1.invoke)({
-        method: 'set_auth',
-        args: [((i) => (0, convert_js_1.addressToScVal)(i))(admin),
-            ((i) => (0, convert_js_1.addressToScVal)(i))(id),
+        method: 'set_authorized',
+        args: [((i) => (0, convert_js_1.addressToScVal)(i))(id),
             ((i) => soroban_client_1.xdr.ScVal.scvBool(i))(authorize)],
         ...options,
         parseResultXdr: () => { },
     });
 }
-exports.setAuth = setAuth;
-async function mint({ admin, to, amount }, options = {}) {
+exports.setAuthorized = setAuthorized;
+async function mint({ to, amount }, options = {}) {
     return await (0, invoke_js_1.invoke)({
         method: 'mint',
-        args: [((i) => (0, convert_js_1.addressToScVal)(i))(admin),
-            ((i) => (0, convert_js_1.addressToScVal)(i))(to),
+        args: [((i) => (0, convert_js_1.addressToScVal)(i))(to),
             ((i) => (0, convert_js_1.i128ToScVal)(i))(amount)],
         ...options,
         parseResultXdr: () => { },
     });
 }
 exports.mint = mint;
-async function setAdmin({ admin, new_admin }, options = {}) {
+async function setAdmin({ new_admin }, options = {}) {
     return await (0, invoke_js_1.invoke)({
         method: 'set_admin',
-        args: [((i) => (0, convert_js_1.addressToScVal)(i))(admin),
-            ((i) => (0, convert_js_1.addressToScVal)(i))(new_admin)],
+        args: [((i) => (0, convert_js_1.addressToScVal)(i))(new_admin)],
         ...options,
         parseResultXdr: () => { },
     });
@@ -845,15 +831,6 @@ function DataKeyTokenToXdr(dataKeyToken) {
         case "Admin":
             res.push(((i) => soroban_client_1.xdr.ScVal.scvSymbol(i))("Admin"));
             break;
-        case "Decimals":
-            res.push(((i) => soroban_client_1.xdr.ScVal.scvSymbol(i))("Decimals"));
-            break;
-        case "Name":
-            res.push(((i) => soroban_client_1.xdr.ScVal.scvSymbol(i))("Name"));
-            break;
-        case "Symbol":
-            res.push(((i) => soroban_client_1.xdr.ScVal.scvSymbol(i))("Symbol"));
-            break;
     }
     return soroban_client_1.xdr.ScVal.scvVec(res);
 }
@@ -884,6 +861,28 @@ function AllowanceDataKeyFromXdr(base64Xdr) {
     return {
         from: (0, convert_js_1.scValToJs)(map.get("from")),
         spender: (0, convert_js_1.scValToJs)(map.get("spender"))
+    };
+}
+function AllowanceValueToXdr(allowanceValue) {
+    if (!allowanceValue) {
+        return soroban_client_1.xdr.ScVal.scvVoid();
+    }
+    let arr = [
+        new soroban_client_1.xdr.ScMapEntry({ key: ((i) => soroban_client_1.xdr.ScVal.scvSymbol(i))("amount"), val: ((i) => (0, convert_js_1.i128ToScVal)(i))(allowanceValue["amount"]) }),
+        new soroban_client_1.xdr.ScMapEntry({ key: ((i) => soroban_client_1.xdr.ScVal.scvSymbol(i))("expiration_ledger"), val: ((i) => soroban_client_1.xdr.ScVal.scvU32(i))(allowanceValue["expiration_ledger"]) })
+    ];
+    return soroban_client_1.xdr.ScVal.scvMap(arr);
+}
+function AllowanceValueFromXdr(base64Xdr) {
+    let scVal = (0, convert_js_1.strToScVal)(base64Xdr);
+    let obj = scVal.map().map(e => [e.key().str(), e.val()]);
+    let map = new Map(obj);
+    if (!obj) {
+        throw new Error('Invalid XDR');
+    }
+    return {
+        amount: (0, convert_js_1.scValToJs)(map.get("amount")),
+        expiration_ledger: (0, convert_js_1.scValToJs)(map.get("expiration_ledger"))
     };
 }
 const Errors = [
@@ -921,5 +920,30 @@ const Errors = [
     { message: "" },
     { message: "" },
     { message: "" },
+    { message: "" },
     { message: "" }
 ];
+function TokenMetadataToXdr(tokenMetadata) {
+    if (!tokenMetadata) {
+        return soroban_client_1.xdr.ScVal.scvVoid();
+    }
+    let arr = [
+        new soroban_client_1.xdr.ScMapEntry({ key: ((i) => soroban_client_1.xdr.ScVal.scvSymbol(i))("decimal"), val: ((i) => soroban_client_1.xdr.ScVal.scvU32(i))(tokenMetadata["decimal"]) }),
+        new soroban_client_1.xdr.ScMapEntry({ key: ((i) => soroban_client_1.xdr.ScVal.scvSymbol(i))("name"), val: ((i) => soroban_client_1.xdr.ScVal.scvString(i))(tokenMetadata["name"]) }),
+        new soroban_client_1.xdr.ScMapEntry({ key: ((i) => soroban_client_1.xdr.ScVal.scvSymbol(i))("symbol"), val: ((i) => soroban_client_1.xdr.ScVal.scvString(i))(tokenMetadata["symbol"]) })
+    ];
+    return soroban_client_1.xdr.ScVal.scvMap(arr);
+}
+function TokenMetadataFromXdr(base64Xdr) {
+    let scVal = (0, convert_js_1.strToScVal)(base64Xdr);
+    let obj = scVal.map().map(e => [e.key().str(), e.val()]);
+    let map = new Map(obj);
+    if (!obj) {
+        throw new Error('Invalid XDR');
+    }
+    return {
+        decimal: (0, convert_js_1.scValToJs)(map.get("decimal")),
+        name: (0, convert_js_1.scValToJs)(map.get("name")),
+        symbol: (0, convert_js_1.scValToJs)(map.get("symbol"))
+    };
+}

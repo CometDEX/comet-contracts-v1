@@ -153,7 +153,7 @@ impl Factory {
             val.clone()
         ).into_val(&e);
 
-        e.invoke_contract::<()>(&addr, &symbol_short!("xfer"), init_args)
+        e.invoke_contract::<()>(&addr, &symbol_short!("transfer"), init_args)
     }
 }
 

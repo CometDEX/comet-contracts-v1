@@ -423,8 +423,8 @@ export async function initialize({ admin, decimal, name, symbol }, options = {})
         method: 'initialize',
         args: [((i) => addressToScVal(i))(admin),
             ((i) => xdr.ScVal.scvU32(i))(decimal),
-            ((i) => xdr.ScVal.scvBytes(i))(name),
-            ((i) => xdr.ScVal.scvBytes(i))(symbol)],
+            ((i) => xdr.ScVal.scvString(i))(name),
+            ((i) => xdr.ScVal.scvString(i))(symbol)],
         ...options,
         parseResultXdr: () => { },
     });
@@ -440,22 +440,13 @@ export async function allowance({ from, spender }, options = {}) {
         },
     });
 }
-export async function incrAllow({ from, spender, amount }, options = {}) {
+export async function approve({ from, spender, amount, expiration_ledger }, options = {}) {
     return await invoke({
-        method: 'incr_allow',
+        method: 'approve',
         args: [((i) => addressToScVal(i))(from),
             ((i) => addressToScVal(i))(spender),
-            ((i) => i128ToScVal(i))(amount)],
-        ...options,
-        parseResultXdr: () => { },
-    });
-}
-export async function decrAllow({ from, spender, amount }, options = {}) {
-    return await invoke({
-        method: 'decr_allow',
-        args: [((i) => addressToScVal(i))(from),
-            ((i) => addressToScVal(i))(spender),
-            ((i) => i128ToScVal(i))(amount)],
+            ((i) => i128ToScVal(i))(amount),
+            ((i) => xdr.ScVal.scvU32(i))(expiration_ledger)],
         ...options,
         parseResultXdr: () => { },
     });
@@ -470,9 +461,9 @@ export async function balance({ id }, options = {}) {
         },
     });
 }
-export async function spendable({ id }, options = {}) {
+export async function spendableBalance({ id }, options = {}) {
     return await invoke({
-        method: 'spendable',
+        method: 'spendable_balance',
         args: [((i) => addressToScVal(i))(id)],
         ...options,
         parseResultXdr: (xdr) => {
@@ -490,9 +481,9 @@ export async function authorized({ id }, options = {}) {
         },
     });
 }
-export async function xfer({ from, to, amount }, options = {}) {
+export async function transfer({ from, to, amount }, options = {}) {
     return await invoke({
-        method: 'xfer',
+        method: 'transfer',
         args: [((i) => addressToScVal(i))(from),
             ((i) => addressToScVal(i))(to),
             ((i) => i128ToScVal(i))(amount)],
@@ -500,9 +491,9 @@ export async function xfer({ from, to, amount }, options = {}) {
         parseResultXdr: () => { },
     });
 }
-export async function xferFrom({ spender, from, to, amount }, options = {}) {
+export async function transferFrom({ spender, from, to, amount }, options = {}) {
     return await invoke({
-        method: 'xfer_from',
+        method: 'transfer_from',
         args: [((i) => addressToScVal(i))(spender),
             ((i) => addressToScVal(i))(from),
             ((i) => addressToScVal(i))(to),
@@ -530,41 +521,37 @@ export async function burnFrom({ spender, from, amount }, options = {}) {
         parseResultXdr: () => { },
     });
 }
-export async function clawback({ admin, from, amount }, options = {}) {
+export async function clawback({ from, amount }, options = {}) {
     return await invoke({
         method: 'clawback',
-        args: [((i) => addressToScVal(i))(admin),
-            ((i) => addressToScVal(i))(from),
+        args: [((i) => addressToScVal(i))(from),
             ((i) => i128ToScVal(i))(amount)],
         ...options,
         parseResultXdr: () => { },
     });
 }
-export async function setAuth({ admin, id, authorize }, options = {}) {
+export async function setAuthorized({ id, authorize }, options = {}) {
     return await invoke({
-        method: 'set_auth',
-        args: [((i) => addressToScVal(i))(admin),
-            ((i) => addressToScVal(i))(id),
+        method: 'set_authorized',
+        args: [((i) => addressToScVal(i))(id),
             ((i) => xdr.ScVal.scvBool(i))(authorize)],
         ...options,
         parseResultXdr: () => { },
     });
 }
-export async function mint({ admin, to, amount }, options = {}) {
+export async function mint({ to, amount }, options = {}) {
     return await invoke({
         method: 'mint',
-        args: [((i) => addressToScVal(i))(admin),
-            ((i) => addressToScVal(i))(to),
+        args: [((i) => addressToScVal(i))(to),
             ((i) => i128ToScVal(i))(amount)],
         ...options,
         parseResultXdr: () => { },
     });
 }
-export async function setAdmin({ admin, new_admin }, options = {}) {
+export async function setAdmin({ new_admin }, options = {}) {
     return await invoke({
         method: 'set_admin',
-        args: [((i) => addressToScVal(i))(admin),
-            ((i) => addressToScVal(i))(new_admin)],
+        args: [((i) => addressToScVal(i))(new_admin)],
         ...options,
         parseResultXdr: () => { },
     });
@@ -772,15 +759,6 @@ function DataKeyTokenToXdr(dataKeyToken) {
         case "Admin":
             res.push(((i) => xdr.ScVal.scvSymbol(i))("Admin"));
             break;
-        case "Decimals":
-            res.push(((i) => xdr.ScVal.scvSymbol(i))("Decimals"));
-            break;
-        case "Name":
-            res.push(((i) => xdr.ScVal.scvSymbol(i))("Name"));
-            break;
-        case "Symbol":
-            res.push(((i) => xdr.ScVal.scvSymbol(i))("Symbol"));
-            break;
     }
     return xdr.ScVal.scvVec(res);
 }
@@ -811,6 +789,28 @@ function AllowanceDataKeyFromXdr(base64Xdr) {
     return {
         from: scValToJs(map.get("from")),
         spender: scValToJs(map.get("spender"))
+    };
+}
+function AllowanceValueToXdr(allowanceValue) {
+    if (!allowanceValue) {
+        return xdr.ScVal.scvVoid();
+    }
+    let arr = [
+        new xdr.ScMapEntry({ key: ((i) => xdr.ScVal.scvSymbol(i))("amount"), val: ((i) => i128ToScVal(i))(allowanceValue["amount"]) }),
+        new xdr.ScMapEntry({ key: ((i) => xdr.ScVal.scvSymbol(i))("expiration_ledger"), val: ((i) => xdr.ScVal.scvU32(i))(allowanceValue["expiration_ledger"]) })
+    ];
+    return xdr.ScVal.scvMap(arr);
+}
+function AllowanceValueFromXdr(base64Xdr) {
+    let scVal = strToScVal(base64Xdr);
+    let obj = scVal.map().map(e => [e.key().str(), e.val()]);
+    let map = new Map(obj);
+    if (!obj) {
+        throw new Error('Invalid XDR');
+    }
+    return {
+        amount: scValToJs(map.get("amount")),
+        expiration_ledger: scValToJs(map.get("expiration_ledger"))
     };
 }
 const Errors = [
@@ -848,5 +848,30 @@ const Errors = [
     { message: "" },
     { message: "" },
     { message: "" },
+    { message: "" },
     { message: "" }
 ];
+function TokenMetadataToXdr(tokenMetadata) {
+    if (!tokenMetadata) {
+        return xdr.ScVal.scvVoid();
+    }
+    let arr = [
+        new xdr.ScMapEntry({ key: ((i) => xdr.ScVal.scvSymbol(i))("decimal"), val: ((i) => xdr.ScVal.scvU32(i))(tokenMetadata["decimal"]) }),
+        new xdr.ScMapEntry({ key: ((i) => xdr.ScVal.scvSymbol(i))("name"), val: ((i) => xdr.ScVal.scvString(i))(tokenMetadata["name"]) }),
+        new xdr.ScMapEntry({ key: ((i) => xdr.ScVal.scvSymbol(i))("symbol"), val: ((i) => xdr.ScVal.scvString(i))(tokenMetadata["symbol"]) })
+    ];
+    return xdr.ScVal.scvMap(arr);
+}
+function TokenMetadataFromXdr(base64Xdr) {
+    let scVal = strToScVal(base64Xdr);
+    let obj = scVal.map().map(e => [e.key().str(), e.val()]);
+    let map = new Map(obj);
+    if (!obj) {
+        throw new Error('Invalid XDR');
+    }
+    return {
+        decimal: scValToJs(map.get("decimal")),
+        name: scValToJs(map.get("name")),
+        symbol: scValToJs(map.get("symbol"))
+    };
+}

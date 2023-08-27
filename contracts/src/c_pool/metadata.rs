@@ -1,7 +1,8 @@
 //! Utilities to read and write contract's storage
 
 use crate::c_pool::storage_types::DataKey;
-use soroban_sdk::{vec, Address, Bytes, BytesN, Env, Map, Vec, unwrap::UnwrapOptimized};
+use soroban_sdk::{vec, Address, Bytes, BytesN, Env, Map, Vec, unwrap::UnwrapOptimized, String};
+use soroban_token_sdk::{TokenUtils, TokenMetadata};
 
 use super::storage_types::{DataKeyToken, Record, SHARED_BUMP_AMOUNT};
 
@@ -167,38 +168,23 @@ pub fn write_freeze(e: &Env, d: bool) {
     e.storage().instance().set(&key, &d)
 }
 
-// Read LP Token Decimals
+
 pub fn read_decimal(e: &Env) -> u32 {
-    let key = DataKeyToken::Decimals;
-    e.storage().instance().get::<DataKeyToken, u32>(&key).unwrap_optimized()
+    let util = TokenUtils::new(e);
+    util.get_metadata().decimal
 }
 
-// Write LP Token Decimals
-pub fn write_decimal(e: &Env, d: u8) {
-    let key = DataKeyToken::Decimals;
-    e.storage().instance().set(&key, &u32::from(d))
+pub fn read_name(e: &Env) -> String {
+    let util = TokenUtils::new(e);
+    util.get_metadata().name
 }
 
-// Read Name of the LP Token
-pub fn read_name(e: &Env) -> Bytes {
-    let key = DataKeyToken::Name;
-    e.storage().instance().get::<DataKeyToken, Bytes>(&key).unwrap_optimized()
+pub fn read_symbol(e: &Env) -> String {
+    let util = TokenUtils::new(e);
+    util.get_metadata().symbol
 }
 
-// Write Name of the LP Token
-pub fn write_name(e: &Env, d: Bytes) {
-    let key = DataKeyToken::Name;
-    e.storage().instance().set(&key, &d)
-}
-
-// Read Symbol of the LP Token
-pub fn read_symbol(e: &Env) -> Bytes {
-    let key = DataKeyToken::Symbol;
-    e.storage().instance().get::<DataKeyToken, Bytes>(&key).unwrap_optimized()
-}
-
-// Write Symbol of the LP Token
-pub fn write_symbol(e: &Env, d: Bytes) {
-    let key = DataKeyToken::Symbol;
-    e.storage().instance().set(&key, &d)
+pub fn write_metadata(e: &Env, metadata: TokenMetadata) {
+    let util = TokenUtils::new(e);
+    util.set_metadata(&metadata);
 }

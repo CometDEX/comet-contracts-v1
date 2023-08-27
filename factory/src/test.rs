@@ -8,7 +8,7 @@ use soroban_sdk::{testutils::Address, Bytes, Env, IntoVal, Symbol, BytesN};
 
 // The contract that will be deployed by the deployer contract.
 mod contract {
-    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/release/contracts.wasm");
+    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/optimized/comet.wasm");
 }
 
 #[test]

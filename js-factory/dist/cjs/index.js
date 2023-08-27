@@ -82,6 +82,11 @@ function getError(err) {
     }
     return undefined;
 }
+const Errors = [
+    { message: "" },
+    { message: "" },
+    { message: "" }
+];
 function DataKeyFactoryToXdr(dataKeyFactory) {
     if (!dataKeyFactory) {
         return soroban_client_1.xdr.ScVal.scvVoid();
@@ -94,6 +99,9 @@ function DataKeyFactoryToXdr(dataKeyFactory) {
             break;
         case "Admin":
             res.push(((i) => soroban_client_1.xdr.ScVal.scvSymbol(i))("Admin"));
+            break;
+        case "WasmHash":
+            res.push(((i) => soroban_client_1.xdr.ScVal.scvSymbol(i))("WasmHash"));
             break;
     }
     return soroban_client_1.xdr.ScVal.scvVec(res);
@@ -149,20 +157,20 @@ function SetAdminEventFromXdr(base64Xdr) {
         caller: (0, convert_js_1.scValToJs)(map.get("caller"))
     };
 }
-async function init({ user }, options = {}) {
+async function init({ user, pool_wasm_hash }, options = {}) {
     return await (0, invoke_js_1.invoke)({
         method: 'init',
-        args: [((i) => (0, convert_js_1.addressToScVal)(i))(user)],
+        args: [((i) => (0, convert_js_1.addressToScVal)(i))(user),
+            ((i) => soroban_client_1.xdr.ScVal.scvBytes(i))(pool_wasm_hash)],
         ...options,
         parseResultXdr: () => { },
     });
 }
 exports.init = init;
-async function newCPool({ salt, wasm_hash, user }, options = {}) {
+async function newCPool({ salt, user }, options = {}) {
     return await (0, invoke_js_1.invoke)({
         method: 'new_c_pool',
         args: [((i) => soroban_client_1.xdr.ScVal.scvBytes(i))(salt),
-            ((i) => soroban_client_1.xdr.ScVal.scvBytes(i))(wasm_hash),
             ((i) => (0, convert_js_1.addressToScVal)(i))(user)],
         ...options,
         parseResultXdr: (xdr) => {
@@ -212,4 +220,3 @@ async function collect({ caller, addr }, options = {}) {
     });
 }
 exports.collect = collect;
-const Errors = [];

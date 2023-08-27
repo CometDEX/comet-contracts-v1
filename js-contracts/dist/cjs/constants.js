@@ -5,7 +5,7 @@ const soroban_client_1 = require("soroban-client");
 /**
  * The Soroban contract ID for the contracts contract.
  */
-exports.CONTRACT_ID = 'CCAFYU5YVFS5BBQXJBTXNMFKGDTY2MV662S4Y6LLMXZHHFBCCBF6O2JL';
+exports.CONTRACT_ID = 'CBWGKHVSMNHAC6MAE2Q7PH3X34WADZDHOE2R3JJ63QTJIAUTUBJZGFRU';
 /**
  * The Soroban contract ID for the contracts contract, in hex.
  * If {@link CONTRACT_ID} is a new-style `C…` string, you will need this hex

@@ -47,6 +47,9 @@ export type DataKeyFactory = {
 } | {
     tag: "Admin";
     values: void;
+} | {
+    tag: "WasmHash";
+    values: void;
 };
 export interface NewPoolEvent {
     caller: Address;
@@ -56,8 +59,9 @@ export interface SetAdminEvent {
     admin: Address;
     caller: Address;
 }
-export declare function init<R extends ResponseTypes = undefined>({ user }: {
+export declare function init<R extends ResponseTypes = undefined>({ user, pool_wasm_hash }: {
     user: Address;
+    pool_wasm_hash: Buffer;
 }, options?: {
     /**
      * The fee to pay for the transaction. Default: 100.
@@ -76,9 +80,8 @@ export declare function init<R extends ResponseTypes = undefined>({ user }: {
      */
     secondsToWait?: number;
 }): Promise<R extends undefined ? void : R extends "simulated" ? SorobanClient.SorobanRpc.SimulateTransactionResponse : R extends "full" ? SorobanClient.SorobanRpc.SimulateTransactionResponse | SorobanClient.SorobanRpc.SendTransactionResponse | SorobanClient.SorobanRpc.GetTransactionResponse : void>;
-export declare function newCPool<R extends ResponseTypes = undefined>({ salt, wasm_hash, user }: {
+export declare function newCPool<R extends ResponseTypes = undefined>({ salt, user }: {
     salt: Buffer;
-    wasm_hash: Buffer;
     user: Address;
 }, options?: {
     /**

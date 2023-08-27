@@ -63,6 +63,11 @@ function getError(err) {
     }
     return undefined;
 }
+const Errors = [
+    { message: "" },
+    { message: "" },
+    { message: "" }
+];
 function DataKeyFactoryToXdr(dataKeyFactory) {
     if (!dataKeyFactory) {
         return xdr.ScVal.scvVoid();
@@ -75,6 +80,9 @@ function DataKeyFactoryToXdr(dataKeyFactory) {
             break;
         case "Admin":
             res.push(((i) => xdr.ScVal.scvSymbol(i))("Admin"));
+            break;
+        case "WasmHash":
+            res.push(((i) => xdr.ScVal.scvSymbol(i))("WasmHash"));
             break;
     }
     return xdr.ScVal.scvVec(res);
@@ -130,19 +138,19 @@ function SetAdminEventFromXdr(base64Xdr) {
         caller: scValToJs(map.get("caller"))
     };
 }
-export async function init({ user }, options = {}) {
+export async function init({ user, pool_wasm_hash }, options = {}) {
     return await invoke({
         method: 'init',
-        args: [((i) => addressToScVal(i))(user)],
+        args: [((i) => addressToScVal(i))(user),
+            ((i) => xdr.ScVal.scvBytes(i))(pool_wasm_hash)],
         ...options,
         parseResultXdr: () => { },
     });
 }
-export async function newCPool({ salt, wasm_hash, user }, options = {}) {
+export async function newCPool({ salt, user }, options = {}) {
     return await invoke({
         method: 'new_c_pool',
         args: [((i) => xdr.ScVal.scvBytes(i))(salt),
-            ((i) => xdr.ScVal.scvBytes(i))(wasm_hash),
             ((i) => addressToScVal(i))(user)],
         ...options,
         parseResultXdr: (xdr) => {
@@ -187,4 +195,3 @@ export async function collect({ caller, addr }, options = {}) {
         parseResultXdr: () => { },
     });
 }
-const Errors = [];

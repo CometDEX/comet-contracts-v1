@@ -3,12 +3,12 @@ use super::{
     admin::{check_admin, has_administrator, write_administrator},
     allowance::{read_allowance, spend_allowance, write_allowance},
     balance::{is_authorized, read_balance, receive_balance, spend_balance, write_authorization},
-    events::{
-        burn_event, clawback_event, decr_allow_event, incr_allow_event, mint_event,
-        set_admin_event, set_auth_event, transfer_event,
-    },
-    metadata::{read_decimal, read_name, read_symbol, write_decimal, write_name, write_symbol},
+    metadata::{read_decimal, read_name, read_symbol},
 };
+use super::event;
+use soroban_token_sdk::TokenMetadata;
+use crate::c_pool::metadata::write_metadata;
+use crate::c_pool::admin::read_administrator;
 use super::{
     metadata::{
         get_token_share, get_total_shares, put_total_shares, read_controller, read_factory,
@@ -34,7 +34,7 @@ use crate::{
     c_pool::{
         comet,
         error::Error,
-        events::{ExitEvent, JoinEvent, SwapEvent},
+        event::{ExitEvent, JoinEvent, SwapEvent},
         metadata::{
             check_record_bound, put_token_share, read_finalize, read_freeze, read_public_swap,
             write_controller, write_factory, write_finalize, write_freeze, write_public_swap,
@@ -52,48 +52,86 @@ use soroban_sdk::{
     Symbol, Vec, token, contract, symbol_short, unwrap::UnwrapOptimized
 };
 
+use soroban_sdk::String;
+
 
 #[contract]
 pub struct CometPoolContract;
 
 pub trait CometPoolTrait {
-    fn initialize(e: Env, admin: Address, decimal: u32, name: Bytes, symbol: Bytes);
+    fn initialize(e: Env, admin: Address, decimal: u32, name: String, symbol: String);
 
     fn allowance(e: Env, from: Address, spender: Address) -> i128;
 
-    fn incr_allow(e: Env, from: Address, spender: Address, amount: i128);
-
-    fn decr_allow(e: Env, from: Address, spender: Address, amount: i128);
+    fn approve(e: Env, from: Address, spender: Address, amount: i128, expiration_ledger: u32);
 
     fn balance(e: Env, id: Address) -> i128;
 
-    fn spendable(e: Env, id: Address) -> i128;
+    fn spendable_balance(e: Env, id: Address) -> i128;
 
     fn authorized(e: Env, id: Address) -> bool;
 
-    fn xfer(e: Env, from: Address, to: Address, amount: i128);
+    fn transfer(e: Env, from: Address, to: Address, amount: i128);
 
-    fn xfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128);
+    fn transfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128);
 
     fn burn(e: Env, from: Address, amount: i128);
 
     fn burn_from(e: Env, spender: Address, from: Address, amount: i128);
 
-    fn clawback(e: Env, admin: Address, from: Address, amount: i128);
+    fn clawback(e: Env, from: Address, amount: i128);
 
-    fn set_auth(e: Env, admin: Address, id: Address, authorize: bool);
+    fn set_authorized(e: Env, id: Address, authorize: bool);
 
-    fn mint(e: Env, admin: Address, to: Address, amount: i128);
+    fn mint(e: Env, to: Address, amount: i128);
 
-    fn set_admin(e: Env, admin: Address, new_admin: Address);
+    fn set_admin(e: Env, new_admin: Address);
 
     fn decimals(e: Env) -> u32;
 
-    fn name(e: Env) -> Bytes;
+    fn name(e: Env) -> String;
 
-    fn symbol(e: Env) -> Bytes;
+    fn symbol(e: Env) -> String;
+    
+    // fn initialize(e: Env, admin: Address, decimal: u32, name: String, symbol: String);
+
+    // fn allowance(e: Env, from: Address, spender: Address) -> i128;
+
+    // fn incr_allow(e: Env, from: Address, spender: Address, amount: i128);
+
+    // fn decr_allow(e: Env, from: Address, spender: Address, amount: i128);
+
+    // fn balance(e: Env, id: Address) -> i128;
+
+    // fn spendable(e: Env, id: Address) -> i128;
+
+    // fn authorized(e: Env, id: Address) -> bool;
+
+    // fn transfer(e: Env, from: Address, to: Address, amount: i128);
+
+    // fn transfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128);
+
+    // fn burn(e: Env, from: Address, amount: i128);
+
+    // fn burn_from(e: Env, spender: Address, from: Address, amount: i128);
+
+    // fn clawback(e: Env, admin: Address, from: Address, amount: i128);
+
+    // fn set_auth(e: Env, admin: Address, id: Address, authorize: bool);
+
+    // fn mint(e: Env, admin: Address, to: Address, amount: i128);
+
+    // fn set_admin(e: Env, admin: Address, new_admin: Address);
+
+    // fn decimals(e: Env) -> u32;
+
+    // fn name(e: Env) -> String;
+
+    // fn symbol(e: Env) -> String;
 
     fn get_total_supply(e: Env) -> i128;
+
+    // --- //
 
     fn get_num_tokens(e: Env) -> u32;
 
@@ -226,9 +264,9 @@ impl CometPoolTrait for CometPoolContract {
         let val: &Address = &e.current_contract_address();
 
         // Name of the LP Token
-        let name = Bytes::from_slice(&e, b"Comet Pool Token");
+        let name = String::from_slice(&e, "Comet Pool Token");
         // Symbol of the LP Token
-        let symbol = Bytes::from_slice(&e, b"CPAL");
+        let symbol = String::from_slice(&e, "CPAL");
 
         // Current Contract is the LP Token as well
         put_token_share(&e, val.clone());
@@ -244,7 +282,7 @@ impl CometPoolTrait for CometPoolContract {
         write_public_swap(&e, false);
 
         // Initialize the LP Token
-        Self::initialize(e, val.clone(), 7u32, name, symbol);
+        Self::initialize(e, val.clone(), 7u32, name , symbol);
     }
 
     fn bundle_bind(e: Env, token: Vec<Address>, balance: Vec<i128>, denorm: Vec<i128>) {
@@ -1181,153 +1219,155 @@ impl CometPoolTrait for CometPoolContract {
         read_record(&e).get(t).unwrap_optimized().bound
     }
 
-    // Initialize the LP Token
-    fn initialize(e: Env, admin: Address, decimal: u32, name: Bytes, symbol: Bytes) {
+    fn initialize(e: Env, admin: Address, decimal: u32, name: String, symbol: String) {
         if has_administrator(&e) {
             panic!("already initialized")
         }
         write_administrator(&e, &admin);
+        if decimal > u8::MAX.into() {
+            panic!("Decimal must fit in a u8");
+        }
 
-        write_decimal(&e, u8::try_from(decimal).expect("Decimal must fit in a u8"));
-        write_name(&e, name);
-        write_symbol(&e, symbol);
+        write_metadata(
+            &e,
+            TokenMetadata {
+                decimal,
+                name,
+                symbol,
+            },
+        )
     }
 
-    // TODO: Update allowance, incr_allow, and decr_allow to new token interface
-    // Check the allowance of the spender approved by the 'from' address
     fn allowance(e: Env, from: Address, spender: Address) -> i128 {
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
         read_allowance(&e, from, spender).amount
     }
 
-    // Increment the allowance for the spender approved by the 'from' address
-    fn incr_allow(e: Env, from: Address, spender: Address, amount: i128) {
-        from.require_auth();
-        check_nonnegative_amount(&e, amount);
-        let allowance = read_allowance(&e, from.clone(), spender.clone()).amount;
-        let new_allowance = allowance
-            .checked_add(amount)
-            .expect("Updated allowance doesn't fit in an i128");
-
-        write_allowance(&e, from.clone(), spender.clone(), new_allowance, BALANCE_BUMP_AMOUNT);
-        incr_allow_event(&e, from, spender, amount);
-    }
-
-    // Increment the allowance for the spender approved by the 'from' address
-    fn decr_allow(e: Env, from: Address, spender: Address, amount: i128) {
+    fn approve(e: Env, from: Address, spender: Address, amount: i128, expiration_ledger: u32) {
         from.require_auth();
 
-        check_nonnegative_amount(&e, amount);
+        check_nonnegative_amount(amount);
 
-        let allowance = read_allowance(&e, from.clone(), spender.clone());
-        if amount >= allowance.amount {
-            write_allowance(&e, from.clone(), spender.clone(), 0, allowance.expiration_ledger);
-        } else {
-            write_allowance(&e, from.clone(), spender.clone(), allowance.amount - amount, allowance.expiration_ledger);
-        }
-        decr_allow_event(&e, from, spender, amount);
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+
+        write_allowance(&e, from.clone(), spender.clone(), amount, expiration_ledger);
+        event::approve(&e, from, spender, amount, expiration_ledger);
     }
 
-    // Read the balanace of the user
     fn balance(e: Env, id: Address) -> i128 {
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
         read_balance(&e, id)
     }
 
-    // Read the spendable balance of the user
-    fn spendable(e: Env, id: Address) -> i128 {
+    fn spendable_balance(e: Env, id: Address) -> i128 {
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
         read_balance(&e, id)
     }
 
-    // Return whether the address is authorized or deauthorized
     fn authorized(e: Env, id: Address) -> bool {
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
         is_authorized(&e, id)
     }
 
-    // Tranfer the LP Token
-    fn xfer(e: Env, from: Address, to: Address, amount: i128) {
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+    fn transfer(e: Env, from: Address, to: Address, amount: i128) {
         from.require_auth();
-        check_nonnegative_amount(&e, amount);
+
+        check_nonnegative_amount(amount);
+
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+
         spend_balance(&e, from.clone(), amount);
         receive_balance(&e, to.clone(), amount);
-        transfer_event(&e, from, to, amount);
+        event::transfer(&e, from, to, amount);
     }
 
-    // Transfrom 'from' address to 'to' address by the 'spender' address
-    fn xfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128) {
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+    fn transfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128) {
         spender.require_auth();
-        check_nonnegative_amount(&e, amount);
+
+        check_nonnegative_amount(amount);
+
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+
         spend_allowance(&e, from.clone(), spender, amount);
         spend_balance(&e, from.clone(), amount);
         receive_balance(&e, to.clone(), amount);
-        transfer_event(&e, from, to, amount)
+        event::transfer(&e, from, to, amount)
     }
 
-    // Burn the LP Token from the wallet
     fn burn(e: Env, from: Address, amount: i128) {
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
         from.require_auth();
-        check_nonnegative_amount(&e, amount);
+
+        check_nonnegative_amount(amount);
+
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+
         spend_balance(&e, from.clone(), amount);
-        burn_event(&e, from, amount);
+        event::burn(&e, from, amount);
     }
 
-    // Helps the spender burn the LP Token from 'from' Address
     fn burn_from(e: Env, spender: Address, from: Address, amount: i128) {
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
         spender.require_auth();
-        check_nonnegative_amount(&e, amount);
+
+        check_nonnegative_amount(amount);
+
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+
         spend_allowance(&e, from.clone(), spender, amount);
         spend_balance(&e, from.clone(), amount);
-        burn_event(&e, from, amount)
+        event::burn(&e, from, amount)
     }
 
-    // Help Admin burns LP Tokens from Deauthorized balances
-    fn clawback(e: Env, admin: Address, from: Address, amount: i128) {
-        check_nonnegative_amount(&e, amount);
-        check_admin(&e, &admin);
+    fn clawback(e: Env, from: Address, amount: i128) {
+        check_nonnegative_amount(amount);
+        let admin = read_administrator(&e);
         admin.require_auth();
+
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+
         spend_balance(&e, from.clone(), amount);
-        clawback_event(&e, admin, from, amount);
+        event::clawback(&e, admin, from, amount);
     }
 
-    // Set authorization for a address
-    fn set_auth(e: Env, admin: Address, id: Address, authorize: bool) {
-        check_admin(&e, &admin);
+    fn set_authorized(e: Env, id: Address, authorize: bool) {
+        let admin = read_administrator(&e);
         admin.require_auth();
+
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+
         write_authorization(&e, id.clone(), authorize);
-        set_auth_event(&e, admin, id, authorize);
+        event::set_authorized(&e, admin, id, authorize);
     }
 
-    // Admin Mints the LP Token to the given address
-    fn mint(e: Env, admin: Address, to: Address, amount: i128) {
-        check_nonnegative_amount(&e, amount);
-        check_admin(&e, &admin);
+    fn mint(e: Env, to: Address, amount: i128) {
+        check_nonnegative_amount(amount);
+        let admin = read_administrator(&e);
         admin.require_auth();
+
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+
         receive_balance(&e, to.clone(), amount);
-        mint_event(&e, admin, to, amount);
+        event::mint(&e, admin, to, amount);
     }
 
-    // Current Admin is able to set new Admin using this function
-    fn set_admin(e: Env, admin: Address, new_admin: Address) {
-        check_admin(&e, &admin);
+    fn set_admin(e: Env, new_admin: Address) {
+        let admin = read_administrator(&e);
         admin.require_auth();
+
+        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+
         write_administrator(&e, &new_admin);
-        set_admin_event(&e, admin, new_admin);
+        event::set_admin(&e, admin, new_admin);
     }
 
-    // Get the number of decimals of the LP Token
     fn decimals(e: Env) -> u32 {
         read_decimal(&e)
     }
 
-    // Get the name of the LP Token
-    fn name(e: Env) -> Bytes {
+    fn name(e: Env) -> String {
         read_name(&e)
     }
 
-    // Get the symbol of the LP Token
-    fn symbol(e: Env) -> Bytes {
+    fn symbol(e: Env) -> String {
         read_symbol(&e)
     }
 }

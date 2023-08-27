@@ -91,7 +91,12 @@ function getError(err: string): Err<Error_> | undefined {
     return undefined;
 }
 
-export type DataKeyFactory = {tag: "IsCpool", values: [Address]} | {tag: "Admin", values: void};
+const Errors = [ 
+{message:""},
+  {message:""},
+  {message:""}
+]
+export type DataKeyFactory = {tag: "IsCpool", values: [Address]} | {tag: "Admin", values: void} | {tag: "WasmHash", values: void};
 
 function DataKeyFactoryToXdr(dataKeyFactory?: DataKeyFactory): xdr.ScVal {
     if (!dataKeyFactory) {
@@ -105,6 +110,9 @@ function DataKeyFactoryToXdr(dataKeyFactory?: DataKeyFactory): xdr.ScVal {
             break;
     case "Admin":
             res.push(((i) => xdr.ScVal.scvSymbol(i))("Admin"));
+            break;
+    case "WasmHash":
+            res.push(((i) => xdr.ScVal.scvSymbol(i))("WasmHash"));
             break;  
     }
     return xdr.ScVal.scvVec(res);
@@ -180,7 +188,7 @@ function SetAdminEventFromXdr(base64Xdr: string): SetAdminEvent {
     };
 }
 
-export async function init<R extends ResponseTypes = undefined>({user}: {user: Address}, options: {
+export async function init<R extends ResponseTypes = undefined>({user, pool_wasm_hash}: {user: Address, pool_wasm_hash: Buffer}, options: {
   /**
    * The fee to pay for the transaction. Default: 100.
    */
@@ -200,13 +208,14 @@ export async function init<R extends ResponseTypes = undefined>({user}: {user: A
 } = {}) {
     return await invoke({
         method: 'init',
-        args: [((i) => addressToScVal(i))(user)],
+        args: [((i) => addressToScVal(i))(user),
+        ((i) => xdr.ScVal.scvBytes(i))(pool_wasm_hash)],
         ...options,
         parseResultXdr: () => {},
     });
 }
 
-export async function newCPool<R extends ResponseTypes = undefined>({salt, wasm_hash, user}: {salt: Buffer, wasm_hash: Buffer, user: Address}, options: {
+export async function newCPool<R extends ResponseTypes = undefined>({salt, user}: {salt: Buffer, user: Address}, options: {
   /**
    * The fee to pay for the transaction. Default: 100.
    */
@@ -227,7 +236,6 @@ export async function newCPool<R extends ResponseTypes = undefined>({salt, wasm_
     return await invoke({
         method: 'new_c_pool',
         args: [((i) => xdr.ScVal.scvBytes(i))(salt),
-        ((i) => xdr.ScVal.scvBytes(i))(wasm_hash),
         ((i) => addressToScVal(i))(user)],
         ...options,
         parseResultXdr: (xdr): Address => {
@@ -344,7 +352,3 @@ export async function collect<R extends ResponseTypes = undefined>({caller, addr
         parseResultXdr: () => {},
     });
 }
-
-const Errors = [ 
-
-]

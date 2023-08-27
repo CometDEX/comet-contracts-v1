@@ -1,7 +1,7 @@
 /**
  * The Soroban contract ID for the factory contract.
  */
-export declare const CONTRACT_ID = "CCQPRGVNP3YBWSE66F6764AXCVLATEIBA6JSCFGJ4OQYTWHUOGKHWOSJ";
+export declare const CONTRACT_ID = "CDQJBL2ZIYPCCIBAJJRFBGBUVIANWCQOLS33DAUH3HEHQTF7P7K3OY3M";
 /**
  * The Soroban contract ID for the factory contract, in hex.
  * If {@link CONTRACT_ID} is a new-style `C…` string, you will need this hex
