@@ -18,3 +18,5 @@ pub mod storage_types;
 pub mod token_utility;
 // Errors Listed
 pub mod error;
+// Bind Function
+pub mod call_logic;

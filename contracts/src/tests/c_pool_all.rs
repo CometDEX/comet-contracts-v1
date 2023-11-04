@@ -1,16 +1,16 @@
 #![cfg(test)]
 
+use std::dbg;
 use std::println;
 extern crate std;
 use crate::c_consts::BONE;
 use crate::c_consts::EXIT_FEE;
 use crate::c_pool::comet::CometPoolContract;
 use crate::c_pool::comet::CometPoolContractClient;
-use soroban_sdk::String;
 use soroban_sdk::token;
-use soroban_sdk::token::AdminClient;
 use soroban_sdk::xdr::AccountId;
 use soroban_sdk::Bytes;
+use soroban_sdk::String;
 use soroban_sdk::{vec, BytesN, Env, Symbol};
 use token::Client as TokenClient;
 
@@ -18,9 +18,8 @@ use soroban_sdk::{testutils::Address as _, Address, IntoVal};
 struct Clients {
     core: CometPoolContractClient<'static>,
     native_asset: token::Client<'static>,
-    native_asset_admin: token::AdminClient<'static>,
+    native_asset_admin: token::StellarAssetClient<'static>,
 }
-
 
 mod test_token {
     soroban_sdk::contractimport!(
@@ -102,14 +101,13 @@ fn test_pool_functions_dep_wdr() {
     // token1.approve(&admin, &contract_address, &i128::MAX, &200);
     // token2.approve(&admin, &contract_address, &i128::MAX, &200);
 
-    // client.bind(&token1.address, &to_stroop(4), &to_stroop(10), &admin);
-    // client.bind(&token2.address, &to_stroop(12), &to_stroop(10), &admin);
+    client.bind(&token1.address, &to_stroop(4), &to_stroop(12), &admin);
+    client.bind(&token2.address, &to_stroop(10), &to_stroop(10), &admin);
 
-    client.bundle_bind(&vec![&env, token1.address.clone() ,token2.address.clone() ], 
-        &vec![&env, to_stroop(4), to_stroop(12)], 
-        &vec![&env, to_stroop(10), to_stroop(10)]
-    );
-
+    // client.bundle_bind(&vec![&env, token1.address.clone() ,token2.address.clone() ],
+    //     &vec![&env, to_stroop(4), to_stroop(12)],
+    //     &vec![&env, to_stroop(10), to_stroop(10)]
+    // );
 
     client.set_swap_fee(&to_stroop(0.003), &controller);
     client.finalize();

@@ -1,14 +1,32 @@
 //! Liquidity Pool and Token Implementation
-use super::{
-    admin::{check_admin, has_administrator, write_administrator},
-    allowance::{read_allowance, spend_allowance, write_allowance},
-    balance::{is_authorized, read_balance, receive_balance, spend_balance, write_authorization},
-    metadata::{read_decimal, read_name, read_symbol},
-};
 use super::event;
-use soroban_token_sdk::TokenMetadata;
-use crate::c_pool::metadata::write_metadata;
-use crate::c_pool::admin::read_administrator;
+use super::{
+    admin::{has_administrator, write_administrator},
+    allowance::{read_allowance, spend_allowance, write_allowance},
+    balance::{read_balance, receive_balance, spend_balance},
+    call_logic::{
+        bind::execute_bind,
+        finalize::execute_finalize,
+        getter::{
+            execute_get_balance, execute_get_controller, execute_get_current_tokens,
+            execute_get_denormalized_weight, execute_get_final_tokens,
+            execute_get_normalized_weight, execute_get_num_tokens, execute_get_spot_price,
+            execute_get_spot_price_sans_fee, execute_get_swap_fee,
+            execute_get_total_denormalized_weight, execute_get_total_supply, execute_is_bound,
+            execute_is_finalized, execute_is_public_swap, execute_share_id,
+        },
+        init::execute_init,
+        pool::{
+            execute_dep_lp_tokn_amt_out_get_tokn_in, execute_dep_tokn_amt_in_get_lp_tokns_out,
+            execute_exit_pool, execute_gulp, execute_join_pool, execute_swap_exact_amount_in,
+            execute_swap_exact_amount_out, execute_wdr_tokn_amt_in_get_lp_tokns_out,
+            execute_wdr_tokn_amt_out_get_lp_tokns_in,
+        },
+        setter::execute_set_freeze_status,
+    },
+    metadata::{read_decimal, read_name, read_symbol},
+    storage_types::SHARED_LIFETIME_THRESHOLD,
+};
 use super::{
     metadata::{
         get_token_share, get_total_shares, put_total_shares, read_controller, read_factory,
@@ -18,6 +36,16 @@ use super::{
     storage_types::{DataKey, Record, BALANCE_BUMP_AMOUNT, SHARED_BUMP_AMOUNT},
     token_utility::{self, check_nonnegative_amount},
 };
+use crate::c_pool::admin::read_administrator;
+use crate::c_pool::call_logic::bind::execute_rebind;
+use crate::c_pool::{
+    call_logic::{
+        bind::execute_unbind,
+        setter::{execute_set_controller, execute_set_public_swap, execute_set_swap_fee},
+    },
+    metadata::write_metadata,
+};
+use soroban_token_sdk::TokenUtils;
 
 use crate::{
     c_consts::{
@@ -47,13 +75,12 @@ use crate::{
 };
 use soroban_sdk::token::Client;
 use soroban_sdk::{
-    assert_with_error, contractimpl, log, panic_with_error, vec,
-    xdr::SurveyMessageResponseType, Address, Bytes, BytesN, Env, Map, 
-    Symbol, Vec, token, contract, symbol_short, unwrap::UnwrapOptimized
+    assert_with_error, contract, contractimpl, log, panic_with_error, symbol_short, token,
+    unwrap::UnwrapOptimized, vec, Address, Bytes, BytesN, Env, Map, Symbol, Vec,
 };
 
 use soroban_sdk::String;
-
+use soroban_token_sdk::metadata::TokenMetadata;
 
 #[contract]
 pub struct CometPoolContract;
@@ -69,8 +96,6 @@ pub trait CometPoolTrait {
 
     fn spendable_balance(e: Env, id: Address) -> i128;
 
-    fn authorized(e: Env, id: Address) -> bool;
-
     fn transfer(e: Env, from: Address, to: Address, amount: i128);
 
     fn transfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128);
@@ -78,10 +103,6 @@ pub trait CometPoolTrait {
     fn burn(e: Env, from: Address, amount: i128);
 
     fn burn_from(e: Env, spender: Address, from: Address, amount: i128);
-
-    fn clawback(e: Env, from: Address, amount: i128);
-
-    fn set_authorized(e: Env, id: Address, authorize: bool);
 
     fn mint(e: Env, to: Address, amount: i128);
 
@@ -92,42 +113,6 @@ pub trait CometPoolTrait {
     fn name(e: Env) -> String;
 
     fn symbol(e: Env) -> String;
-    
-    // fn initialize(e: Env, admin: Address, decimal: u32, name: String, symbol: String);
-
-    // fn allowance(e: Env, from: Address, spender: Address) -> i128;
-
-    // fn incr_allow(e: Env, from: Address, spender: Address, amount: i128);
-
-    // fn decr_allow(e: Env, from: Address, spender: Address, amount: i128);
-
-    // fn balance(e: Env, id: Address) -> i128;
-
-    // fn spendable(e: Env, id: Address) -> i128;
-
-    // fn authorized(e: Env, id: Address) -> bool;
-
-    // fn transfer(e: Env, from: Address, to: Address, amount: i128);
-
-    // fn transfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128);
-
-    // fn burn(e: Env, from: Address, amount: i128);
-
-    // fn burn_from(e: Env, spender: Address, from: Address, amount: i128);
-
-    // fn clawback(e: Env, admin: Address, from: Address, amount: i128);
-
-    // fn set_auth(e: Env, admin: Address, id: Address, authorize: bool);
-
-    // fn mint(e: Env, admin: Address, to: Address, amount: i128);
-
-    // fn set_admin(e: Env, admin: Address, new_admin: Address);
-
-    // fn decimals(e: Env) -> u32;
-
-    // fn name(e: Env) -> String;
-
-    // fn symbol(e: Env) -> String;
 
     fn get_total_supply(e: Env) -> i128;
 
@@ -240,8 +225,6 @@ pub trait CometPoolTrait {
         max_pool_amount_in: i128,
         user: Address,
     ) -> i128;
-
-    
 }
 
 #[contractimpl]
@@ -249,332 +232,72 @@ impl CometPoolTrait for CometPoolContract {
     // Initialize the Pool and the LP Token
     fn init(e: Env, factory: Address, controller: Address) {
         // Check if the Contract Storage is already initialized
-        assert_with_error!(
-            &e,
-            !e.storage().instance().has(&DataKey::Factory),
-            Error::AlreadyInitialized
-        );
 
-        // Store the factory Address
-        write_factory(&e, factory);
-        // Store the Controller Address (Pool Admin)
-        write_controller(&e, controller);
-
-        // Get the Current Contract Address
-        let val: &Address = &e.current_contract_address();
-
-        // Name of the LP Token
-        let name = String::from_slice(&e, "Comet Pool Token");
-        // Symbol of the LP Token
-        let symbol = String::from_slice(&e, "CPAL");
-
-        // Current Contract is the LP Token as well
-        put_token_share(&e, val.clone());
-
-        // Set the Total Supply of the LP Token as 0
-        put_total_shares(&e, 0);
-
-        // Store the Swap Fee
-        write_swap_fee(&e, MIN_FEE);
-
-        // Initialize Public Swap and Finalize as false
-        write_finalize(&e, false);
-        write_public_swap(&e, false);
-
-        // Initialize the LP Token
-        Self::initialize(e, val.clone(), 7u32, name , symbol);
+        execute_init(e, factory, controller);
     }
 
     fn bundle_bind(e: Env, token: Vec<Address>, balance: Vec<i128>, denorm: Vec<i128>) {
         // token::Client::approve()
-        let controller: Address = read_controller(&e).clone();
+        let controller: Address = read_controller(&e);
+        controller.require_auth();
 
         for i in 0..token.len() {
-            // Client::new(e, token)
-            token::Client::new(&e, &token.get(i).unwrap_optimized()).approve(&(controller.clone()), &e.current_contract_address(), &balance.get(i).unwrap_optimized(), &1000);
-            Self::bind(e.clone(), token.get(i).unwrap_optimized(), balance.get(i).unwrap_optimized(), denorm.get(i).unwrap_optimized(), controller.clone() );
+            execute_bind(
+                e.clone(),
+                token.get(i).unwrap_optimized(),
+                balance.get(i).unwrap_optimized(),
+                denorm.get(i).unwrap_optimized(),
+                controller.clone(),
+            );
         }
     }
 
     // Binds tokens to the Pool
     fn bind(e: Env, token: Address, balance: i128, denorm: i128, admin: Address) {
-        assert_with_error!(&e, denorm >= 0, Error::ErrNegative);
-        assert_with_error!(&e, balance >= 0, Error::ErrNegative);
-        assert_with_error!(&e, !read_finalize(&e), Error::ErrFinalized);
-        assert_with_error!(
-            &e,
-            !check_record_bound(&e, token.clone()),
-            Error::ErrIsBound
-        );
         let controller = read_controller(&e);
         controller.require_auth();
-        assert_with_error!(
-            &e,
-            read_tokens(&e).len() < MAX_BOUND_TOKENS,
-            Error::ErrMaxTokens
-        );
-        let key = DataKey::AllTokenVec;
-        let key_rec = DataKey::AllRecordData;
-        let index = read_tokens(&e).len();
-        let mut tokens_arr = read_tokens(&e);
-        let mut record_map = e
-            .storage()
-            .persistent()
-            .get(&key_rec)
-            .unwrap_or(Map::<Address, Record>::new(&e)); // if no members on vector
-            
-
-        let record = Record {
-            bound: true,
-            index,
-            denorm: 0,
-            balance: 0,
-        };
-        record_map.set(token.clone(), record);
-        write_record(&e, record_map);
-        tokens_arr.push_back(token.clone());
-        write_tokens(&e, tokens_arr);
-        Self::rebind(e, token, balance, denorm, admin);
+        execute_bind(e, token, balance, denorm, admin);
     }
 
     // If you you want to adjust values of the token which was already called using bind
     fn rebind(e: Env, token: Address, balance: i128, denorm: i128, admin: Address) {
-        assert_with_error!(&e, denorm >= 0, Error::ErrNegative);
-        assert_with_error!(&e, balance >= 0, Error::ErrNegative);
-        assert_with_error!(&e, !read_finalize(&e), Error::ErrFinalized);
-
         let controller = read_controller(&e);
         controller.require_auth();
-        assert_with_error!(
-            &e,
-            read_tokens(&e).len() < MAX_BOUND_TOKENS,
-            Error::ErrMaxTokens
-        );
-        assert_with_error!(
-            &e,
-            check_record_bound(&e, token.clone()),
-            Error::ErrNotBound
-        );
-        assert_with_error!(&e, denorm >= MIN_WEIGHT, Error::ErrMinWeight);
-        assert_with_error!(&e, denorm <= MAX_WEIGHT, Error::ErrMaxWeight);
-        assert_with_error!(&e, balance >= MIN_BALANCE, Error::ErrMinBalance);
-
-        let mut record_map: Map<Address, Record> = read_record(&e);
-        let mut record = record_map.get(token.clone()).unwrap_optimized();
-        let old_weight = record.denorm;
-        let mut total_weight = read_total_weight(&e);
-
-        #[allow(clippy::comparison_chain)]
-        if denorm > old_weight {
-            total_weight = c_add(&e, total_weight, c_sub(&e, denorm, old_weight).unwrap_optimized()).unwrap_optimized();
-            write_total_weight(&e, total_weight);
-            if total_weight > MAX_TOTAL_WEIGHT {
-                panic_with_error!(&e, Error::ErrMaxTotalWeight);
-            }
-        } else if denorm < old_weight {
-            total_weight = c_sub(&e, total_weight, c_sub(&e, old_weight, denorm).unwrap_optimized()).unwrap_optimized();
-            write_total_weight(&e, total_weight);
-        }
-
-        record.denorm = denorm;
-
-        let old_balance = record.balance;
-        record.balance = balance;
-
-        #[allow(clippy::comparison_chain)]
-        if balance > old_balance {
-            pull_underlying(&e, &token, admin, c_sub(&e, balance, old_balance).unwrap_optimized());
-        } else if balance < old_balance {
-            let token_balance_withdrawn = c_sub(&e, old_balance, balance).unwrap_optimized();
-            let token_exit_fee = c_mul(&e, token_balance_withdrawn, 0).unwrap_optimized();
-            push_underlying(
-                &e,
-                &token,
-                admin,
-                c_sub(&e, token_balance_withdrawn, token_exit_fee).unwrap_optimized(),
-            );
-            let factory = read_factory(&e);
-            push_underlying(&e, &token, factory, token_exit_fee)
-        }
-
-        record_map.set(token, record);
-        write_record(&e, record_map);
+        execute_rebind(e, token, balance, denorm, admin);
     }
 
     // Removes a specific token from the Liquidity Pool
     fn unbind(e: Env, token: Address, user: Address) {
-        assert_with_error!(&e, !read_finalize(&e), Error::ErrFinalized);
-        assert_with_error!(
-            &e,
-            check_record_bound(&e, token.clone()),
-            Error::ErrNotBound
-        );
         let controller = read_controller(&e);
         assert_with_error!(&e, user == controller, Error::ErrNotController);
         controller.require_auth();
-        let mut record_map: Map<Address, Record> = read_record(&e);
-        let mut record = record_map.get(token.clone()).unwrap_optimized();
-        let token_balance = record.balance;
-        let token_exit_fee = c_mul(&e, token_balance, EXIT_FEE).unwrap_optimized();
-        let curr_weight = read_total_weight(&e);
-        write_total_weight(&e, c_sub(&e, curr_weight, record.denorm).unwrap_optimized());
-        let index = record.index;
-        let last = read_tokens(&e).len() - 1;
-        let mut tokens = read_tokens(&e);
-        let index_token = tokens.get(index).unwrap_optimized();
-        let last_token = tokens.get(last).unwrap_optimized();
-        tokens.set(index, last_token.clone());
-        tokens.pop_back();
-        write_tokens(&e, tokens);
-        let mut record_current = record_map.get(last_token.clone()).unwrap_optimized();
-        record_current.index = index;
-        record.balance = 0;
-        record.bound = false;
-        record.index = 0;
-        record.denorm = 0;
-
-        record_map.set(last_token, record_current);
-        record_map.set(token.clone(), record);
-
-        write_record(&e, record_map);
-
-        push_underlying(
-            &e,
-            &token,
-            user,
-            c_sub(&e, token_balance, token_exit_fee).unwrap_optimized(),
-        );
-        let factory = read_factory(&e);
-        push_underlying(&e, &token, factory, token_exit_fee);
+        execute_unbind(e, token, user);
     }
 
     // Finalizes the Pool
     // Set true for Public Swap
     // Mint Pool Tokens to the controller Address
     fn finalize(e: Env) {
-        assert_with_error!(&e, !read_finalize(&e), Error::ErrFinalized);
-        assert_with_error!(
-            &e,
-            read_tokens(&e).len() >= MIN_BOUND_TOKENS,
-            Error::ErrMinTokens
-        );
         let controller = read_controller(&e);
         controller.require_auth();
-        write_finalize(&e, true);
-        write_public_swap(&e, true);
-        mint_shares(e, controller, INIT_POOL_SUPPLY);
+        execute_finalize(e, controller);
     }
 
     // Absorbing tokens into the pool directly sent to the current contract
     fn gulp(e: Env, t: Address) {
-        assert_with_error!(&e, check_record_bound(&e, t.clone()), Error::ErrNotBound);
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
-        let mut records = read_record(&e);
-
-        let mut rec = records.get(t.clone()).unwrap_optimized();
-        // log!(&e, "Earlier {}", rec.balance);
-        rec.balance = token::Client::new(&e, &t).balance(&e.current_contract_address());
-        // log!(&e, "Later {}", rec.balance);
-        records.set(t, rec);
-        write_record(&e, records);
+        execute_gulp(e, t);
     }
 
     // Helps a users join the pool
     fn join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128>, user: Address) {
-        assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
-        assert_with_error!(&e, pool_amount_out >= 0, Error::ErrNegative);
-        assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
-
         user.require_auth();
-
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
-        let pool_total = get_total_shares(&e);
-        let ratio = c_add(&e, c_div(&e, pool_amount_out, pool_total).unwrap_optimized(), 1).unwrap_optimized();
-
-        if ratio == 0 {
-            panic_with_error!(&e, Error::ErrMathApprox)
-        }
-        let tokens = read_tokens(&e);
-        let mut records = read_record(&e);
-        for i in 0..tokens.len() {
-            let t = tokens.get(i).unwrap_optimized();
-            let mut rec = records.get(t.clone()).unwrap_optimized();
-            let token_amount_in = c_add(&e, c_mul(&e, ratio, rec.balance).unwrap_optimized(), 1).unwrap_optimized();
-            if token_amount_in == 0 {
-                panic_with_error!(&e, Error::ErrMathApprox);
-            }
-
-            assert_with_error!(
-                &e,
-                max_amounts_in.get(i).unwrap_optimized() > 0,
-                Error::ErrNegative
-            );
-
-            if token_amount_in > max_amounts_in.get(i).unwrap_optimized() {
-                panic_with_error!(&e, Error::ErrLimitIn);
-            }
-            rec.balance = c_add(&e, rec.balance, token_amount_in).unwrap_optimized();
-            records.set(t.clone(), rec);
-            let event: JoinEvent = JoinEvent {
-                caller: user.clone(),
-                token_in: t.clone(),
-                token_amount_in,
-            };
-            e.events()
-                .publish((symbol_short!("LOG"), symbol_short!("JOIN")), event);
-            pull_underlying(&e, &t, user.clone(), token_amount_in);
-        }
-
-        write_record(&e, records);
-        mint_shares(e, user, pool_amount_out);
+        execute_join_pool(e, pool_amount_out, max_amounts_in, user);
     }
 
     // Helps a user exit the pool
     fn exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128>, user: Address) {
-        assert_with_error!(&e, pool_amount_in >= 0, Error::ErrNegative);
-
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
         user.require_auth();
-        assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
-        let pool_total = get_total_shares(&e);
-        let exit_fee = c_mul(&e, pool_amount_in, EXIT_FEE).unwrap_optimized();
-        let pai_after_exit_fee = c_sub(&e, pool_amount_in, EXIT_FEE).unwrap_optimized();
-        let ratio: i128 = c_div(&e, pai_after_exit_fee, pool_total).unwrap_optimized();
-        assert_with_error!(&e, ratio != 0, Error::ErrMathApprox);
-        pull_shares(&e, user.clone(), pool_amount_in);
-        let share_contract_id = get_token_share(&e);
-        push_shares(&e, share_contract_id, EXIT_FEE);
-        burn_shares(&e, pai_after_exit_fee);
-        let tokens = read_tokens(&e);
-        let mut records = read_record(&e);
-        for i in 0..tokens.len() {
-            let t = tokens.get(i).unwrap_optimized();
-            let mut rec = records.get(t.clone()).unwrap_optimized();
-            let token_amount_out = c_mul(&e, ratio, rec.balance).unwrap_optimized();
-            assert_with_error!(&e, token_amount_out != 0, Error::ErrMathApprox);
-            assert_with_error!(
-                &e,
-                min_amounts_out.get(i).unwrap_optimized() >= 0,
-                Error::ErrNegative
-            );
-            assert_with_error!(
-                &e,
-                token_amount_out >= min_amounts_out.get(i).unwrap_optimized(),
-                Error::ErrLimitOut
-            );
-            rec.balance = c_sub(&e, rec.balance, token_amount_out).unwrap_optimized();
-            records.set(t.clone(), rec);
-            let event: ExitEvent = ExitEvent {
-                caller: user.clone(),
-                token_out: t.clone(),
-                token_amount_out,
-            };
-            e.events()
-                .publish((symbol_short!("LOG"), symbol_short!("EXIT")), event);
-            push_underlying(&e, &t, user.clone(), token_amount_out)
-        }
-
-        write_record(&e, records);
+        execute_exit_pool(e, pool_amount_in, min_amounts_out, user);
     }
 
     // User wants to swap X amount of Token A
@@ -588,100 +311,17 @@ impl CometPoolTrait for CometPoolContract {
         max_price: i128,
         user: Address,
     ) -> (i128, i128) {
-        assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
-
-        assert_with_error!(&e, token_amount_in >= 0, Error::ErrNegative);
-        assert_with_error!(&e, min_amount_out >= 0, Error::ErrNegative);
-        assert_with_error!(&e, max_price >= 0, Error::ErrNegative);
-
-        assert_with_error!(&e, read_public_swap(&e), Error::ErrSwapNotPublic);
-        assert_with_error!(
-            &e,
-            check_record_bound(&e, token_in.clone()),
-            Error::ErrNotBound
-        );
-        assert_with_error!(
-            &e,
-            check_record_bound(&e, token_out.clone()),
-            Error::ErrNotBound
-        );
-
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
-
         user.require_auth();
-        let mut in_record = read_record(&e).get(token_in.clone()).unwrap_optimized();
-        let mut out_record = read_record(&e).get(token_out.clone()).unwrap_optimized();
-        assert_with_error!(
-            &e,
-            token_amount_in <= c_mul(&e, in_record.balance, MAX_IN_RATIO).unwrap_optimized(),
-            Error::ErrMaxInRatio
-        );
 
-        let spot_price_before = calc_spot_price(
-            &e,
-            in_record.balance,
-            in_record.denorm,
-            out_record.balance,
-            out_record.denorm,
-            read_swap_fee(&e),
-        );
-
-        assert_with_error!(&e, spot_price_before <= max_price, Error::ErrBadLimitPrice);
-        let token_amount_out = calc_token_out_given_token_in(
-            &e,
-            in_record.balance,
-            in_record.denorm,
-            out_record.balance,
-            out_record.denorm,
+        execute_swap_exact_amount_in(
+            e,
+            token_in,
             token_amount_in,
-            read_swap_fee(&e),
-        );
-        assert_with_error!(&e, token_amount_out >= min_amount_out, Error::ErrLimitOut);
-
-        in_record.balance = c_add(&e, in_record.balance, token_amount_in).unwrap_optimized();
-        out_record.balance = c_sub(&e, out_record.balance, token_amount_out).unwrap_optimized();
-
-        let spot_price_after = calc_spot_price(
-            &e,
-            in_record.balance,
-            in_record.denorm,
-            out_record.balance,
-            out_record.denorm,
-            read_swap_fee(&e),
-        );
-
-        assert_with_error!(
-            &e,
-            spot_price_after >= spot_price_before,
-            Error::ErrMathApprox
-        );
-        assert_with_error!(&e, spot_price_after <= max_price, Error::ErrLimitPrice);
-        assert_with_error!(
-            &e,
-            spot_price_before <= c_div(&e, token_amount_in, token_amount_out).unwrap_optimized(),
-            Error::ErrMathApprox
-        );
-
-        let event: SwapEvent = SwapEvent {
-            caller: user.clone(),
-            token_in: token_in.clone(),
-            token_out: token_out.clone(),
-            token_amount_in,
-            token_amount_out,
-        };
-        e.events()
-            .publish((symbol_short!("LOG"), symbol_short!("SWAP")), event);
-
-        pull_underlying(&e, &token_in, user.clone(), token_amount_in);
-        push_underlying(&e, &token_out, user, token_amount_out);
-
-        let mut record_map = read_record(&e);
-        record_map.set(token_in, in_record);
-        record_map.set(token_out, out_record);
-
-        write_record(&e, record_map);
-
-        (token_amount_out, spot_price_after)
+            token_out,
+            min_amount_out,
+            max_price,
+            user,
+        )
     }
 
     // User wants to get Y amount of Token B,
@@ -695,100 +335,16 @@ impl CometPoolTrait for CometPoolContract {
         max_price: i128,
         user: Address,
     ) -> (i128, i128) {
-        assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
-        assert_with_error!(&e, token_amount_out >= 0, Error::ErrNegative);
-        assert_with_error!(&e, max_amount_in >= 0, Error::ErrNegative);
-        assert_with_error!(&e, max_price >= 0, Error::ErrNegative);
-
-        assert_with_error!(
-            &e,
-            check_record_bound(&e, token_in.clone()),
-            Error::ErrNotBound
-        );
-        assert_with_error!(
-            &e,
-            check_record_bound(&e, token_out.clone()),
-            Error::ErrNotBound
-        );
-        assert_with_error!(&e, read_public_swap(&e), Error::ErrSwapNotPublic);
-
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
-
         user.require_auth();
-        let mut in_record = read_record(&e).get(token_in.clone()).unwrap_optimized();
-        let mut out_record = read_record(&e).get(token_out.clone()).unwrap_optimized();
-        assert_with_error!(
-            &e,
-            token_amount_out <= c_mul(&e, out_record.balance, MAX_OUT_RATIO).unwrap_optimized(),
-            Error::ErrMaxInRatio
-        );
-
-        let spot_price_before = calc_spot_price(
-            &e,
-            in_record.balance,
-            in_record.denorm,
-            out_record.balance,
-            out_record.denorm,
-            read_swap_fee(&e),
-        );
-
-        assert_with_error!(&e, spot_price_before <= max_price, Error::ErrBadLimitPrice);
-        let token_amount_in = calc_token_in_given_token_out(
-            &e,
-            in_record.balance,
-            in_record.denorm,
-            out_record.balance,
-            out_record.denorm,
+        execute_swap_exact_amount_out(
+            e,
+            token_in,
+            max_amount_in,
+            token_out,
             token_amount_out,
-            read_swap_fee(&e),
-        );
-
-        assert_with_error!(&e, token_amount_in <= max_amount_in, Error::ErrLimitIn);
-
-        in_record.balance = c_add(&e, in_record.balance, token_amount_in).unwrap_optimized();
-        out_record.balance = c_sub(&e, out_record.balance, token_amount_out).unwrap_optimized();
-
-        let spot_price_after = calc_spot_price(
-            &e,
-            in_record.balance,
-            in_record.denorm,
-            out_record.balance,
-            out_record.denorm,
-            read_swap_fee(&e),
-        );
-
-        assert_with_error!(
-            &e,
-            spot_price_after >= spot_price_before,
-            Error::ErrMathApprox
-        );
-        assert_with_error!(&e, spot_price_after <= max_price, Error::ErrLimitPrice);
-        assert_with_error!(
-            &e,
-            spot_price_before <= c_div(&e, token_amount_in, token_amount_out).unwrap_optimized(),
-            Error::ErrMathApprox
-        );
-
-        let event: SwapEvent = SwapEvent {
-            caller: user.clone(),
-            token_in: token_in.clone(),
-            token_out: token_out.clone(),
-            token_amount_in,
-            token_amount_out,
-        };
-        e.events()
-            .publish((symbol_short!("LOG"), symbol_short!("SWAP")), event);
-
-        pull_underlying(&e, &token_in, user.clone(), token_amount_in);
-        push_underlying(&e, &token_out, user, token_amount_out);
-
-        let mut record_map = read_record(&e);
-        record_map.set(token_in, in_record);
-        record_map.set(token_out, out_record);
-
-        write_record(&e, record_map);
-
-        (token_amount_in, spot_price_after)
+            max_price,
+            user,
+        )
     }
 
     // Deposit X amount of Token A to get LP Token
@@ -800,66 +356,15 @@ impl CometPoolTrait for CometPoolContract {
         min_pool_amount_out: i128,
         user: Address,
     ) -> i128 {
-        assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
-        assert_with_error!(&e, token_amount_in >= 0, Error::ErrNegative);
-        assert_with_error!(&e, min_pool_amount_out >= 0, Error::ErrNegative);
+        user.require_auth();
 
-        assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
-        assert_with_error!(
-            &e,
-            check_record_bound(&e, token_in.clone()),
-            Error::ErrNotBound
-        );
-        assert_with_error!(
-            &e,
-            token_amount_in
-                <= c_mul(
-                    &e,
-                    read_record(&e)
-                        .get(token_in.clone())
-                        .unwrap_optimized()
-                        .balance,
-                    MAX_IN_RATIO
-                )
-                .unwrap_optimized(),
-            Error::ErrMaxInRatio
-        );
-
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
-
-        let mut in_record = read_record(&e).get(token_in.clone()).unwrap_optimized();
-        let pool_amount_out = calc_lp_token_amount_given_token_deposits_in(
-            &e,
-            in_record.balance,
-            in_record.denorm,
-            get_total_shares(&e),
-            read_total_weight(&e),
+        execute_dep_tokn_amt_in_get_lp_tokns_out(
+            e,
+            token_in,
             token_amount_in,
-            read_swap_fee(&e),
-        );
-        assert_with_error!(
-            &e,
-            pool_amount_out >= min_pool_amount_out,
-            Error::ErrLimitOut
-        );
-        in_record.balance = c_add(&e, in_record.balance, token_amount_in).unwrap_optimized();
-
-        let mut record_map = read_record(&e);
-        record_map.set(token_in.clone(), in_record);
-        write_record(&e, record_map);
-
-        let event: JoinEvent = JoinEvent {
-            caller: user.clone(),
-            token_in: token_in.clone(),
-            token_amount_in,
-        };
-        e.events()
-            .publish((symbol_short!("LOG"), symbol_short!("JOIN")), event);
-
-        pull_underlying(&e, &token_in, user.clone(), token_amount_in);
-        mint_shares(e, user, pool_amount_out);
-
-        pool_amount_out
+            min_pool_amount_out,
+            user,
+        )
     }
 
     // To get Y amount of LP tokens, how much of token will be required
@@ -870,65 +375,9 @@ impl CometPoolTrait for CometPoolContract {
         max_amount_in: i128,
         user: Address,
     ) -> i128 {
-        assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
+        user.require_auth();
 
-        assert_with_error!(&e, pool_amount_out >= 0, Error::ErrNegative);
-        assert_with_error!(&e, max_amount_in >= 0, Error::ErrNegative);
-
-        assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
-        assert_with_error!(
-            &e,
-            check_record_bound(&e, token_in.clone()),
-            Error::ErrNotBound
-        );
-
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
-
-        let mut in_record: Record = read_record(&e).get(token_in.clone()).unwrap_optimized();
-
-        let token_amount_in = calc_token_deposits_in_given_lp_token_amount(
-            &e,
-            in_record.balance,
-            in_record.denorm,
-            get_total_shares(&e),
-            read_total_weight(&e),
-            pool_amount_out,
-            read_swap_fee(&e),
-        );
-        assert_with_error!(&e, token_amount_in != 0, Error::ErrMathApprox);
-        assert_with_error!(&e, token_amount_in <= max_amount_in, Error::ErrLimitIn);
-        assert_with_error!(
-            &e,
-            token_amount_in
-                <= c_mul(
-                    &e,
-                    read_record(&e)
-                        .get(token_in.clone())
-                        .unwrap_optimized()
-                        .balance,
-                    MAX_IN_RATIO
-                )
-                .unwrap_optimized(),
-            Error::ErrMaxInRatio
-        );
-        in_record.balance = c_add(&e, in_record.balance, token_amount_in).unwrap_optimized();
-
-        let mut record_map = read_record(&e);
-        record_map.set(token_in.clone(), in_record);
-        write_record(&e, record_map);
-
-        let event: JoinEvent = JoinEvent {
-            caller: user.clone(),
-            token_in: token_in.clone(),
-            token_amount_in,
-        };
-        e.events()
-            .publish((symbol_short!("LOG"), symbol_short!("JOIN")), event);
-
-        pull_underlying(&e, &token_in, user.clone(), token_amount_in);
-        mint_shares(e, user, pool_amount_out);
-
-        token_amount_in
+        execute_dep_lp_tokn_amt_out_get_tokn_in(e, token_in, pool_amount_out, max_amount_in, user)
     }
 
     // Burns LP tokens and gives back the deposit tokens
@@ -941,68 +390,9 @@ impl CometPoolTrait for CometPoolContract {
         min_amount_out: i128,
         user: Address,
     ) -> i128 {
-        assert_with_error!(&e, pool_amount_in >= 0, Error::ErrNegative);
-        assert_with_error!(&e, min_amount_out >= 0, Error::ErrNegative);
-
         user.require_auth();
-        assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
-        assert_with_error!(
-            &e,
-            check_record_bound(&e, token_out.clone()),
-            Error::ErrNotBound
-        );
 
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
-
-        let mut out_record: Record = read_record(&e).get(token_out.clone()).unwrap_optimized();
-
-        let token_amount_out = calc_token_withdrawal_amount_given_lp_token_amount(
-            &e,
-            out_record.balance,
-            out_record.denorm,
-            get_total_shares(&e),
-            read_total_weight(&e),
-            pool_amount_in,
-            read_swap_fee(&e),
-        );
-
-        assert_with_error!(&e, token_amount_out >= min_amount_out, Error::ErrLimitOut);
-        assert_with_error!(
-            &e,
-            token_amount_out
-                <= c_mul(
-                    &e,
-                    read_record(&e)
-                        .get(token_out.clone())
-                        .unwrap_optimized()
-                        .balance,
-                    MAX_OUT_RATIO
-                )
-                .unwrap_optimized(),
-            Error::ErrMaxOutRatio
-        );
-        out_record.balance = c_sub(&e, out_record.balance, token_amount_out).unwrap_optimized();
-        let exit_fee = c_mul(&e, pool_amount_in, EXIT_FEE).unwrap_optimized();
-
-        let event: ExitEvent = ExitEvent {
-            caller: user.clone(),
-            token_out: token_out.clone(),
-            token_amount_out,
-        };
-        e.events()
-            .publish((symbol_short!("LOG"), symbol_short!("EXIT")), event);
-
-        pull_shares(&e, user.clone(), pool_amount_in);
-        burn_shares(&e, c_sub(&e, pool_amount_in, EXIT_FEE).unwrap_optimized());
-        let factory = read_factory(&e);
-        push_shares(&e, factory, EXIT_FEE);
-        push_underlying(&e, &token_out, user, token_amount_out);
-
-        let mut record_map = read_record(&e);
-        record_map.set(token_out, out_record);
-        write_record(&e, record_map);
-
-        token_amount_out
+        execute_wdr_tokn_amt_in_get_lp_tokns_out(e, token_out, pool_amount_in, min_amount_out, user)
     }
 
     // Burns LP tokens and gives back the deposit tokens
@@ -1016,209 +406,124 @@ impl CometPoolTrait for CometPoolContract {
         user: Address,
     ) -> i128 {
         user.require_auth();
-        assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
-        assert_with_error!(
-            &e,
-            check_record_bound(&e, token_out.clone()),
-            Error::ErrNotBound
-        );
-        assert_with_error!(
-            &e,
-            token_amount_out
-                <= c_mul(
-                    &e,
-                    read_record(&e)
-                        .get(token_out.clone())
-                        .unwrap_optimized()
-                        .balance,
-                    MAX_OUT_RATIO
-                )
-                .unwrap_optimized(),
-            Error::ErrMaxOutRatio
-        );
-
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
-
-        let mut out_record: Record = read_record(&e).get(token_out.clone()).unwrap_optimized();
-        let pool_amount_in = calc_lp_token_amount_given_token_withdrawal_amount(
-            &e,
-            out_record.balance,
-            out_record.denorm,
-            get_total_shares(&e),
-            read_total_weight(&e),
+        execute_wdr_tokn_amt_out_get_lp_tokns_in(
+            e,
+            token_out,
             token_amount_out,
-            read_swap_fee(&e),
-        );
-
-        assert_with_error!(&e, pool_amount_in != 0, Error::ErrMathApprox);
-        assert_with_error!(&e, pool_amount_in <= max_pool_amount_in, Error::ErrLimitIn);
-        out_record.balance = c_sub(&e, out_record.balance, token_amount_out).unwrap_optimized();
-        let exit_fee = c_mul(&e, pool_amount_in, EXIT_FEE).unwrap_optimized();
-        let event: ExitEvent = ExitEvent {
-            caller: user.clone(),
-            token_out: token_out.clone(),
-            token_amount_out,
-        };
-        e.events()
-            .publish((symbol_short!("LOG"), symbol_short!("EXIT")), event);
-
-        pull_shares(&e, user.clone(), pool_amount_in);
-        burn_shares(&e, c_sub(&e, pool_amount_in, EXIT_FEE).unwrap_optimized());
-        let factory = read_factory(&e);
-        push_shares(&e, factory, EXIT_FEE);
-        push_underlying(&e, &token_out, user, token_amount_out);
-
-        pool_amount_in
+            max_pool_amount_in,
+            user,
+        )
     }
 
     // Sets the swap fee, can only be set by the controller (pool admin)
     fn set_swap_fee(e: Env, fee: i128, caller: Address) {
-        assert_with_error!(&e, fee >= 0, Error::ErrNegative);
-        assert_with_error!(&e, !read_finalize(&e), Error::ErrFinalized);
-        assert_with_error!(&e, fee >= MIN_FEE, Error::ErrMinFee);
-        assert_with_error!(&e, fee <= MAX_FEE, Error::ErrMaxFee);
         assert_with_error!(&e, caller == read_controller(&e), Error::ErrNotController);
         caller.require_auth();
-        write_swap_fee(&e, fee);
+        execute_set_swap_fee(e, fee, caller);
     }
 
     // Sets the value of the controller address, only can be set by the current controller
     fn set_controller(e: Env, caller: Address, manager: Address) {
         assert_with_error!(&e, caller == read_controller(&e), Error::ErrNotController);
         caller.require_auth();
-        write_controller(&e, manager);
+        execute_set_controller(e, caller, manager);
     }
 
     // Set the value of the Public Swap
     fn set_public_swap(e: Env, caller: Address, val: bool) {
         assert_with_error!(&e, caller == read_controller(&e), Error::ErrNotController);
-        assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
         caller.require_auth();
-        write_public_swap(&e, val);
+        execute_set_public_swap(e, caller, val);
     }
 
     // Only Callable by the Pool Admin
     // Freezes Functions and only allows withdrawals
     fn set_freeze_status(e: Env, caller: Address, val: bool) {
-        caller.require_auth();
-        assert_with_error!(&e, caller == read_controller(&e), Error::ErrNotController);
-        write_freeze(&e, val);
+        execute_set_freeze_status(e, caller, val);
     }
 
+    // GETTER FUNCTIONS
     // Get the Controller Address
     fn get_total_supply(e: Env) -> i128 {
-        get_total_shares(&e)
+        execute_get_total_supply(e)
     }
 
     // Get the Controller Address
     fn get_controller(e: Env) -> Address {
-        read_controller(&e)
+        execute_get_controller(e)
     }
 
     // Get the total dernormalized weight
     fn get_total_denormalized_weight(e: Env) -> i128 {
-        read_total_weight(&e)
+        execute_get_total_denormalized_weight(e)
     }
 
     // Get the number of tokens in the pool
     fn get_num_tokens(e: Env) -> u32 {
-        let token_vec = read_tokens(&e);
-        token_vec.len()
+        execute_get_num_tokens(e)
     }
 
     // Get the Current Tokens in the Pool
     fn get_current_tokens(e: Env) -> Vec<Address> {
-        read_tokens(&e)
+        execute_get_current_tokens(e)
     }
 
     // Get the finalized tokens in the pool
     fn get_final_tokens(e: Env) -> Vec<Address> {
-        assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
-        read_tokens(&e)
+        execute_get_final_tokens(e)
     }
 
     // Get the balance of the Token
     fn get_balance(e: Env, token: Address) -> i128 {
-        let val = read_record(&e).get(token).unwrap_optimized();
-        assert_with_error!(&e, val.bound, Error::ErrNotBound);
-        val.balance
+        execute_get_balance(e, token)
     }
 
     // Get the denormalized weight of the token
     fn get_denormalized_weight(e: Env, token: Address) -> i128 {
-        assert_with_error!(
-            &e,
-            check_record_bound(&e, token.clone()),
-            Error::ErrNotBound
-        );
-        let val = read_record(&e).get(token).unwrap_optimized();
-        val.denorm
+        execute_get_denormalized_weight(e, token)
     }
 
     // Get the normalized weight of the token
     fn get_normalized_weight(e: Env, token: Address) -> i128 {
-        assert_with_error!(
-            &e,
-            check_record_bound(&e, token.clone()),
-            Error::ErrNotBound
-        );
-        let val = read_record(&e).get(token).unwrap_optimized();
-        c_div(&e, val.denorm, read_total_weight(&e)).unwrap_optimized()
+        execute_get_normalized_weight(e, token)
     }
 
     // Calculate the spot considering the swap fee
     fn get_spot_price(e: Env, token_in: Address, token_out: Address) -> i128 {
-        let in_record = read_record(&e).get(token_in).unwrap_optimized();
-        let out_record: Record = read_record(&e).get(token_out).unwrap_optimized();
-        calc_spot_price(
-            &e,
-            in_record.balance,
-            in_record.denorm,
-            out_record.balance,
-            out_record.denorm,
-            read_swap_fee(&e),
-        )
+        execute_get_spot_price(e, token_in, token_out)
     }
 
     // Get the Swap Fee of the Contract
     fn get_swap_fee(e: Env) -> i128 {
-        read_swap_fee(&e)
+        execute_get_swap_fee(e)
     }
 
     // Get the spot price without considering the swap fee
     fn get_spot_price_sans_fee(e: Env, token_in: Address, token_out: Address) -> i128 {
-        let in_record = read_record(&e).get(token_in).unwrap_optimized();
-        let out_record = read_record(&e).get(token_out).unwrap_optimized();
-        calc_spot_price(
-            &e,
-            in_record.balance,
-            in_record.denorm,
-            out_record.balance,
-            out_record.denorm,
-            0,
-        )
+        execute_get_spot_price_sans_fee(e, token_in, token_out)
     }
 
     // Get LP Token Address
     fn share_id(e: Env) -> Address {
-        get_token_share(&e)
+        execute_share_id(e)
     }
 
     // Check if the Pool can be used for swapping by normal users
     fn is_public_swap(e: Env) -> bool {
-        read_public_swap(&e)
+        execute_is_public_swap(e)
     }
 
     // Check if the Pool is finalized by the Controller
     fn is_finalized(e: Env) -> bool {
-        read_finalize(&e)
+        execute_is_finalized(e)
     }
 
     // Check if the token Address is bound to the pool
     fn is_bound(e: Env, t: Address) -> bool {
-        read_record(&e).get(t).unwrap_optimized().bound
+        execute_is_bound(e, t)
     }
 
+    // TOKEN
     fn initialize(e: Env, admin: Address, decimal: u32, name: String, symbol: String) {
         if has_administrator(&e) {
             panic!("already initialized")
@@ -1239,7 +544,9 @@ impl CometPoolTrait for CometPoolContract {
     }
 
     fn allowance(e: Env, from: Address, spender: Address) -> i128 {
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+        e.storage()
+            .instance()
+            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         read_allowance(&e, from, spender).amount
     }
 
@@ -1248,25 +555,29 @@ impl CometPoolTrait for CometPoolContract {
 
         check_nonnegative_amount(amount);
 
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+        e.storage()
+            .instance()
+            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
         write_allowance(&e, from.clone(), spender.clone(), amount, expiration_ledger);
-        event::approve(&e, from, spender, amount, expiration_ledger);
+
+        TokenUtils::new(&e)
+            .events()
+            .approve(from, spender, amount, expiration_ledger);
     }
 
     fn balance(e: Env, id: Address) -> i128 {
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+        e.storage()
+            .instance()
+            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         read_balance(&e, id)
     }
 
     fn spendable_balance(e: Env, id: Address) -> i128 {
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+        e.storage()
+            .instance()
+            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         read_balance(&e, id)
-    }
-
-    fn authorized(e: Env, id: Address) -> bool {
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
-        is_authorized(&e, id)
     }
 
     fn transfer(e: Env, from: Address, to: Address, amount: i128) {
@@ -1274,11 +585,13 @@ impl CometPoolTrait for CometPoolContract {
 
         check_nonnegative_amount(amount);
 
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+        e.storage()
+            .instance()
+            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
         spend_balance(&e, from.clone(), amount);
         receive_balance(&e, to.clone(), amount);
-        event::transfer(&e, from, to, amount);
+        TokenUtils::new(&e).events().transfer(from, to, amount);
     }
 
     fn transfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128) {
@@ -1286,12 +599,14 @@ impl CometPoolTrait for CometPoolContract {
 
         check_nonnegative_amount(amount);
 
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+        e.storage()
+            .instance()
+            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
         spend_allowance(&e, from.clone(), spender, amount);
         spend_balance(&e, from.clone(), amount);
         receive_balance(&e, to.clone(), amount);
-        event::transfer(&e, from, to, amount)
+        TokenUtils::new(&e).events().transfer(from, to, amount)
     }
 
     fn burn(e: Env, from: Address, amount: i128) {
@@ -1299,10 +614,12 @@ impl CometPoolTrait for CometPoolContract {
 
         check_nonnegative_amount(amount);
 
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+        e.storage()
+            .instance()
+            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
         spend_balance(&e, from.clone(), amount);
-        event::burn(&e, from, amount);
+        TokenUtils::new(&e).events().burn(from, amount);
     }
 
     fn burn_from(e: Env, spender: Address, from: Address, amount: i128) {
@@ -1310,32 +627,13 @@ impl CometPoolTrait for CometPoolContract {
 
         check_nonnegative_amount(amount);
 
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+        e.storage()
+            .instance()
+            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
         spend_allowance(&e, from.clone(), spender, amount);
         spend_balance(&e, from.clone(), amount);
-        event::burn(&e, from, amount)
-    }
-
-    fn clawback(e: Env, from: Address, amount: i128) {
-        check_nonnegative_amount(amount);
-        let admin = read_administrator(&e);
-        admin.require_auth();
-
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
-
-        spend_balance(&e, from.clone(), amount);
-        event::clawback(&e, admin, from, amount);
-    }
-
-    fn set_authorized(e: Env, id: Address, authorize: bool) {
-        let admin = read_administrator(&e);
-        admin.require_auth();
-
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
-
-        write_authorization(&e, id.clone(), authorize);
-        event::set_authorized(&e, admin, id, authorize);
+        TokenUtils::new(&e).events().burn(from, amount)
     }
 
     fn mint(e: Env, to: Address, amount: i128) {
@@ -1343,20 +641,24 @@ impl CometPoolTrait for CometPoolContract {
         let admin = read_administrator(&e);
         admin.require_auth();
 
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+        e.storage()
+            .instance()
+            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
         receive_balance(&e, to.clone(), amount);
-        event::mint(&e, admin, to, amount);
+        TokenUtils::new(&e).events().mint(admin, to, amount);
     }
 
     fn set_admin(e: Env, new_admin: Address) {
         let admin = read_administrator(&e);
         admin.require_auth();
 
-        e.storage().instance().bump(SHARED_BUMP_AMOUNT);
+        e.storage()
+            .instance()
+            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
         write_administrator(&e, &new_admin);
-        event::set_admin(&e, admin, new_admin);
+        TokenUtils::new(&e).events().set_admin(admin, new_admin);
     }
 
     fn decimals(e: Env) -> u32 {

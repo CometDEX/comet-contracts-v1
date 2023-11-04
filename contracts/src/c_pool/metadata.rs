@@ -1,16 +1,18 @@
 //! Utilities to read and write contract's storage
 
 use crate::c_pool::storage_types::DataKey;
-use soroban_sdk::{vec, Address, Bytes, BytesN, Env, Map, Vec, unwrap::UnwrapOptimized, String};
-use soroban_token_sdk::{TokenUtils, TokenMetadata};
+use soroban_sdk::{unwrap::UnwrapOptimized, vec, Address, Bytes, BytesN, Env, Map, String, Vec};
+use soroban_token_sdk::{metadata::TokenMetadata, TokenUtils};
 
-use super::storage_types::{DataKeyToken, Record, SHARED_BUMP_AMOUNT};
+use super::storage_types::{DataKeyToken, Record, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD};
 
 // Read all Token Addresses in the pool
 pub fn read_tokens(e: &Env) -> Vec<Address> {
     let key = DataKey::AllTokenVec;
     if let Some(arr) = e.storage().persistent().get::<DataKey, Vec<Address>>(&key) {
-        e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
+        e.storage()
+            .persistent()
+            .bump(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         arr
     } else {
         vec![e]
@@ -21,14 +23,22 @@ pub fn read_tokens(e: &Env) -> Vec<Address> {
 pub fn write_tokens(e: &Env, new: Vec<Address>) {
     let key = DataKey::AllTokenVec;
     e.storage().persistent().set(&key, &new);
-    e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .bump(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 }
 
 // Read Record
 pub fn read_record(e: &Env) -> Map<Address, Record> {
     let key_rec = DataKey::AllRecordData;
-    if let Some(rec) = e.storage().persistent().get::<DataKey, Map<Address, Record>>(&key_rec) {
-        e.storage().persistent().bump(&key_rec, SHARED_BUMP_AMOUNT);
+    if let Some(rec) = e
+        .storage()
+        .persistent()
+        .get::<DataKey, Map<Address, Record>>(&key_rec)
+    {
+        e.storage()
+            .persistent()
+            .bump(&key_rec, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         rec
     } else {
         Map::<Address, Record>::new(e)
@@ -39,13 +49,18 @@ pub fn read_record(e: &Env) -> Map<Address, Record> {
 pub fn write_record(e: &Env, new_map: Map<Address, Record>) {
     let key_rec = DataKey::AllRecordData;
     e.storage().persistent().set(&key_rec, &new_map);
-    e.storage().persistent().bump(&key_rec, SHARED_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .bump(&key_rec, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 }
 
 // Read Factory
 pub fn read_factory(e: &Env) -> Address {
     let key = DataKey::Factory;
-    e.storage().instance().get::<DataKey, Address>(&key).unwrap_optimized()
+    e.storage()
+        .instance()
+        .get::<DataKey, Address>(&key)
+        .unwrap_optimized()
 }
 
 // Write Factory
@@ -59,21 +74,31 @@ pub fn write_factory(e: &Env, d: Address) {
 // Read Controller
 pub fn read_controller(e: &Env) -> Address {
     let key = DataKey::Controller;
-    e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
-    e.storage().persistent().get::<DataKey, Address>(&key).unwrap_optimized()
+    e.storage()
+        .persistent()
+        .bump(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .get::<DataKey, Address>(&key)
+        .unwrap_optimized()
 }
 
 // Write Controller
 pub fn write_controller(e: &Env, d: Address) {
     let key = DataKey::Controller;
     e.storage().persistent().set(&key, &d);
-    e.storage().persistent().bump(&key, SHARED_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .bump(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 }
 
 // Read Swap Fee
 pub fn read_swap_fee(e: &Env) -> i128 {
     let key = DataKey::SwapFee;
-    e.storage().instance().get::<DataKey, i128>(&key).unwrap_or(0)
+    e.storage()
+        .instance()
+        .get::<DataKey, i128>(&key)
+        .unwrap_or(0)
 }
 
 // Write Swap Fee
@@ -89,7 +114,6 @@ pub fn read_total_weight(e: &Env) -> i128 {
         .instance()
         .get::<DataKey, i128>(&DataKey::TotalWeight)
         .unwrap_or(0_i128)
-        
 }
 
 // Write Total Weight
@@ -100,31 +124,58 @@ pub fn write_total_weight(e: &Env, d: i128) {
 
 //Read Token Share
 pub fn get_token_share(e: &Env) -> Address {
-    e.storage().persistent().bump(&DataKey::TokenShare, SHARED_BUMP_AMOUNT);
-    e.storage().persistent().get::<DataKey, Address>(&DataKey::TokenShare).unwrap_optimized()
+    e.storage().persistent().bump(
+        &DataKey::TokenShare,
+        SHARED_LIFETIME_THRESHOLD,
+        SHARED_BUMP_AMOUNT,
+    );
+    e.storage()
+        .persistent()
+        .get::<DataKey, Address>(&DataKey::TokenShare)
+        .unwrap_optimized()
 }
 
 // Update Token Share
 pub fn put_token_share(e: &Env, contract_id: Address) {
-    e.storage().persistent().set(&DataKey::TokenShare, &contract_id);
-    e.storage().persistent().bump(&DataKey::TokenShare, SHARED_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .set(&DataKey::TokenShare, &contract_id);
+    e.storage().persistent().bump(
+        &DataKey::TokenShare,
+        SHARED_LIFETIME_THRESHOLD,
+        SHARED_BUMP_AMOUNT,
+    );
 }
 
 // Read Total Shares
 pub fn get_total_shares(e: &Env) -> i128 {
-    e.storage().persistent().bump(&DataKey::TotalShares, SHARED_BUMP_AMOUNT);
-    e.storage().persistent().get::<DataKey, i128>(&DataKey::TotalShares).unwrap_optimized()
+    e.storage().persistent().bump(
+        &DataKey::TotalShares,
+        SHARED_LIFETIME_THRESHOLD,
+        SHARED_BUMP_AMOUNT,
+    );
+    e.storage()
+        .persistent()
+        .get::<DataKey, i128>(&DataKey::TotalShares)
+        .unwrap_optimized()
 }
 
 // Update Total Shares
 pub fn put_total_shares(e: &Env, amount: i128) {
     e.storage().persistent().set(&DataKey::TotalShares, &amount);
-    e.storage().persistent().bump(&DataKey::TotalShares, SHARED_BUMP_AMOUNT);
+    e.storage().persistent().bump(
+        &DataKey::TotalShares,
+        SHARED_LIFETIME_THRESHOLD,
+        SHARED_BUMP_AMOUNT,
+    );
 }
 
 // Read Finalize
 pub fn read_finalize(e: &Env) -> bool {
-    e.storage().instance().get::<DataKey, bool>(&DataKey::Finalize).unwrap_optimized()
+    e.storage()
+        .instance()
+        .get::<DataKey, bool>(&DataKey::Finalize)
+        .unwrap_optimized()
 }
 
 // Write Finalize
@@ -134,7 +185,10 @@ pub fn write_finalize(e: &Env, val: bool) {
 
 // Read Public Swap
 pub fn read_public_swap(e: &Env) -> bool {
-    e.storage().instance().get::<DataKey, bool>(&DataKey::PublicSwap).unwrap_optimized()
+    e.storage()
+        .instance()
+        .get::<DataKey, bool>(&DataKey::PublicSwap)
+        .unwrap_optimized()
 }
 
 // Write Public Swap
@@ -146,11 +200,17 @@ pub fn write_public_swap(e: &Env, val: bool) {
 pub fn check_record_bound(e: &Env, token: Address) -> bool {
     let key_rec = DataKey::AllRecordData;
 
-    if let Some(val) = e.storage().persistent().get::<DataKey, Map<Address, Record>>(&key_rec) {
-        e.storage().persistent().bump(&key_rec, SHARED_BUMP_AMOUNT);
+    if let Some(val) = e
+        .storage()
+        .persistent()
+        .get::<DataKey, Map<Address, Record>>(&key_rec)
+    {
+        e.storage()
+            .persistent()
+            .bump(&key_rec, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         let key_existence = val.contains_key(token.clone());
         if key_existence {
-            return val.get(token).unwrap_optimized().bound
+            return val.get(token).unwrap_optimized().bound;
         }
     }
     false
@@ -159,7 +219,10 @@ pub fn check_record_bound(e: &Env, token: Address) -> bool {
 // Read status of the pool
 pub fn read_freeze(e: &Env) -> bool {
     let key = DataKey::Freeze;
-    e.storage().instance().get::<DataKey, bool>(&key).unwrap_or(false)
+    e.storage()
+        .instance()
+        .get::<DataKey, bool>(&key)
+        .unwrap_or(false)
 }
 
 // Write status of the pool
@@ -168,23 +231,22 @@ pub fn write_freeze(e: &Env, d: bool) {
     e.storage().instance().set(&key, &d)
 }
 
-
 pub fn read_decimal(e: &Env) -> u32 {
     let util = TokenUtils::new(e);
-    util.get_metadata().decimal
+    util.metadata().get_metadata().decimal
 }
 
 pub fn read_name(e: &Env) -> String {
     let util = TokenUtils::new(e);
-    util.get_metadata().name
+    util.metadata().get_metadata().name
 }
 
 pub fn read_symbol(e: &Env) -> String {
     let util = TokenUtils::new(e);
-    util.get_metadata().symbol
+    util.metadata().get_metadata().symbol
 }
 
 pub fn write_metadata(e: &Env, metadata: TokenMetadata) {
     let util = TokenUtils::new(e);
-    util.set_metadata(&metadata);
+    util.metadata().set_metadata(&metadata);
 }

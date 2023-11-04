@@ -3,7 +3,7 @@
 use crate::c_pool::error::Error;
 
 use super::storage_types::DataKeyToken;
-use soroban_sdk::{panic_with_error, Address, Env, unwrap::UnwrapOptimized};
+use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
 // Return true if the Admin of the LP token is set, else false
 pub fn has_administrator(e: &Env) -> bool {
@@ -14,18 +14,14 @@ pub fn has_administrator(e: &Env) -> bool {
 // Read the Administrator of the LP Token
 pub fn read_administrator(e: &Env) -> Address {
     let key = DataKeyToken::Admin;
-    e.storage().instance().get::<DataKeyToken, Address>(&key).unwrap_optimized()
+    e.storage()
+        .instance()
+        .get::<DataKeyToken, Address>(&key)
+        .unwrap_optimized()
 }
 
 // Write the Administrator of the LP Token
 pub fn write_administrator(e: &Env, id: &Address) {
     let key = DataKeyToken::Admin;
     e.storage().instance().set(&key, id);
-}
-
-// Check if the provided address matches the actual admin
-pub fn check_admin(e: &Env, admin: &Address) {
-    if admin != &read_administrator(e) {
-        panic_with_error!(e, Error::ErrNotAuthorizedByAdmin)
-    }
 }

@@ -1,5 +1,5 @@
 //! Comet Pool Math Utilities
-use soroban_sdk::{Env, unwrap::UnwrapOptimized};
+use soroban_sdk::{unwrap::UnwrapOptimized, Env};
 
 use crate::{
     c_consts::{BONE, EXIT_FEE},
@@ -68,7 +68,12 @@ pub fn calc_token_in_given_token_out(
     let mut f = c_pow(e, y, weight_ratio).unwrap_optimized();
     f = c_sub(e, f, BONE).unwrap_optimized();
     let mut token_amount_in = c_sub(e, BONE, swap_fee).unwrap_optimized();
-    token_amount_in = c_div(e, c_mul(e, token_balance_in, f).unwrap_optimized(), token_amount_in).unwrap_optimized();
+    token_amount_in = c_div(
+        e,
+        c_mul(e, token_balance_in, f).unwrap_optimized(),
+        token_amount_in,
+    )
+    .unwrap_optimized();
     token_amount_in
 }
 
@@ -84,11 +89,17 @@ pub fn calc_lp_token_amount_given_token_deposits_in(
     swap_fee: i128,
 ) -> i128 {
     let normalized_weight = c_div(e, token_weight_in, total_weight).unwrap_optimized();
-    let zaz = c_mul(e, c_sub(e, BONE, normalized_weight).unwrap_optimized(), swap_fee).unwrap_optimized();
+    let zaz = c_mul(
+        e,
+        c_sub(e, BONE, normalized_weight).unwrap_optimized(),
+        swap_fee,
+    )
+    .unwrap_optimized();
     let token_amount_in_after_fee =
         c_mul(e, token_amount_in, c_sub(e, BONE, zaz).unwrap_optimized()).unwrap_optimized();
 
-    let new_token_balance_in = c_add(e, token_balance_in, token_amount_in_after_fee).unwrap_optimized();
+    let new_token_balance_in =
+        c_add(e, token_balance_in, token_amount_in_after_fee).unwrap_optimized();
     let token_in_ratio = c_div(e, new_token_balance_in, token_balance_in).unwrap_optimized();
 
     let pool_ratio = c_pow(e, token_in_ratio, normalized_weight).unwrap_optimized();
@@ -115,11 +126,22 @@ pub fn calc_token_deposits_in_given_lp_token_amount(
     let boo = c_div(e, BONE, normalized_weight).unwrap_optimized();
     let token_in_ratio = c_pow(e, pool_ratio, boo).unwrap_optimized();
     let new_token_balance_in = c_mul(e, token_in_ratio, token_balance_in).unwrap_optimized();
-    let token_amount_in_after_fee = c_sub(e, new_token_balance_in, token_balance_in).unwrap_optimized();
+    let token_amount_in_after_fee =
+        c_sub(e, new_token_balance_in, token_balance_in).unwrap_optimized();
 
-    let zar = c_mul(e, c_sub(e, BONE, normalized_weight).unwrap_optimized(), swap_fee).unwrap_optimized();
+    let zar = c_mul(
+        e,
+        c_sub(e, BONE, normalized_weight).unwrap_optimized(),
+        swap_fee,
+    )
+    .unwrap_optimized();
 
-    c_div(e, token_amount_in_after_fee, c_sub(e, BONE, zar).unwrap_optimized()).unwrap_optimized()
+    c_div(
+        e,
+        token_amount_in_after_fee,
+        c_sub(e, BONE, zar).unwrap_optimized(),
+    )
+    .unwrap_optimized()
 }
 
 // Calculating the amount of LP tokens a user needs to burn,
@@ -168,18 +190,32 @@ pub fn calc_token_withdrawal_amount_given_lp_token_amount(
 ) -> i128 {
     let normalized_weight = c_div(e, token_weight_out, total_weight).unwrap_optimized();
 
-    let pool_amount_in_after_exit_fee =
-        c_mul(e, pool_amount_in, c_sub(e, BONE, EXIT_FEE).unwrap_optimized()).unwrap_optimized();
+    let pool_amount_in_after_exit_fee = c_mul(
+        e,
+        pool_amount_in,
+        c_sub(e, BONE, EXIT_FEE).unwrap_optimized(),
+    )
+    .unwrap_optimized();
     let new_pool_supply = c_sub(e, pool_supply, pool_amount_in_after_exit_fee).unwrap_optimized();
     let pool_ratio = c_div(e, new_pool_supply, pool_supply).unwrap_optimized();
 
-    let token_out_ratio = c_pow(e, pool_ratio, c_div(e, BONE, normalized_weight).unwrap_optimized()).unwrap_optimized();
+    let token_out_ratio = c_pow(
+        e,
+        pool_ratio,
+        c_div(e, BONE, normalized_weight).unwrap_optimized(),
+    )
+    .unwrap_optimized();
     let new_token_balance_out = c_mul(e, token_out_ratio, token_balance_out).unwrap_optimized();
 
     let token_amount_out_before_swap_fee =
         c_sub(e, token_balance_out, new_token_balance_out).unwrap_optimized();
 
-    let zaz = c_mul(e, c_sub(e, BONE, normalized_weight).unwrap_optimized(), swap_fee).unwrap_optimized();
+    let zaz = c_mul(
+        e,
+        c_sub(e, BONE, normalized_weight).unwrap_optimized(),
+        swap_fee,
+    )
+    .unwrap_optimized();
 
     c_mul(
         e,

@@ -1,14 +1,15 @@
 #![cfg(test)]
 
+use std::dbg;
 use std::println;
 extern crate std;
 use crate::c_consts::BONE;
 use crate::c_pool::comet::CometPoolContract;
 use crate::c_pool::comet::CometPoolContractClient;
 use crate::c_pool::error::Error;
-use soroban_sdk::String;
 use soroban_sdk::token;
 use soroban_sdk::xdr::AccountId;
+use soroban_sdk::String;
 // use soroban_sdk::xdr::ScStatusType;
 use soroban_sdk::Bytes;
 use soroban_sdk::{testutils::Address as _, Address, IntoVal};
@@ -74,8 +75,10 @@ fn test_pool_functions_different_decimals() {
     let mut admin1 = soroban_sdk::Address::random(&env);
 
     // Create 4 tokens
-    let mut token1: test_token::Client<'_> = create_and_init_token_contract(&env, &admin1, &5, "NebulaCoin", "NBC");
-    let mut token2: test_token::Client<'_> = create_and_init_token_contract(&env, &admin1, &7, "StroopCoin", "STRP");
+    let mut token1: test_token::Client<'_> =
+        create_and_init_token_contract(&env, &admin1, &5, "NebulaCoin", "NBC");
+    let mut token2: test_token::Client<'_> =
+        create_and_init_token_contract(&env, &admin1, &7, "StroopCoin", "STRP");
 
     // let mut token1 = create_token_contract(&env, &admin1);
     // let mut token2 = create_token_contract(&env, &admin1);
@@ -110,11 +113,18 @@ fn test_pool_functions_different_decimals() {
     // token1.approve(&admin, &contract_address, &i128::MAX, &200);
     // token2.approve(&admin, &contract_address, &i128::MAX, &200);
 
-    // client.bind(&token1.address, to_six_dec(50), &to_stroop(5), &admin);
+    // client.bind(&token1.address, &to_six_dec(50), &to_stroop(5), &admin);
     // client.bind(&token2.address, &to_stroop(20), &to_stroop(5), &admin);
-    
-    client.bundle_bind(&vec![&env, token1.address.clone() ,token2.address.clone() ], &vec![&env, to_six_dec(50), to_stroop(20)], &vec![&env, to_stroop(5), to_stroop(5)]);
-    // let token_vec = vec![client, ]
+
+    client.bundle_bind(
+        &vec![&env, token1.address.clone(), token2.address.clone()],
+        &vec![&env, to_six_dec(50), to_stroop(20)],
+        &vec![&env, to_stroop(5), to_stroop(5)],
+    );
+
+    dbg!("Checking the Authorization for Bundle Bindc");
+    dbg!(env.auths());
+
     client.set_swap_fee(&to_stroop(0.003), &controller);
     let swap_fee = client.get_swap_fee();
     assert_eq!(swap_fee, to_stroop(0.003));

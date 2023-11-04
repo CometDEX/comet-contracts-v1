@@ -6,10 +6,10 @@ use crate::c_consts::BONE;
 use crate::c_pool::comet::CometPoolContract;
 use crate::c_pool::comet::CometPoolContractClient;
 use crate::c_pool::error::Error;
-use soroban_sdk::String;
 use soroban_sdk::token;
 use soroban_sdk::xdr::AccountId;
 use soroban_sdk::Bytes;
+use soroban_sdk::String;
 use soroban_sdk::{testutils::Address as _, Address, IntoVal};
 use soroban_sdk::{vec, BytesN, Env, Symbol};
 use token::Client as TokenClient;
@@ -69,13 +69,13 @@ fn test_pool_functions() {
     // Create Admin
     let mut admin1: Address = soroban_sdk::Address::random(&env);
 
-    // Create 4 tokens
-    let mut token1 = create_and_init_token_contract(&env, &admin1,&7,"NebulaCoin", "NBC");
-    let mut token2 = create_and_init_token_contract(&env, &admin1,&7, "QuantumToken", "QTK");
-    let mut token3 = create_and_init_token_contract(&env, &admin1,&7,"SolariumCoin", "SLC");
+    // // Create 4 tokens
+    let mut token1 = create_and_init_token_contract(&env, &admin1, &7, "NebulaCoin", "NBC");
+    let mut token2 = create_and_init_token_contract(&env, &admin1, &7, "QuantumToken", "QTK");
+    let mut token3 = create_and_init_token_contract(&env, &admin1, &7, "SolariumCoin", "SLC");
     let mut token4 = create_and_init_token_contract(&env, &admin1, &7, "StellarBit", "XBT");
 
-    // Create 2 users
+    // // Create 2 users
     let mut user1 = soroban_sdk::Address::random(&env);
     let mut user2 = soroban_sdk::Address::random(&env);
 
@@ -104,21 +104,21 @@ fn test_pool_functions() {
     let num_tokens = client.get_num_tokens();
     assert_eq!(num_tokens, 0);
 
-    // let contract_address: Address = Address::from_contract_id(&contract_id);
-    // token1.approve(&admin, &contract_id, &i128::MAX, &200);
-    // token2.approve(&admin, &contract_id, &i128::MAX, &200);
-    // token3.approve(&admin, &contract_id, &i128::MAX, &200);
-    // token4.approve(&admin, &contract_id, &i128::MAX, &200);
+    // // let contract_address: Address = Address::from_contract_id(&contract_id);
+    // // token1.approve(&admin, &contract_id, &i128::MAX, &200);
+    // // token2.approve(&admin, &contract_id, &i128::MAX, &200);
+    // // token3.approve(&admin, &contract_id, &i128::MAX, &200);
+    // // token4.approve(&admin, &contract_id, &i128::MAX, &200);
 
-    // client.bind(&token1.address, &to_stroop(50), &to_stroop(5), &admin);
-    // client.bind(&token2.address, &to_stroop(20), &to_stroop(5), &admin);
-    // client.bind(&token3.address, &to_stroop(10000), &to_stroop(5), &admin);
-    // client.bind(&token4.address, &to_stroop(10), &to_stroop(5), &admin);
-    client.bundle_bind(
-        &vec![&env, token1.address.clone() ,token2.address.clone(), token3.address.clone(), token4.address.clone()], 
-        &vec![&env, to_stroop(50), to_stroop(20), to_stroop(10000), to_stroop(10)], 
-        &vec![&env, to_stroop(5), to_stroop(5), to_stroop(5), to_stroop(5)]
-    );
+    client.bind(&token1.address, &to_stroop(50), &to_stroop(5), &admin);
+    client.bind(&token2.address, &to_stroop(20), &to_stroop(5), &admin);
+    client.bind(&token3.address, &to_stroop(10000), &to_stroop(5), &admin);
+    client.bind(&token4.address, &to_stroop(10), &to_stroop(5), &admin);
+    // client.bundle_bind(
+    //     &vec![&env, token1.address.clone() ,token2.address.clone(), token3.address.clone(), token4.address.clone()],
+    //     &vec![&env, to_stroop(50), to_stroop(20), to_stroop(10000), to_stroop(10)],
+    //     &vec![&env, to_stroop(5), to_stroop(5), to_stroop(5), to_stroop(5)]
+    // );
     client.unbind(&token4.address, &admin);
 
     let num_tokens = client.get_num_tokens();

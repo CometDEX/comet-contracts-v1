@@ -4,7 +4,7 @@ extern crate std;
 use std::println;
 
 use crate::{Factory, FactoryClient};
-use soroban_sdk::{testutils::Address, Bytes, Env, IntoVal, Symbol, BytesN};
+use soroban_sdk::{testutils::Address, Bytes, BytesN, Env, IntoVal, Symbol};
 
 // The contract that will be deployed by the deployer contract.
 mod contract {
@@ -30,6 +30,6 @@ fn test_factory() {
     client.set_c_admin(&user, &new_admin);
     assert_eq!(client.get_c_admin(), new_admin);
 
-    //Exit Fee is 0 so this wont do anything
+    // //Exit Fee is 0 so this wont do anything
     client.collect(&new_admin, &contract_id);
 }

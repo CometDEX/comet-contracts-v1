@@ -2,7 +2,7 @@
 
 use c_consts::BONE;
 use fixed_point_math::{FixedPoint, STROOP};
-use soroban_sdk::{panic_with_error, Env, unwrap::UnwrapOptimized};
+use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Env};
 
 use crate::{
     c_consts::{self, CPOW_PRECISION, MAX_CPOW_BASE, MIN_CPOW_BASE},
@@ -32,7 +32,7 @@ pub fn c_add(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
     let c = a.checked_add(b);
     match c {
         Some(val) => Ok(val),
-        None => return Err(Error::ErrAddOverflow),
+        None => Err(Error::ErrAddOverflow),
     }
 }
 
@@ -58,7 +58,7 @@ pub fn c_sub_sign(a: i128, b: i128) -> (i128, bool) {
 pub fn c_mul(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
     match a.fixed_mul_floor(b, BONE) {
         Some(val) => Ok(val),
-        None => return Err(Error::ErrMulOverflow),
+        None => Err(Error::ErrMulOverflow),
     }
 }
 
@@ -66,7 +66,7 @@ pub fn c_mul(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
 pub fn c_div(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
     match a.fixed_div_floor(b, BONE) {
         Some(val) => Ok(val),
-        None => return Err(Error::ErrDivInternal),
+        None => Err(Error::ErrDivInternal),
     }
 }
 
