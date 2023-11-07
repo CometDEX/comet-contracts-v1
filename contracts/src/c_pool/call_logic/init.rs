@@ -6,7 +6,7 @@ use crate::{
     c_pool::{
         error::Error,
         metadata::{
-            put_token_share, put_total_shares, write_controller, write_factory, write_finalize,
+            put_total_shares, write_controller, write_factory, write_finalize,
             write_metadata, write_public_swap, write_swap_fee,
         },
         storage_types::DataKey,
@@ -33,9 +33,6 @@ pub fn execute_init(e: Env, factory: Address, controller: Address) {
     let name = String::from_slice(&e, "Comet Pool Token");
     // Symbol of the LP Token
     let symbol = String::from_slice(&e, "CPAL");
-
-    // Current Contract is the LP Token as well
-    put_token_share(&e, val.clone());
 
     // Set the Total Supply of the LP Token as 0
     put_total_shares(&e, 0);

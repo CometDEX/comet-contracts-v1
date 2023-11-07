@@ -16,7 +16,7 @@ use crate::{
         error::Error,
         event::{DepositEvent, ExitEvent, JoinEvent, SwapEvent, WithdrawEvent},
         metadata::{
-            check_record_bound, get_token_share, get_total_shares, read_factory, read_finalize,
+            check_record_bound, get_total_shares, read_factory, read_finalize,
             read_freeze, read_public_swap, read_record, read_swap_fee, read_tokens,
             read_total_weight, write_record,
         },
@@ -111,7 +111,8 @@ pub fn execute_exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128
     let ratio: i128 = c_div(&e, pai_after_exit_fee, pool_total).unwrap_optimized();
     assert_with_error!(&e, ratio != 0, Error::ErrMathApprox);
     pull_shares(&e, user.clone(), pool_amount_in);
-    let share_contract_id = get_token_share(&e);
+    
+    let share_contract_id = e.current_contract_address();
     push_shares(&e, share_contract_id, EXIT_FEE);
     burn_shares(&e, pai_after_exit_fee);
     let tokens = read_tokens(&e);

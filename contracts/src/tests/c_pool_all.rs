@@ -93,8 +93,8 @@ fn test_pool_functions_dep_wdr() {
 
     let controller = client.get_controller();
     assert_eq!(controller, admin);
-    let num_tokens = client.get_num_tokens();
-    assert_eq!(num_tokens, 0);
+    let num_tokens = client.get_tokens();
+    assert_eq!(num_tokens.len(), 0);
 
     let contract_address = contract_id;
     env.budget().reset_unlimited();

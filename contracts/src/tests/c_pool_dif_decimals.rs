@@ -106,8 +106,8 @@ fn test_pool_functions_different_decimals() {
 
     let controller = client.get_controller();
     assert_eq!(controller, admin);
-    let num_tokens = client.get_num_tokens();
-    assert_eq!(num_tokens, 0);
+    let num_tokens = client.get_tokens();
+    assert_eq!(num_tokens.len(), 0);
 
     let contract_address = contract_id;
     // token1.approve(&admin, &contract_address, &i128::MAX, &200);

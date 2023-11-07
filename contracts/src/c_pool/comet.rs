@@ -1,50 +1,4 @@
 //! Liquidity Pool and Token Implementation
-use super::event;
-use super::{
-    allowance::{read_allowance, spend_allowance, write_allowance},
-    balance::{read_balance, receive_balance, spend_balance},
-    call_logic::{
-        bind::execute_bind,
-        finalize::execute_finalize,
-        getter::{
-            execute_get_balance, execute_get_controller, execute_get_current_tokens,
-            execute_get_denormalized_weight, execute_get_final_tokens,
-            execute_get_normalized_weight, execute_get_num_tokens, execute_get_spot_price,
-            execute_get_spot_price_sans_fee, execute_get_swap_fee,
-            execute_get_total_denormalized_weight, execute_get_total_supply, execute_is_bound,
-            execute_is_finalized, execute_is_public_swap, execute_share_id,
-        },
-        init::execute_init,
-        pool::{
-            execute_dep_lp_tokn_amt_out_get_tokn_in, execute_dep_tokn_amt_in_get_lp_tokns_out,
-            execute_exit_pool, execute_gulp, execute_join_pool, execute_swap_exact_amount_in,
-            execute_swap_exact_amount_out, execute_wdr_tokn_amt_in_get_lp_tokns_out,
-            execute_wdr_tokn_amt_out_get_lp_tokns_in,
-        },
-        setter::execute_set_freeze_status,
-    },
-    metadata::{read_decimal, read_name, read_symbol},
-    storage_types::SHARED_LIFETIME_THRESHOLD,
-};
-use super::{
-    metadata::{
-        get_token_share, get_total_shares, put_total_shares, read_controller, read_factory,
-        read_record, read_swap_fee, read_tokens, read_total_weight, write_record, write_tokens,
-        write_total_weight,
-    },
-    storage_types::{DataKey, Record, BALANCE_BUMP_AMOUNT, SHARED_BUMP_AMOUNT},
-    token_utility::{self, check_nonnegative_amount},
-};
-use crate::c_pool::call_logic::bind::execute_rebind;
-use crate::c_pool::{
-    call_logic::{
-        bind::execute_unbind,
-        setter::{execute_set_controller, execute_set_public_swap, execute_set_swap_fee},
-    },
-    metadata::write_metadata,
-};
-use soroban_token_sdk::TokenUtils;
-
 use crate::{
     c_consts::{
         EXIT_FEE, INIT_POOL_SUPPLY, MAX_BOUND_TOKENS, MAX_FEE, MAX_IN_RATIO, MAX_OUT_RATIO,
@@ -58,26 +12,37 @@ use crate::{
     },
     c_num::{c_add, c_div, c_mul, c_sub},
     c_pool::{
-        comet,
-        error::Error,
-        event::{ExitEvent, JoinEvent, SwapEvent},
+        allowance::{read_allowance, spend_allowance, write_allowance},
+        balance::{read_balance, receive_balance, spend_balance},
+        call_logic::{
+            bind::{execute_bind, execute_rebind, execute_unbind},
+            finalize::execute_finalize,
+            init::execute_init,
+            getter::{execute_get_denormalized_weight, execute_get_normalized_weight, execute_get_spot_price, execute_get_spot_price_sans_fee},
+            pool::{
+                execute_dep_lp_tokn_amt_out_get_tokn_in, execute_dep_tokn_amt_in_get_lp_tokns_out,
+                execute_exit_pool, execute_gulp, execute_join_pool, execute_swap_exact_amount_in,
+                execute_swap_exact_amount_out, execute_wdr_tokn_amt_in_get_lp_tokns_out,
+                execute_wdr_tokn_amt_out_get_lp_tokns_in,
+            },
+            setter::{execute_set_freeze_status, execute_set_swap_fee, execute_set_controller, execute_set_public_swap},
+        },
+        event,
         metadata::{
-            check_record_bound, put_token_share, read_finalize, read_freeze, read_public_swap,
-            write_controller, write_factory, write_finalize, write_freeze, write_public_swap,
-            write_swap_fee,
+            check_record_bound, get_total_shares, read_controller, read_finalize,
+            read_public_swap, read_record, read_swap_fee, read_tokens, read_total_weight,
+            read_decimal, read_name, read_symbol
         },
-        token_utility::{
-            burn_shares, mint_shares, pull_shares, pull_underlying, push_shares, push_underlying,
-        },
-    },
+        storage_types::{SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT},
+        token_utility::check_nonnegative_amount,
+        error::Error,
+    }
 };
-use soroban_sdk::token::Client;
 use soroban_sdk::{
     assert_with_error, contract, contractimpl, log, panic_with_error, symbol_short, token,
-    unwrap::UnwrapOptimized, vec, Address, Bytes, BytesN, Env, Map, Symbol, Vec,
+    unwrap::UnwrapOptimized, vec, Address, Bytes, BytesN, Env, Map, Symbol, Vec, String
 };
-
-use soroban_sdk::String;
+use soroban_token_sdk::TokenUtils;
 use soroban_token_sdk::metadata::TokenMetadata;
 
 #[contract]
@@ -86,11 +51,7 @@ pub struct CometPoolContract;
 pub trait CometPoolTrait {
     fn get_total_supply(e: Env) -> i128;
 
-    fn get_num_tokens(e: Env) -> u32;
-
-    fn get_current_tokens(e: Env) -> Vec<Address>;
-
-    fn get_final_tokens(e: Env) -> Vec<Address>;
+    fn get_tokens(e: Env) -> Vec<Address>;
 
     fn get_balance(e: Env, token: Address) -> i128;
 
@@ -105,8 +66,6 @@ pub trait CometPoolTrait {
     fn get_swap_fee(e: Env) -> i128;
 
     fn is_bound(e: Env, t: Address) -> bool;
-
-    fn share_id(e: Env) -> Address;
 
     fn is_public_swap(e: Env) -> bool;
 
@@ -411,39 +370,32 @@ impl CometPoolTrait for CometPoolContract {
     }
 
     // GETTER FUNCTIONS
+
     // Get the Controller Address
     fn get_total_supply(e: Env) -> i128 {
-        execute_get_total_supply(e)
+        get_total_shares(&e)
     }
 
     // Get the Controller Address
     fn get_controller(e: Env) -> Address {
-        execute_get_controller(e)
+        read_controller(&e)
     }
 
     // Get the total dernormalized weight
     fn get_total_denormalized_weight(e: Env) -> i128 {
-        execute_get_total_denormalized_weight(e)
-    }
-
-    // Get the number of tokens in the pool
-    fn get_num_tokens(e: Env) -> u32 {
-        execute_get_num_tokens(e)
+        read_total_weight(&e)
     }
 
     // Get the Current Tokens in the Pool
-    fn get_current_tokens(e: Env) -> Vec<Address> {
-        execute_get_current_tokens(e)
-    }
-
-    // Get the finalized tokens in the pool
-    fn get_final_tokens(e: Env) -> Vec<Address> {
-        execute_get_final_tokens(e)
+    fn get_tokens(e: Env) -> Vec<Address> {
+        read_tokens(&e)
     }
 
     // Get the balance of the Token
     fn get_balance(e: Env, token: Address) -> i128 {
-        execute_get_balance(e, token)
+        let val = read_record(&e).get(token).unwrap_optimized();
+        assert_with_error!(&e, val.bound, Error::ErrNotBound);
+        val.balance
     }
 
     // Get the denormalized weight of the token
@@ -463,7 +415,7 @@ impl CometPoolTrait for CometPoolContract {
 
     // Get the Swap Fee of the Contract
     fn get_swap_fee(e: Env) -> i128 {
-        execute_get_swap_fee(e)
+        read_swap_fee(&e)
     }
 
     // Get the spot price without considering the swap fee
@@ -471,24 +423,19 @@ impl CometPoolTrait for CometPoolContract {
         execute_get_spot_price_sans_fee(e, token_in, token_out)
     }
 
-    // Get LP Token Address
-    fn share_id(e: Env) -> Address {
-        execute_share_id(e)
-    }
-
     // Check if the Pool can be used for swapping by normal users
     fn is_public_swap(e: Env) -> bool {
-        execute_is_public_swap(e)
+        read_public_swap(&e)
     }
 
     // Check if the Pool is finalized by the Controller
     fn is_finalized(e: Env) -> bool {
-        execute_is_finalized(e)
+        read_finalize(&e)
     }
 
     // Check if the token Address is bound to the pool
     fn is_bound(e: Env, t: Address) -> bool {
-        execute_is_bound(e, t)
+        read_record(&e).get(t).unwrap_optimized().bound
     }
 }
 

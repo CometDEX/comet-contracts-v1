@@ -7,7 +7,7 @@ use crate::c_pool::error::Error;
 use super::{
     balance::{receive_balance, spend_balance},
     comet::{self, CometPoolContract, CometPoolTrait},
-    metadata::{get_token_share, get_total_shares, put_total_shares},
+    metadata::{get_total_shares, put_total_shares},
     storage_types::{SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
 };
 
@@ -15,12 +15,6 @@ use soroban_sdk::token::Client;
 
 // Transfers the Specific Token from the User’s Address to the Contract’s Address
 pub fn pull_underlying(e: &Env, token: &Address, from: Address, amount: i128) {
-    // Client::new(e, token).transfer_from(
-    //     &e.current_contract_address(),
-    //     &from,
-    //     &e.current_contract_address(),
-    //     &amount,
-    // );
     Client::new(e, token).transfer(&from, &e.current_contract_address(), &amount)
 }
 
@@ -58,7 +52,6 @@ pub fn pull_shares(e: &Env, from: Address, amount: i128) {
 pub fn burn_shares(e: &Env, amount: i128) {
     let total = get_total_shares(e);
     let contract_address = e.current_contract_address();
-    let share_contract_id = get_token_share(e);
     check_nonnegative_amount(amount);
     spend_balance(e, contract_address.clone(), amount);
     TokenUtils::new(e).events().burn(contract_address, amount);
@@ -67,7 +60,6 @@ pub fn burn_shares(e: &Env, amount: i128) {
 
 // Transfer the LP tokens from Contract to the given 'to' Address
 pub fn push_shares(e: &Env, to: Address, amount: i128) {
-    let share_contract_id = get_token_share(e);
     let contract_address = e.current_contract_address();
 
     check_nonnegative_amount(amount);
