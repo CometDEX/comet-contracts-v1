@@ -6,8 +6,8 @@ use crate::{
     c_pool::{
         error::Error,
         metadata::{
-            put_total_shares, write_controller, write_factory, write_finalize,
-            write_metadata, write_public_swap, write_swap_fee,
+            put_total_shares, write_controller, write_factory, write_finalize, write_metadata,
+            write_public_swap, write_swap_fee,
         },
         storage_types::DataKey,
     },

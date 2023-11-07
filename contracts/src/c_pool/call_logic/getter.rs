@@ -6,8 +6,8 @@ use crate::{
     c_pool::{
         error::Error,
         metadata::{
-            check_record_bound, get_total_shares, read_controller, read_finalize,
-            read_public_swap, read_record, read_swap_fee, read_tokens, read_total_weight,
+            check_record_bound, get_total_shares, read_controller, read_finalize, read_public_swap,
+            read_record, read_swap_fee, read_tokens, read_total_weight,
         },
         storage_types::Record,
     },
@@ -62,4 +62,3 @@ pub fn execute_get_spot_price_sans_fee(e: Env, token_in: Address, token_out: Add
         0,
     )
 }
-

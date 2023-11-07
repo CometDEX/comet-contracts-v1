@@ -17,33 +17,39 @@ use crate::{
         call_logic::{
             bind::{execute_bind, execute_rebind, execute_unbind},
             finalize::execute_finalize,
+            getter::{
+                execute_get_denormalized_weight, execute_get_normalized_weight,
+                execute_get_spot_price, execute_get_spot_price_sans_fee,
+            },
             init::execute_init,
-            getter::{execute_get_denormalized_weight, execute_get_normalized_weight, execute_get_spot_price, execute_get_spot_price_sans_fee},
             pool::{
                 execute_dep_lp_tokn_amt_out_get_tokn_in, execute_dep_tokn_amt_in_get_lp_tokns_out,
                 execute_exit_pool, execute_gulp, execute_join_pool, execute_swap_exact_amount_in,
                 execute_swap_exact_amount_out, execute_wdr_tokn_amt_in_get_lp_tokns_out,
                 execute_wdr_tokn_amt_out_get_lp_tokns_in,
             },
-            setter::{execute_set_freeze_status, execute_set_swap_fee, execute_set_controller, execute_set_public_swap},
+            setter::{
+                execute_set_controller, execute_set_freeze_status, execute_set_public_swap,
+                execute_set_swap_fee,
+            },
         },
+        error::Error,
         event,
         metadata::{
-            check_record_bound, get_total_shares, read_controller, read_finalize,
-            read_public_swap, read_record, read_swap_fee, read_tokens, read_total_weight,
-            read_decimal, read_name, read_symbol
+            check_record_bound, get_total_shares, read_controller, read_decimal, read_finalize,
+            read_name, read_public_swap, read_record, read_swap_fee, read_symbol, read_tokens,
+            read_total_weight,
         },
-        storage_types::{SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT},
+        storage_types::{SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
         token_utility::check_nonnegative_amount,
-        error::Error,
-    }
+    },
 };
 use soroban_sdk::{
     assert_with_error, contract, contractimpl, log, panic_with_error, symbol_short, token,
-    unwrap::UnwrapOptimized, vec, Address, Bytes, BytesN, Env, Map, Symbol, Vec, String
+    unwrap::UnwrapOptimized, vec, Address, Bytes, BytesN, Env, Map, String, Symbol, Vec,
 };
-use soroban_token_sdk::TokenUtils;
 use soroban_token_sdk::metadata::TokenMetadata;
+use soroban_token_sdk::TokenUtils;
 
 #[contract]
 pub struct CometPoolContract;
@@ -658,4 +664,3 @@ impl TokenInterface for CometPoolContract {
         read_symbol(&e)
     }
 }
-
