@@ -171,26 +171,6 @@ pub fn write_public_swap(e: &Env, val: bool) {
     e.storage().instance().set(&DataKey::PublicSwap, &val)
 }
 
-// Check if the token Address is bound to the pool
-pub fn check_record_bound(e: &Env, token: Address) -> bool {
-    let key_rec = DataKey::AllRecordData;
-
-    if let Some(val) = e
-        .storage()
-        .persistent()
-        .get::<DataKey, Map<Address, Record>>(&key_rec)
-    {
-        e.storage()
-            .persistent()
-            .bump(&key_rec, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
-        let key_existence = val.contains_key(token.clone());
-        if key_existence {
-            return val.get(token).unwrap_optimized().bound;
-        }
-    }
-    false
-}
-
 // Read status of the pool
 pub fn read_freeze(e: &Env) -> bool {
     let key = DataKey::Freeze;

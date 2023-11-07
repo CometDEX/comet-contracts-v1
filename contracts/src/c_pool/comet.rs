@@ -36,8 +36,8 @@ use crate::{
         error::Error,
         event,
         metadata::{
-            check_record_bound, get_total_shares, read_controller, read_decimal, read_finalize,
-            read_name, read_public_swap, read_record, read_swap_fee, read_symbol, read_tokens,
+            get_total_shares, read_controller, read_decimal, read_finalize, read_name,
+            read_public_swap, read_record, read_swap_fee, read_symbol, read_tokens,
             read_total_weight,
         },
         storage_types::{SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},

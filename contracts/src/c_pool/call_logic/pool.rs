@@ -16,9 +16,8 @@ use crate::{
         error::Error,
         event::{DepositEvent, ExitEvent, JoinEvent, SwapEvent, WithdrawEvent},
         metadata::{
-            check_record_bound, get_total_shares, read_factory, read_finalize, read_freeze,
-            read_public_swap, read_record, read_swap_fee, read_tokens, read_total_weight,
-            write_record,
+            get_total_shares, read_factory, read_finalize, read_freeze, read_public_swap,
+            read_record, read_swap_fee, read_tokens, read_total_weight, write_record,
         },
         storage_types::{Record, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
         token_utility::{
@@ -30,13 +29,15 @@ const POOL: Symbol = symbol_short!("POOL");
 
 // Absorbing tokens into the pool directly sent to the current contract
 pub fn execute_gulp(e: Env, t: Address) {
-    assert_with_error!(&e, check_record_bound(&e, t.clone()), Error::ErrNotBound);
     e.storage()
         .instance()
         .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
     let mut records = read_record(&e);
+    let mut rec = records
+        .get(t.clone())
+        .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
+    assert_with_error!(&e, rec.bound, Error::ErrNotBound);
 
-    let mut rec = records.get(t.clone()).unwrap_optimized();
     rec.balance = token::Client::new(&e, &t).balance(&e.current_contract_address());
     records.set(t, rec);
     write_record(&e, records);
@@ -163,23 +164,20 @@ pub fn execute_swap_exact_amount_in(
     assert_with_error!(&e, max_price >= 0, Error::ErrNegative);
 
     assert_with_error!(&e, read_public_swap(&e), Error::ErrSwapNotPublic);
-    assert_with_error!(
-        &e,
-        check_record_bound(&e, token_in.clone()),
-        Error::ErrNotBound
-    );
-    assert_with_error!(
-        &e,
-        check_record_bound(&e, token_out.clone()),
-        Error::ErrNotBound
-    );
 
     e.storage()
         .instance()
         .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
-    let mut in_record = read_record(&e).get(token_in.clone()).unwrap_optimized();
-    let mut out_record = read_record(&e).get(token_out.clone()).unwrap_optimized();
+    let mut record_map = read_record(&e);
+    let mut in_record = record_map
+        .get(token_in.clone())
+        .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
+    let mut out_record = record_map
+        .get(token_out.clone())
+        .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
+    assert_with_error!(&e, in_record.bound, Error::ErrNotBound);
+    assert_with_error!(&e, out_record.bound, Error::ErrNotBound);
     assert_with_error!(
         &e,
         token_amount_in <= c_mul(&e, in_record.balance, MAX_IN_RATIO).unwrap_optimized(),
@@ -243,7 +241,6 @@ pub fn execute_swap_exact_amount_in(
     pull_underlying(&e, &token_in, user.clone(), token_amount_in);
     push_underlying(&e, &token_out, user, token_amount_out);
 
-    let mut record_map = read_record(&e);
     record_map.set(token_in, in_record);
     record_map.set(token_out, out_record);
 
@@ -265,25 +262,21 @@ pub fn execute_swap_exact_amount_out(
     assert_with_error!(&e, token_amount_out >= 0, Error::ErrNegative);
     assert_with_error!(&e, max_amount_in >= 0, Error::ErrNegative);
     assert_with_error!(&e, max_price >= 0, Error::ErrNegative);
-
-    assert_with_error!(
-        &e,
-        check_record_bound(&e, token_in.clone()),
-        Error::ErrNotBound
-    );
-    assert_with_error!(
-        &e,
-        check_record_bound(&e, token_out.clone()),
-        Error::ErrNotBound
-    );
     assert_with_error!(&e, read_public_swap(&e), Error::ErrSwapNotPublic);
 
     e.storage()
         .instance()
         .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
-    let mut in_record = read_record(&e).get(token_in.clone()).unwrap_optimized();
-    let mut out_record = read_record(&e).get(token_out.clone()).unwrap_optimized();
+    let mut record_map = read_record(&e);
+    let mut in_record = record_map
+        .get(token_in.clone())
+        .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
+    let mut out_record = record_map
+        .get(token_out.clone())
+        .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
+    assert_with_error!(&e, in_record.bound, Error::ErrNotBound);
+    assert_with_error!(&e, out_record.bound, Error::ErrNotBound);
     assert_with_error!(
         &e,
         token_amount_out <= c_mul(&e, out_record.balance, MAX_OUT_RATIO).unwrap_optimized(),
@@ -369,31 +362,22 @@ pub fn execute_dep_tokn_amt_in_get_lp_tokns_out(
     assert_with_error!(&e, min_pool_amount_out >= 0, Error::ErrNegative);
 
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
-    assert_with_error!(
-        &e,
-        check_record_bound(&e, token_in.clone()),
-        Error::ErrNotBound
-    );
-    assert_with_error!(
-        &e,
-        token_amount_in
-            <= c_mul(
-                &e,
-                read_record(&e)
-                    .get(token_in.clone())
-                    .unwrap_optimized()
-                    .balance,
-                MAX_IN_RATIO
-            )
-            .unwrap_optimized(),
-        Error::ErrMaxInRatio
-    );
 
     e.storage()
         .instance()
         .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
-    let mut in_record = read_record(&e).get(token_in.clone()).unwrap_optimized();
+    let mut record_map = read_record(&e);
+    let mut in_record = record_map
+        .get(token_in.clone())
+        .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
+    assert_with_error!(&e, in_record.bound, Error::ErrNotBound);
+    assert_with_error!(
+        &e,
+        token_amount_in <= c_mul(&e, in_record.balance, MAX_IN_RATIO).unwrap_optimized(),
+        Error::ErrMaxInRatio
+    );
+
     let pool_amount_out = calc_lp_token_amount_given_token_deposits_in(
         &e,
         in_record.balance,
@@ -410,7 +394,6 @@ pub fn execute_dep_tokn_amt_in_get_lp_tokns_out(
     );
     in_record.balance = c_add(&e, in_record.balance, token_amount_in).unwrap_optimized();
 
-    let mut record_map = read_record(&e);
     record_map.set(token_in.clone(), in_record);
     write_record(&e, record_map);
 
@@ -440,17 +423,16 @@ pub fn execute_dep_lp_tokn_amt_out_get_tokn_in(
     assert_with_error!(&e, max_amount_in >= 0, Error::ErrNegative);
 
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
-    assert_with_error!(
-        &e,
-        check_record_bound(&e, token_in.clone()),
-        Error::ErrNotBound
-    );
 
     e.storage()
         .instance()
         .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
-    let mut in_record: Record = read_record(&e).get(token_in.clone()).unwrap_optimized();
+    let mut record_map = read_record(&e);
+    let mut in_record = record_map
+        .get(token_in.clone())
+        .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
+    assert_with_error!(&e, in_record.bound, Error::ErrNotBound);
 
     let token_amount_in = calc_token_deposits_in_given_lp_token_amount(
         &e,
@@ -465,21 +447,11 @@ pub fn execute_dep_lp_tokn_amt_out_get_tokn_in(
     assert_with_error!(&e, token_amount_in <= max_amount_in, Error::ErrLimitIn);
     assert_with_error!(
         &e,
-        token_amount_in
-            <= c_mul(
-                &e,
-                read_record(&e)
-                    .get(token_in.clone())
-                    .unwrap_optimized()
-                    .balance,
-                MAX_IN_RATIO
-            )
-            .unwrap_optimized(),
+        token_amount_in <= c_mul(&e, in_record.balance, MAX_IN_RATIO).unwrap_optimized(),
         Error::ErrMaxInRatio
     );
     in_record.balance = c_add(&e, in_record.balance, token_amount_in).unwrap_optimized();
 
-    let mut record_map = read_record(&e);
     record_map.set(token_in.clone(), in_record);
     write_record(&e, record_map);
 
@@ -506,17 +478,16 @@ pub fn execute_wdr_tokn_amt_in_get_lp_tokns_out(
     assert_with_error!(&e, pool_amount_in >= 0, Error::ErrNegative);
     assert_with_error!(&e, min_amount_out >= 0, Error::ErrNegative);
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
-    assert_with_error!(
-        &e,
-        check_record_bound(&e, token_out.clone()),
-        Error::ErrNotBound
-    );
 
     e.storage()
         .instance()
         .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
-    let mut out_record: Record = read_record(&e).get(token_out.clone()).unwrap_optimized();
+    let mut record_map = read_record(&e);
+    let mut out_record = record_map
+        .get(token_out.clone())
+        .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
+    assert_with_error!(&e, out_record.bound, Error::ErrNotBound);
 
     let token_amount_out = calc_token_withdrawal_amount_given_lp_token_amount(
         &e,
@@ -531,16 +502,7 @@ pub fn execute_wdr_tokn_amt_in_get_lp_tokns_out(
     assert_with_error!(&e, token_amount_out >= min_amount_out, Error::ErrLimitOut);
     assert_with_error!(
         &e,
-        token_amount_out
-            <= c_mul(
-                &e,
-                read_record(&e)
-                    .get(token_out.clone())
-                    .unwrap_optimized()
-                    .balance,
-                MAX_OUT_RATIO
-            )
-            .unwrap_optimized(),
+        token_amount_out <= c_mul(&e, out_record.balance, MAX_OUT_RATIO).unwrap_optimized(),
         Error::ErrMaxOutRatio
     );
     out_record.balance = c_sub(&e, out_record.balance, token_amount_out).unwrap_optimized();
@@ -560,7 +522,6 @@ pub fn execute_wdr_tokn_amt_in_get_lp_tokns_out(
     push_shares(&e, factory, EXIT_FEE);
     push_underlying(&e, &token_out, user, token_amount_out);
 
-    let mut record_map = read_record(&e);
     record_map.set(token_out, out_record);
     write_record(&e, record_map);
 
@@ -575,31 +536,22 @@ pub fn execute_wdr_tokn_amt_out_get_lp_tokns_in(
     user: Address,
 ) -> i128 {
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
-    assert_with_error!(
-        &e,
-        check_record_bound(&e, token_out.clone()),
-        Error::ErrNotBound
-    );
-    assert_with_error!(
-        &e,
-        token_amount_out
-            <= c_mul(
-                &e,
-                read_record(&e)
-                    .get(token_out.clone())
-                    .unwrap_optimized()
-                    .balance,
-                MAX_OUT_RATIO
-            )
-            .unwrap_optimized(),
-        Error::ErrMaxOutRatio
-    );
 
     e.storage()
         .instance()
         .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
-    let mut out_record: Record = read_record(&e).get(token_out.clone()).unwrap_optimized();
+    let mut record_map = read_record(&e);
+    let mut out_record = record_map
+        .get(token_out.clone())
+        .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
+    assert_with_error!(&e, out_record.bound, Error::ErrNotBound);
+    assert_with_error!(
+        &e,
+        token_amount_out <= c_mul(&e, out_record.balance, MAX_OUT_RATIO).unwrap_optimized(),
+        Error::ErrMaxOutRatio
+    );
+
     let pool_amount_in = calc_lp_token_amount_given_token_withdrawal_amount(
         &e,
         out_record.balance,
@@ -627,6 +579,9 @@ pub fn execute_wdr_tokn_amt_out_get_lp_tokns_in(
     let factory = read_factory(&e);
     push_shares(&e, factory, EXIT_FEE);
     push_underlying(&e, &token_out, user, token_amount_out);
+
+    record_map.set(token_out, out_record);
+    write_record(&e, record_map);
 
     pool_amount_in
 }
