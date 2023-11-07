@@ -4,7 +4,6 @@ use soroban_token_sdk::metadata::TokenMetadata;
 use crate::{
     c_consts::MIN_FEE,
     c_pool::{
-        admin::{has_administrator, write_administrator},
         error::Error,
         metadata::{
             put_token_share, put_total_shares, write_controller, write_factory, write_finalize,
@@ -47,16 +46,6 @@ pub fn execute_init(e: Env, factory: Address, controller: Address) {
     // Initialize Public Swap and Finalize as false
     write_finalize(&e, false);
     write_public_swap(&e, false);
-
-    // Initialize the LP Token
-
-    if has_administrator(&e) {
-        panic!("already initialized")
-    }
-    write_administrator(&e, val);
-    if 7u32 > u8::MAX.into() {
-        panic!("Decimal must fit in a u8");
-    }
 
     write_metadata(
         &e,

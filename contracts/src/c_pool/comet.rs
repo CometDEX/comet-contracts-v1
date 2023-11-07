@@ -1,7 +1,6 @@
 //! Liquidity Pool and Token Implementation
 use super::event;
 use super::{
-    admin::{has_administrator, write_administrator},
     allowance::{read_allowance, spend_allowance, write_allowance},
     balance::{read_balance, receive_balance, spend_balance},
     call_logic::{
@@ -36,7 +35,6 @@ use super::{
     storage_types::{DataKey, Record, BALANCE_BUMP_AMOUNT, SHARED_BUMP_AMOUNT},
     token_utility::{self, check_nonnegative_amount},
 };
-use crate::c_pool::admin::read_administrator;
 use crate::c_pool::call_logic::bind::execute_rebind;
 use crate::c_pool::{
     call_logic::{
@@ -86,37 +84,7 @@ use soroban_token_sdk::metadata::TokenMetadata;
 pub struct CometPoolContract;
 
 pub trait CometPoolTrait {
-    fn initialize(e: Env, admin: Address, decimal: u32, name: String, symbol: String);
-
-    fn allowance(e: Env, from: Address, spender: Address) -> i128;
-
-    fn approve(e: Env, from: Address, spender: Address, amount: i128, expiration_ledger: u32);
-
-    fn balance(e: Env, id: Address) -> i128;
-
-    fn spendable_balance(e: Env, id: Address) -> i128;
-
-    fn transfer(e: Env, from: Address, to: Address, amount: i128);
-
-    fn transfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128);
-
-    fn burn(e: Env, from: Address, amount: i128);
-
-    fn burn_from(e: Env, spender: Address, from: Address, amount: i128);
-
-    fn mint(e: Env, to: Address, amount: i128);
-
-    fn set_admin(e: Env, new_admin: Address);
-
-    fn decimals(e: Env) -> u32;
-
-    fn name(e: Env) -> String;
-
-    fn symbol(e: Env) -> String;
-
     fn get_total_supply(e: Env) -> i128;
-
-    // --- //
 
     fn get_num_tokens(e: Env) -> u32;
 
@@ -522,27 +490,129 @@ impl CometPoolTrait for CometPoolContract {
     fn is_bound(e: Env, t: Address) -> bool {
         execute_is_bound(e, t)
     }
+}
 
-    // TOKEN
-    fn initialize(e: Env, admin: Address, decimal: u32, name: String, symbol: String) {
-        if has_administrator(&e) {
-            panic!("already initialized")
-        }
-        write_administrator(&e, &admin);
-        if decimal > u8::MAX.into() {
-            panic!("Decimal must fit in a u8");
-        }
+pub trait TokenInterface {
+    /// Returns the allowance for `spender` to transfer from `from`.
+    ///
+    /// # Arguments
+    ///
+    /// - `from` - The address holding the balance of tokens to be drawn from.
+    /// - `spender` - The address spending the tokens held by `from`.
+    fn allowance(env: Env, from: Address, spender: Address) -> i128;
 
-        write_metadata(
-            &e,
-            TokenMetadata {
-                decimal,
-                name,
-                symbol,
-            },
-        )
-    }
+    /// Set the allowance by `amount` for `spender` to transfer/burn from
+    /// `from`.
+    ///
+    /// # Arguments
+    ///
+    /// - `from` - The address holding the balance of tokens to be drawn from.
+    /// - `spender` - The address being authorized to spend the tokens held by
+    /// `from`.
+    /// - `amount` - The tokens to be made available to `spender`.
+    /// - `live_until_ledger` - The ledger number where this allowance expires.
+    /// Cannot be less than the current ledger number unless the amount is being
+    /// set to 0.  An expired entry (where live_until_ledger < the current
+    /// ledger number) should be treated as a 0 amount allowance.
+    ///
+    /// # Events
+    ///
+    /// Emits an event with topics `["approve", from: Address,
+    /// spender: Address], data = [amount: i128, live_until_ledger: u32]`
+    ///
+    /// Emits an event with:
+    /// - topics - `["approve", from: Address, spender: Address]`
+    /// - data - `[amount: i128, live_until_ledger: u32]`
+    fn approve(env: Env, from: Address, spender: Address, amount: i128, live_until_ledger: u32);
 
+    /// Returns the balance of `id`.
+    ///
+    /// # Arguments
+    ///
+    /// - `id` - The address for which a balance is being queried. If the
+    /// address has no existing balance, returns 0.
+    fn balance(env: Env, id: Address) -> i128;
+
+    /// Transfer `amount` from `from` to `to`.
+    ///
+    /// # Arguments
+    ///
+    /// - `from` - The address holding the balance of tokens which will be
+    /// withdrawn from.
+    /// - `to` - The address which will receive the transferred tokens.
+    /// - `amount` - The amount of tokens to be transferred.
+    ///
+    /// # Events
+    ///
+    /// Emits an event with:
+    /// - topics - `["transfer", from: Address, to: Address]`
+    /// - data - `[amount: i128]`
+    fn transfer(env: Env, from: Address, to: Address, amount: i128);
+
+    /// Transfer `amount` from `from` to `to`, consuming the allowance of
+    /// `spender`. Authorized by spender (`spender.require_auth()`).
+    ///
+    /// # Arguments
+    ///
+    /// - `spender` - The address authorizing the transfer, and having its
+    /// allowance consumed during the transfer.
+    /// - `from` - The address holding the balance of tokens which will be
+    /// withdrawn from.
+    /// - `to` - The address which will receive the transferred tokens.
+    /// - `amount` - The amount of tokens to be transferred.
+    ///
+    /// # Events
+    ///
+    /// Emits an event with:
+    /// - topics - `["transfer", from: Address, to: Address]`
+    /// - data - `[amount: i128]`
+    fn transfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128);
+
+    /// Burn `amount` from `from`.
+    ///
+    /// # Arguments
+    ///
+    /// - `from` - The address holding the balance of tokens which will be
+    /// burned from.
+    /// - `amount` - The amount of tokens to be burned.
+    ///
+    /// # Events
+    ///
+    /// Emits an event with:
+    /// - topics - `["burn", from: Address]`
+    /// - data - `[amount: i128]`
+    fn burn(env: Env, from: Address, amount: i128);
+
+    /// Burn `amount` from `from`, consuming the allowance of `spender`.
+    ///
+    /// # Arguments
+    ///
+    /// - `spender` - The address authorizing the burn, and having its allowance
+    /// consumed during the burn.
+    /// - `from` - The address holding the balance of tokens which will be
+    /// burned from.
+    /// - `amount` - The amount of tokens to be burned.
+    ///
+    /// # Events
+    ///
+    /// Emits an event with:
+    /// - topics - `["burn", from: Address]`
+    /// - data - `[amount: i128]`
+    fn burn_from(env: Env, spender: Address, from: Address, amount: i128);
+
+    /// Returns the number of decimals used to represent amounts of this token.
+    fn decimals(env: Env) -> u32;
+
+    /// Returns the name for this token.
+    fn name(env: Env) -> String;
+
+    /// Returns the symbol for this token.
+    fn symbol(env: Env) -> String;
+}
+
+// SEP-0041 Token Implementation
+#[contractimpl]
+impl TokenInterface for CometPoolContract {
     fn allowance(e: Env, from: Address, spender: Address) -> i128 {
         e.storage()
             .instance()
@@ -567,13 +637,6 @@ impl CometPoolTrait for CometPoolContract {
     }
 
     fn balance(e: Env, id: Address) -> i128 {
-        e.storage()
-            .instance()
-            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
-        read_balance(&e, id)
-    }
-
-    fn spendable_balance(e: Env, id: Address) -> i128 {
         e.storage()
             .instance()
             .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
@@ -636,31 +699,6 @@ impl CometPoolTrait for CometPoolContract {
         TokenUtils::new(&e).events().burn(from, amount)
     }
 
-    fn mint(e: Env, to: Address, amount: i128) {
-        check_nonnegative_amount(amount);
-        let admin = read_administrator(&e);
-        admin.require_auth();
-
-        e.storage()
-            .instance()
-            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
-
-        receive_balance(&e, to.clone(), amount);
-        TokenUtils::new(&e).events().mint(admin, to, amount);
-    }
-
-    fn set_admin(e: Env, new_admin: Address) {
-        let admin = read_administrator(&e);
-        admin.require_auth();
-
-        e.storage()
-            .instance()
-            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
-
-        write_administrator(&e, &new_admin);
-        TokenUtils::new(&e).events().set_admin(admin, new_admin);
-    }
-
     fn decimals(e: Env) -> u32 {
         read_decimal(&e)
     }
@@ -673,3 +711,4 @@ impl CometPoolTrait for CometPoolContract {
         read_symbol(&e)
     }
 }
+

@@ -1,8 +1,8 @@
 //! Allowance Utilities for the LP Token
 
-use crate::c_pool::error::Error;
 use crate::c_pool::storage_types::{AllowanceDataKey, AllowanceValue, DataKeyToken};
-use soroban_sdk::{panic_with_error, Address, Env};
+use crate::c_pool::error::Error;
+use soroban_sdk::{Address, Env, panic_with_error};
 
 pub fn read_allowance(e: &Env, from: Address, spender: Address) -> AllowanceValue {
     let key = DataKeyToken::Allowance(AllowanceDataKey { from, spender });
@@ -43,11 +43,14 @@ pub fn write_allowance(
     e.storage().temporary().set(&key.clone(), &allowance);
 
     if amount > 0 {
-        let live_for = expiration_ledger
+        let new_expiration_ledger = expiration_ledger
             .checked_sub(e.ledger().sequence())
             .unwrap();
-
-        e.storage().temporary().bump(&key, live_for, live_for)
+        e.storage().temporary().bump(
+            &key,
+            new_expiration_ledger,
+            new_expiration_ledger
+        )
     }
 }
 

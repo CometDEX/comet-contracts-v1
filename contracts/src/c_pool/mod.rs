@@ -1,7 +1,5 @@
 //! Pool Implementation Module
 
-// LP Token Admin Module
-pub mod admin;
 // LP Token Allowance Module
 pub mod allowance;
 // LP Token Balance Module
