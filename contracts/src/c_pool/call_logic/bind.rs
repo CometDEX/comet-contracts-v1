@@ -8,8 +8,8 @@ use crate::{
     c_pool::{
         error::Error,
         metadata::{
-            check_record_bound, read_controller, read_factory, read_finalize, read_record,
-            read_tokens, read_total_weight, write_record, write_tokens, write_total_weight,
+            read_controller, read_factory, read_finalize, read_record, read_tokens,
+            read_total_weight, write_record, write_tokens, write_total_weight,
         },
         storage_types::{DataKey, Record},
         token_utility::{pull_underlying, push_underlying},
@@ -21,26 +21,16 @@ pub fn execute_bind(e: Env, token: Address, balance: i128, denorm: i128, admin: 
     assert_with_error!(&e, denorm >= 0, Error::ErrNegative);
     assert_with_error!(&e, balance >= 0, Error::ErrNegative);
     assert_with_error!(&e, !read_finalize(&e), Error::ErrFinalized);
-    assert_with_error!(
-        &e,
-        !check_record_bound(&e, token.clone()),
-        Error::ErrIsBound
-    );
 
-    assert_with_error!(
-        &e,
-        read_tokens(&e).len() < MAX_BOUND_TOKENS,
-        Error::ErrMaxTokens
-    );
-    let key = DataKey::AllTokenVec;
-    let key_rec = DataKey::AllRecordData;
     let index = read_tokens(&e).len();
+    assert_with_error!(&e, index < MAX_BOUND_TOKENS, Error::ErrMaxTokens);
+
     let mut tokens_arr = read_tokens(&e);
-    let mut record_map = e
-        .storage()
-        .persistent()
-        .get(&key_rec)
-        .unwrap_or(Map::<Address, Record>::new(&e)); // if no members on vector
+    let mut record_map = read_record(&e);
+    if record_map.contains_key(token.clone()) {
+        let record = record_map.get(token.clone()).unwrap_optimized();
+        assert_with_error!(&e, record.bound == false, Error::ErrIsBound);
+    }
 
     let record = Record {
         bound: true,
@@ -66,17 +56,15 @@ pub fn execute_rebind(e: Env, token: Address, balance: i128, denorm: i128, admin
         read_tokens(&e).len() < MAX_BOUND_TOKENS,
         Error::ErrMaxTokens
     );
-    assert_with_error!(
-        &e,
-        check_record_bound(&e, token.clone()),
-        Error::ErrNotBound
-    );
     assert_with_error!(&e, denorm >= MIN_WEIGHT, Error::ErrMinWeight);
     assert_with_error!(&e, denorm <= MAX_WEIGHT, Error::ErrMaxWeight);
     assert_with_error!(&e, balance >= MIN_BALANCE, Error::ErrMinBalance);
 
     let mut record_map: Map<Address, Record> = read_record(&e);
-    let mut record = record_map.get(token.clone()).unwrap_optimized();
+    let mut record = record_map
+        .get(token.clone())
+        .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
+    assert_with_error!(&e, record.bound, Error::ErrNotBound);
     let old_weight = record.denorm;
     let mut total_weight = read_total_weight(&e);
 
@@ -135,20 +123,20 @@ pub fn execute_rebind(e: Env, token: Address, balance: i128, denorm: i128, admin
 // Removes a specific token from the Liquidity Pool
 pub fn execute_unbind(e: Env, token: Address, user: Address) {
     assert_with_error!(&e, !read_finalize(&e), Error::ErrFinalized);
-    assert_with_error!(
-        &e,
-        check_record_bound(&e, token.clone()),
-        Error::ErrNotBound
-    );
+
     let mut record_map: Map<Address, Record> = read_record(&e);
-    let mut record = record_map.get(token.clone()).unwrap_optimized();
+    let mut record = record_map
+        .get(token.clone())
+        .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
+    assert_with_error!(&e, record.bound, Error::ErrNotBound);
+
     let token_balance = record.balance;
     let token_exit_fee = c_mul(&e, token_balance, EXIT_FEE).unwrap_optimized();
     let curr_weight = read_total_weight(&e);
     write_total_weight(&e, c_sub(&e, curr_weight, record.denorm).unwrap_optimized());
     let index = record.index;
-    let last = read_tokens(&e).len() - 1;
     let mut tokens = read_tokens(&e);
+    let last = tokens.len() - 1;
     let index_token = tokens.get(index).unwrap_optimized();
     let last_token = tokens.get(last).unwrap_optimized();
     tokens.set(index, last_token.clone());

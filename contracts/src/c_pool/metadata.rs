@@ -122,31 +122,6 @@ pub fn write_total_weight(e: &Env, d: i128) {
     e.storage().instance().set(&key, &d)
 }
 
-//Read Token Share
-pub fn get_token_share(e: &Env) -> Address {
-    e.storage().persistent().bump(
-        &DataKey::TokenShare,
-        SHARED_LIFETIME_THRESHOLD,
-        SHARED_BUMP_AMOUNT,
-    );
-    e.storage()
-        .persistent()
-        .get::<DataKey, Address>(&DataKey::TokenShare)
-        .unwrap_optimized()
-}
-
-// Update Token Share
-pub fn put_token_share(e: &Env, contract_id: Address) {
-    e.storage()
-        .persistent()
-        .set(&DataKey::TokenShare, &contract_id);
-    e.storage().persistent().bump(
-        &DataKey::TokenShare,
-        SHARED_LIFETIME_THRESHOLD,
-        SHARED_BUMP_AMOUNT,
-    );
-}
-
 // Read Total Shares
 pub fn get_total_shares(e: &Env) -> i128 {
     e.storage().persistent().bump(
@@ -194,26 +169,6 @@ pub fn read_public_swap(e: &Env) -> bool {
 // Write Public Swap
 pub fn write_public_swap(e: &Env, val: bool) {
     e.storage().instance().set(&DataKey::PublicSwap, &val)
-}
-
-// Check if the token Address is bound to the pool
-pub fn check_record_bound(e: &Env, token: Address) -> bool {
-    let key_rec = DataKey::AllRecordData;
-
-    if let Some(val) = e
-        .storage()
-        .persistent()
-        .get::<DataKey, Map<Address, Record>>(&key_rec)
-    {
-        e.storage()
-            .persistent()
-            .bump(&key_rec, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
-        let key_existence = val.contains_key(token.clone());
-        if key_existence {
-            return val.get(token).unwrap_optimized().bound;
-        }
-    }
-    false
 }
 
 // Read status of the pool

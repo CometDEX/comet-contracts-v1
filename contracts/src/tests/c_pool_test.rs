@@ -101,8 +101,8 @@ fn test_pool_functions() {
 
     let controller = client.get_controller();
     assert_eq!(controller, admin);
-    let num_tokens = client.get_num_tokens();
-    assert_eq!(num_tokens, 0);
+    let num_tokens = client.get_tokens();
+    assert_eq!(num_tokens.len(), 0);
 
     // // let contract_address: Address = Address::from_contract_id(&contract_id);
     // // token1.approve(&admin, &contract_id, &i128::MAX, &200);
@@ -121,12 +121,12 @@ fn test_pool_functions() {
     // );
     client.unbind(&token4.address, &admin);
 
-    let num_tokens = client.get_num_tokens();
-    assert_eq!(3, num_tokens);
+    let num_tokens = client.get_tokens();
+    assert_eq!(num_tokens.len(), 3);
     let total_denormalized_weight = client.get_total_denormalized_weight();
 
     assert_eq!(to_stroop(15), total_denormalized_weight);
-    let current_tokens = client.get_current_tokens();
+    let current_tokens = client.get_tokens();
     assert!(current_tokens.contains(&token1.address));
     assert!(current_tokens.contains(&token2.address));
     assert!(current_tokens.contains(&token3.address));
@@ -136,9 +136,7 @@ fn test_pool_functions() {
     let swap_fee = client.get_swap_fee();
     assert_eq!(swap_fee, to_stroop(0.003));
     client.finalize();
-    let contract_share: Address = client.share_id();
-    let token_share = token::Client::new(&env, &contract_share);
-    assert_eq!(token_share.balance(&controller), 100 * BONE);
+    assert_eq!(client.balance(&controller), 100 * BONE);
 
     token1.approve(&user1, &contract_id, &i128::MAX, &200);
     token2.approve(&user1, &contract_id, &i128::MAX, &200);
