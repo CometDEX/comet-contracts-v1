@@ -31,7 +31,7 @@ const POOL: Symbol = symbol_short!("POOL");
 pub fn execute_gulp(e: Env, t: Address) {
     e.storage()
         .instance()
-        .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
     let mut records = read_record(&e);
     let mut rec = records
         .get(t.clone())
@@ -50,7 +50,7 @@ pub fn execute_join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128
 
     e.storage()
         .instance()
-        .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
     let pool_total = get_total_shares(&e);
     let ratio = c_add(
         &e,
@@ -104,7 +104,7 @@ pub fn execute_exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128
 
     e.storage()
         .instance()
-        .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
     let pool_total = get_total_shares(&e);
     let exit_fee = c_mul(&e, pool_amount_in, EXIT_FEE).unwrap_optimized();
@@ -167,7 +167,7 @@ pub fn execute_swap_exact_amount_in(
 
     e.storage()
         .instance()
-        .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
     let mut record_map = read_record(&e);
     let mut in_record = record_map
@@ -266,7 +266,7 @@ pub fn execute_swap_exact_amount_out(
 
     e.storage()
         .instance()
-        .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
     let mut record_map = read_record(&e);
     let mut in_record = record_map
@@ -365,7 +365,7 @@ pub fn execute_dep_tokn_amt_in_get_lp_tokns_out(
 
     e.storage()
         .instance()
-        .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
     let mut record_map = read_record(&e);
     let mut in_record = record_map
@@ -426,7 +426,7 @@ pub fn execute_dep_lp_tokn_amt_out_get_tokn_in(
 
     e.storage()
         .instance()
-        .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
     let mut record_map = read_record(&e);
     let mut in_record = record_map
@@ -481,7 +481,7 @@ pub fn execute_wdr_tokn_amt_in_get_lp_tokns_out(
 
     e.storage()
         .instance()
-        .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
     let mut record_map = read_record(&e);
     let mut out_record = record_map
@@ -539,7 +539,7 @@ pub fn execute_wdr_tokn_amt_out_get_lp_tokns_in(
 
     e.storage()
         .instance()
-        .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
     let mut record_map = read_record(&e);
     let mut out_record = record_map

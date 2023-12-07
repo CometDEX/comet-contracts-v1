@@ -30,9 +30,9 @@ pub fn execute_init(e: Env, factory: Address, controller: Address) {
     let val: &Address = &e.current_contract_address();
 
     // Name of the LP Token
-    let name = String::from_slice(&e, "Comet Pool Token");
+    let name = String::from_str(&e, "Comet Pool Token");
     // Symbol of the LP Token
-    let symbol = String::from_slice(&e, "CPAL");
+    let symbol = String::from_str(&e, "CPAL");
 
     // Set the Total Supply of the LP Token as 0
     put_total_shares(&e, 0);

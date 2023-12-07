@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 
-members = ["contracts", "factory", "test_token"]
+members = ["contracts", "factory"]
 
 [profile.release-with-logs]
 inherits = "release"
@@ -18,16 +18,7 @@ codegen-units = 1
 lto = true
 
 [workspace.dependencies.soroban-sdk]
-version = "20.0.0-rc2"
-git = "https://github.com/stellar/rs-soroban-sdk"
-rev = "0992413f9b05e5bfb1f872bce99e89d9129b2e61"
+version = "20.0.0"
 
 [workspace.dependencies.soroban-token-sdk]
-version = "20.0.0-rc2"
-git = "https://github.com/stellar/rs-soroban-sdk"
-rev = "0992413f9b05e5bfb1f872bce99e89d9129b2e61"
-
-[workspace.dependencies.soroban-auth]
-version = "20.0.0-rc2"
-git = "https://github.com/stellar/rs-soroban-sdk"
-rev = "0992413f9b05e5bfb1f872bce99e89d9129b2e61"
+version = "20.0.0"

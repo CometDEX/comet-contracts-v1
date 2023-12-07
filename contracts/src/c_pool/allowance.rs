@@ -48,7 +48,7 @@ pub fn write_allowance(
             .unwrap();
         e.storage()
             .temporary()
-            .bump(&key, new_expiration_ledger, new_expiration_ledger)
+            .extend_ttl(&key, new_expiration_ledger, new_expiration_ledger)
     }
 }
 

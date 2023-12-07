@@ -32,7 +32,7 @@ pub fn mint_shares(e: Env, to: Address, amount: i128) {
     check_nonnegative_amount(amount);
     e.storage()
         .instance()
-        .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
     receive_balance(&e, to.clone(), amount);
     // event::mint(&e, admin, to, amount);
 }

@@ -569,7 +569,7 @@ impl TokenInterface for CometPoolContract {
     fn allowance(e: Env, from: Address, spender: Address) -> i128 {
         e.storage()
             .instance()
-            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         read_allowance(&e, from, spender).amount
     }
 
@@ -580,7 +580,7 @@ impl TokenInterface for CometPoolContract {
 
         e.storage()
             .instance()
-            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
         write_allowance(&e, from.clone(), spender.clone(), amount, expiration_ledger);
 
@@ -592,7 +592,7 @@ impl TokenInterface for CometPoolContract {
     fn balance(e: Env, id: Address) -> i128 {
         e.storage()
             .instance()
-            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         read_balance(&e, id)
     }
 
@@ -603,7 +603,7 @@ impl TokenInterface for CometPoolContract {
 
         e.storage()
             .instance()
-            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
         spend_balance(&e, from.clone(), amount);
         receive_balance(&e, to.clone(), amount);
@@ -617,7 +617,7 @@ impl TokenInterface for CometPoolContract {
 
         e.storage()
             .instance()
-            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
         spend_allowance(&e, from.clone(), spender, amount);
         spend_balance(&e, from.clone(), amount);
@@ -632,7 +632,7 @@ impl TokenInterface for CometPoolContract {
 
         e.storage()
             .instance()
-            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
         spend_balance(&e, from.clone(), amount);
         TokenUtils::new(&e).events().burn(from, amount);
@@ -645,7 +645,7 @@ impl TokenInterface for CometPoolContract {
 
         e.storage()
             .instance()
-            .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
         spend_allowance(&e, from.clone(), spender, amount);
         spend_balance(&e, from.clone(), amount);

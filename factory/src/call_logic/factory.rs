@@ -18,7 +18,7 @@ pub fn execute_init(e: Env, user: Address, pool_wasm_hash: BytesN<32>) {
 pub fn execute_new_c_pool(e: Env, salt: BytesN<32>, user: Address) -> Address {
     e.storage()
         .instance()
-        .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
     let wasm_hash = e
         .storage()
         .instance()
@@ -39,7 +39,7 @@ pub fn execute_new_c_pool(e: Env, salt: BytesN<32>, user: Address) -> Address {
     e.storage().persistent().set(&key, &true);
     e.storage()
         .persistent()
-        .bump(&key, LARGE_LIFETIME_THRESHOLD, LARGE_BUMP_AMOUNT);
+        .extend_ttl(&key, LARGE_LIFETIME_THRESHOLD, LARGE_BUMP_AMOUNT);
     let event: NewPoolEvent = NewPoolEvent {
         caller: user,
         pool: id.clone(),
@@ -52,7 +52,7 @@ pub fn execute_new_c_pool(e: Env, salt: BytesN<32>, user: Address) -> Address {
 pub fn execute_set_c_admin(e: Env, caller: Address, user: Address) {
     e.storage()
         .instance()
-        .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
     e.storage().instance().set(&DataKeyFactory::Admin, &user);
     let event: SetAdminEvent = SetAdminEvent {
         caller,
@@ -70,7 +70,7 @@ pub fn execute_collect(e: Env, caller: Address, addr: Address) {
     );
     e.storage()
         .instance()
-        .bump(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
     let curr = &e.current_contract_address().clone();
     let init_args: Vec<Val> = (curr.clone(),).into_val(&e);
@@ -87,7 +87,7 @@ pub fn execute_is_c_pool(e: Env, addr: Address) -> bool {
     if let Some(is_cpool) = e.storage().persistent().get::<DataKeyFactory, bool>(&key) {
         e.storage()
             .persistent()
-            .bump(&key, LARGE_LIFETIME_THRESHOLD, LARGE_BUMP_AMOUNT);
+            .extend_ttl(&key, LARGE_LIFETIME_THRESHOLD, LARGE_BUMP_AMOUNT);
         is_cpool
     } else {
         false

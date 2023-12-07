@@ -6,22 +6,16 @@ use crate::c_consts::BONE;
 use crate::c_pool::comet::CometPoolContract;
 use crate::c_pool::comet::CometPoolContractClient;
 use crate::c_pool::error::Error;
+use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
 use soroban_sdk::token;
 use soroban_sdk::xdr::AccountId;
 use soroban_sdk::Bytes;
 use soroban_sdk::String;
 use soroban_sdk::{testutils::Address as _, Address, IntoVal};
 use soroban_sdk::{vec, BytesN, Env, Symbol};
-use token::Client as TokenClient;
 
-mod test_token {
-    soroban_sdk::contractimport!(
-        file = "../target/wasm32-unknown-unknown/release/soroban_token_contract.wasm"
-    );
-}
-
-fn create_token_contract<'a>(e: &Env, admin: &Address) -> TokenClient<'a> {
-    TokenClient::new(e, &e.register_stellar_asset_contract(admin.clone()))
+fn create_token_contract<'a>(e: &Env, admin: &Address) -> MockTokenClient<'a> {
+    MockTokenClient::new(e, &e.register_stellar_asset_contract(admin.clone()))
 }
 
 fn create_and_init_token_contract<'a>(
@@ -30,14 +24,14 @@ fn create_and_init_token_contract<'a>(
     decimals: &'a u32,
     name: &'a str,
     symbol: &'a str,
-) -> test_token::Client<'a> {
-    let token_id = env.register_contract_wasm(None, test_token::WASM);
-    let client = test_token::Client::new(&env, &token_id);
+) -> MockTokenClient<'a> {
+    let token_id = env.register_contract_wasm(None, MockTokenWASM);
+    let client = MockTokenClient::new(&env, &token_id);
     client.initialize(
         &admin_id,
         decimals,
-        &String::from_slice(&env, name),
-        &String::from_slice(&env, symbol),
+        &String::from_str(&env, name),
+        &String::from_str(&env, symbol),
     );
     client
 }
@@ -57,9 +51,9 @@ fn to_stroop<T: Into<f64>>(a: T) -> i128 {
 fn test_pool_functions() {
     let env: Env = Env::default();
     env.mock_all_auths();
-    let admin = soroban_sdk::Address::random(&env);
-    let user1 = soroban_sdk::Address::random(&env);
-    let user2 = soroban_sdk::Address::random(&env);
+    let admin = soroban_sdk::Address::generate(&env);
+    let user1 = soroban_sdk::Address::generate(&env);
+    let user2 = soroban_sdk::Address::generate(&env);
     let contract_id = env.register_contract(None, CometPoolContract);
     let client = CometPoolContractClient::new(&env, &contract_id);
     let factory = admin.clone();
@@ -67,7 +61,7 @@ fn test_pool_functions() {
     client.init(&factory, &controller_arg);
     env.budget().reset_unlimited();
     // Create Admin
-    let mut admin1: Address = soroban_sdk::Address::random(&env);
+    let mut admin1: Address = soroban_sdk::Address::generate(&env);
 
     // // Create 4 tokens
     let mut token1 = create_and_init_token_contract(&env, &admin1, &7, "NebulaCoin", "NBC");
@@ -76,8 +70,8 @@ fn test_pool_functions() {
     let mut token4 = create_and_init_token_contract(&env, &admin1, &7, "StellarBit", "XBT");
 
     // // Create 2 users
-    let mut user1 = soroban_sdk::Address::random(&env);
-    let mut user2 = soroban_sdk::Address::random(&env);
+    let mut user1 = soroban_sdk::Address::generate(&env);
+    let mut user2 = soroban_sdk::Address::generate(&env);
 
     token1.mint(&admin1, &to_stroop(50));
     token2.mint(&admin1, &to_stroop(20));
