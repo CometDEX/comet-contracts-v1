@@ -12,7 +12,7 @@ pub fn read_tokens(e: &Env) -> Vec<Address> {
     if let Some(arr) = e.storage().persistent().get::<DataKey, Vec<Address>>(&key) {
         e.storage()
             .persistent()
-            .bump(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+            .extend_ttl(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         arr
     } else {
         vec![e]
@@ -25,7 +25,7 @@ pub fn write_tokens(e: &Env, new: Vec<Address>) {
     e.storage().persistent().set(&key, &new);
     e.storage()
         .persistent()
-        .bump(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 }
 
 // Read Record
@@ -36,9 +36,11 @@ pub fn read_record(e: &Env) -> Map<Address, Record> {
         .persistent()
         .get::<DataKey, Map<Address, Record>>(&key_rec)
     {
-        e.storage()
-            .persistent()
-            .bump(&key_rec, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        e.storage().persistent().extend_ttl(
+            &key_rec,
+            SHARED_LIFETIME_THRESHOLD,
+            SHARED_BUMP_AMOUNT,
+        );
         rec
     } else {
         Map::<Address, Record>::new(e)
@@ -51,7 +53,7 @@ pub fn write_record(e: &Env, new_map: Map<Address, Record>) {
     e.storage().persistent().set(&key_rec, &new_map);
     e.storage()
         .persistent()
-        .bump(&key_rec, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(&key_rec, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 }
 
 // Read Factory
@@ -76,7 +78,7 @@ pub fn read_controller(e: &Env) -> Address {
     let key = DataKey::Controller;
     e.storage()
         .persistent()
-        .bump(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
     e.storage()
         .persistent()
         .get::<DataKey, Address>(&key)
@@ -89,7 +91,7 @@ pub fn write_controller(e: &Env, d: Address) {
     e.storage().persistent().set(&key, &d);
     e.storage()
         .persistent()
-        .bump(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        .extend_ttl(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 }
 
 // Read Swap Fee
@@ -124,7 +126,7 @@ pub fn write_total_weight(e: &Env, d: i128) {
 
 // Read Total Shares
 pub fn get_total_shares(e: &Env) -> i128 {
-    e.storage().persistent().bump(
+    e.storage().persistent().extend_ttl(
         &DataKey::TotalShares,
         SHARED_LIFETIME_THRESHOLD,
         SHARED_BUMP_AMOUNT,
@@ -138,7 +140,7 @@ pub fn get_total_shares(e: &Env) -> i128 {
 // Update Total Shares
 pub fn put_total_shares(e: &Env, amount: i128) {
     e.storage().persistent().set(&DataKey::TotalShares, &amount);
-    e.storage().persistent().bump(
+    e.storage().persistent().extend_ttl(
         &DataKey::TotalShares,
         SHARED_LIFETIME_THRESHOLD,
         SHARED_BUMP_AMOUNT,

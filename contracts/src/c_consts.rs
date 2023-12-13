@@ -1,6 +1,6 @@
 //! Comet Pool Constants
 
-use fixed_point_math::STROOP;
+use soroban_fixed_point_math::STROOP;
 
 pub const BONE: i128 = STROOP as i128;
 pub const MIN_CPOW_BASE: i128 = 1;

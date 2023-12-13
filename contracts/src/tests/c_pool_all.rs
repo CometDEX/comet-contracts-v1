@@ -7,24 +7,19 @@ use crate::c_consts::BONE;
 use crate::c_consts::EXIT_FEE;
 use crate::c_pool::comet::CometPoolContract;
 use crate::c_pool::comet::CometPoolContractClient;
+use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
 use soroban_sdk::token;
 use soroban_sdk::xdr::AccountId;
 use soroban_sdk::Bytes;
 use soroban_sdk::String;
+use soroban_sdk::{testutils::Address as _, Address, IntoVal};
 use soroban_sdk::{vec, BytesN, Env, Symbol};
 use token::Client as TokenClient;
 
-use soroban_sdk::{testutils::Address as _, Address, IntoVal};
 struct Clients {
     core: CometPoolContractClient<'static>,
     native_asset: token::Client<'static>,
     native_asset_admin: token::StellarAssetClient<'static>,
-}
-
-mod test_token {
-    soroban_sdk::contractimport!(
-        file = "../target/wasm32-unknown-unknown/release/soroban_token_contract.wasm"
-    );
 }
 
 // fn create_token_contract<'a>(e: &'a Env, admin: &'a soroban_sdk::Address) -> AdminClient<'a> {
@@ -37,14 +32,14 @@ fn create_and_init_token_contract<'a>(
     admin_id: &'a Address,
     name: &'a str,
     symbol: &'a str,
-) -> test_token::Client<'a> {
-    let token_id = env.register_contract_wasm(None, test_token::WASM);
-    let client = test_token::Client::new(&env, &token_id);
+) -> MockTokenClient<'a> {
+    let token_id = env.register_contract_wasm(None, MockTokenWASM);
+    let client = MockTokenClient::new(&env, &token_id);
     client.initialize(
         &admin_id,
         &7,
-        &String::from_slice(&env, name),
-        &String::from_slice(&env, symbol),
+        &String::from_str(&env, name),
+        &String::from_str(&env, symbol),
     );
     client
 }
@@ -64,9 +59,9 @@ fn to_stroop<T: Into<f64>>(a: T) -> i128 {
 fn test_pool_functions_dep_wdr() {
     let env = Env::default();
     env.mock_all_auths();
-    let admin = soroban_sdk::Address::random(&env);
-    let user1 = soroban_sdk::Address::random(&env);
-    let user2 = soroban_sdk::Address::random(&env);
+    let admin = soroban_sdk::Address::generate(&env);
+    let user1 = soroban_sdk::Address::generate(&env);
+    let user2 = soroban_sdk::Address::generate(&env);
     let contract_id = env.register_contract(None, CometPoolContract);
     let client = CometPoolContractClient::new(&env, &contract_id);
     let factory = admin.clone();
@@ -74,7 +69,7 @@ fn test_pool_functions_dep_wdr() {
     client.init(&factory, &controller_arg);
 
     // // // Create Admin
-    let mut admin1 = soroban_sdk::Address::random(&env);
+    let mut admin1 = soroban_sdk::Address::generate(&env);
 
     // // // Create 4 tokens
     // let mut token1 = create_token_contract(&env, &admin1); // BAT token cannt be embedded inside Liquidity Pool
@@ -82,8 +77,8 @@ fn test_pool_functions_dep_wdr() {
     let mut token1 = create_and_init_token_contract(&env, &admin1, "SD", "SD");
     let mut token2 = create_and_init_token_contract(&env, &admin1, "Sample", "RD");
 
-    let mut user1 = soroban_sdk::Address::random(&env);
-    let mut user2 = soroban_sdk::Address::random(&env);
+    let mut user1 = soroban_sdk::Address::generate(&env);
+    let mut user2 = soroban_sdk::Address::generate(&env);
     token1.mint(&admin, &i128::MAX);
     token2.mint(&admin, &i128::MAX);
 

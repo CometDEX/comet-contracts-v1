@@ -1,7 +1,7 @@
 //! Comet Pool Arithmetic Primitives
 
 use c_consts::BONE;
-use fixed_point_math::{FixedPoint, STROOP};
+use soroban_fixed_point_math::{FixedPoint, STROOP};
 use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Env};
 
 use crate::{
