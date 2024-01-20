@@ -51,11 +51,6 @@ pub fn execute_rebind(e: Env, token: Address, balance: i128, denorm: i128, admin
     assert_with_error!(&e, balance >= 0, Error::ErrNegative);
     assert_with_error!(&e, !read_finalize(&e), Error::ErrFinalized);
 
-    assert_with_error!(
-        &e,
-        read_tokens(&e).len() < MAX_BOUND_TOKENS,
-        Error::ErrMaxTokens
-    );
     assert_with_error!(&e, denorm >= MIN_WEIGHT, Error::ErrMinWeight);
     assert_with_error!(&e, denorm <= MAX_WEIGHT, Error::ErrMaxWeight);
     assert_with_error!(&e, balance >= MIN_BALANCE, Error::ErrMinBalance);
