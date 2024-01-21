@@ -372,6 +372,8 @@ impl CometPoolTrait for CometPoolContract {
     // Only Callable by the Pool Admin
     // Freezes Functions and only allows withdrawals
     fn set_freeze_status(e: Env, caller: Address, val: bool) {
+        assert_with_error!(&e, caller == read_controller(&e), Error::ErrNotController);
+        caller.require_auth();
         execute_set_freeze_status(e, caller, val);
     }
 
