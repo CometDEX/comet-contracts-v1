@@ -113,8 +113,9 @@ pub fn execute_exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128
     assert_with_error!(&e, ratio != 0, Error::ErrMathApprox);
     pull_shares(&e, user.clone(), pool_amount_in);
 
-    let share_contract_id = e.current_contract_address();
-    push_shares(&e, share_contract_id, EXIT_FEE);
+    let factory = read_factory(&e);
+    push_shares(&e, factory, EXIT_FEE);
+
     burn_shares(&e, pai_after_exit_fee);
     let tokens = read_tokens(&e);
     let mut records = read_record(&e);
