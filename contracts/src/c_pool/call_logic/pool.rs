@@ -45,7 +45,7 @@ pub fn execute_gulp(e: Env, t: Address) {
 
 pub fn execute_join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128>, user: Address) {
     assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
-    assert_with_error!(&e, pool_amount_out >= 0, Error::ErrNegative);
+    assert_with_error!(&e, pool_amount_out > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
 
     e.storage()

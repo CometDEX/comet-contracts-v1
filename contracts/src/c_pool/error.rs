@@ -40,4 +40,6 @@ pub enum Error {
     ErrCPowBaseTooLow = 34,
     ErrCPowBaseTooHigh = 35,
     ErrInvalidExpirationLedger = 36,
+    ErrNegativeOrZero = 37,
+
 }
