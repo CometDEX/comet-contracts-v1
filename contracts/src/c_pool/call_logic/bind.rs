@@ -139,13 +139,8 @@ pub fn execute_unbind(e: Env, token: Address, user: Address) {
     write_tokens(&e, tokens);
     let mut record_current = record_map.get(last_token.clone()).unwrap_optimized();
     record_current.index = index;
-    record.balance = 0;
-    record.bound = false;
-    record.index = 0;
-    record.denorm = 0;
-
     record_map.set(last_token, record_current);
-    record_map.set(token.clone(), record);
+    record_map.remove(token.clone());
 
     write_record(&e, record_map);
 
