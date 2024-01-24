@@ -304,6 +304,7 @@ pub fn execute_swap_exact_amount_out(
         read_swap_fee(&e),
     );
 
+    assert_with_error!(&e, token_amount_in > 0, Error::ErrMathApprox);
     assert_with_error!(&e, token_amount_in <= max_amount_in, Error::ErrLimitIn);
 
     in_record.balance = c_add(&e, in_record.balance, token_amount_in).unwrap_optimized();
