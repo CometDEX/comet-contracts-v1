@@ -51,6 +51,8 @@ use soroban_sdk::{
 use soroban_token_sdk::metadata::TokenMetadata;
 use soroban_token_sdk::TokenUtils;
 
+use super::metadata::put_total_shares;
+
 #[contract]
 pub struct CometPoolContract;
 
@@ -629,7 +631,7 @@ impl TokenInterface for CometPoolContract {
 
     fn burn(e: Env, from: Address, amount: i128) {
         from.require_auth();
-
+        let total = get_total_shares(&e);
         check_nonnegative_amount(amount);
 
         e.storage()
@@ -638,11 +640,12 @@ impl TokenInterface for CometPoolContract {
 
         spend_balance(&e, from.clone(), amount);
         TokenUtils::new(&e).events().burn(from, amount);
+        put_total_shares(&e, total - amount);
     }
 
     fn burn_from(e: Env, spender: Address, from: Address, amount: i128) {
         spender.require_auth();
-
+        let total = get_total_shares(&e);
         check_nonnegative_amount(amount);
 
         e.storage()
@@ -651,7 +654,9 @@ impl TokenInterface for CometPoolContract {
 
         spend_allowance(&e, from.clone(), spender, amount);
         spend_balance(&e, from.clone(), amount);
-        TokenUtils::new(&e).events().burn(from, amount)
+        TokenUtils::new(&e).events().burn(from, amount);
+        put_total_shares(&e, total - amount);
+
     }
 
     fn decimals(e: Env) -> u32 {
