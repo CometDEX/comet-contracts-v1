@@ -100,7 +100,7 @@ pub fn execute_rebind(e: Env, token: Address, balance: i128, denorm: i128, admin
         );
     } else if balance < old_balance {
         let token_balance_withdrawn = c_sub(&e, old_balance, balance).unwrap_optimized();
-        let token_exit_fee = c_mul(&e, token_balance_withdrawn, 0).unwrap_optimized();
+        let token_exit_fee = c_mul(&e, token_balance_withdrawn, EXIT_FEE).unwrap_optimized();
         push_underlying(
             &e,
             &token,

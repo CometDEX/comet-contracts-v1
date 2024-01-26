@@ -108,13 +108,13 @@ pub fn execute_exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
     let pool_total = get_total_shares(&e);
     let exit_fee = c_mul(&e, pool_amount_in, EXIT_FEE).unwrap_optimized();
-    let pai_after_exit_fee = c_sub(&e, pool_amount_in, EXIT_FEE).unwrap_optimized();
+    let pai_after_exit_fee = c_sub(&e, pool_amount_in, exit_fee).unwrap_optimized();
     let ratio: i128 = c_div(&e, pai_after_exit_fee, pool_total).unwrap_optimized();
     assert_with_error!(&e, ratio != 0, Error::ErrMathApprox);
     pull_shares(&e, user.clone(), pool_amount_in);
 
     let factory = read_factory(&e);
-    push_shares(&e, factory, EXIT_FEE);
+    push_shares(&e, factory, exit_fee);
 
     burn_shares(&e, pai_after_exit_fee);
     let tokens = read_tokens(&e);
@@ -519,9 +519,9 @@ pub fn execute_wdr_tokn_amt_in_get_lp_tokns_out(
     e.events().publish((POOL, symbol_short!("withdraw")), event);
 
     pull_shares(&e, user.clone(), pool_amount_in);
-    burn_shares(&e, c_sub(&e, pool_amount_in, EXIT_FEE).unwrap_optimized());
+    burn_shares(&e, c_sub(&e, pool_amount_in, exit_fee).unwrap_optimized());
     let factory = read_factory(&e);
-    push_shares(&e, factory, EXIT_FEE);
+    push_shares(&e, factory, exit_fee);
     push_underlying(&e, &token_out, user, token_amount_out);
 
     record_map.set(token_out, out_record);
@@ -577,9 +577,9 @@ pub fn execute_wdr_tokn_amt_out_get_lp_tokns_in(
     e.events().publish((POOL, symbol_short!("withdraw")), event);
 
     pull_shares(&e, user.clone(), pool_amount_in);
-    burn_shares(&e, c_sub(&e, pool_amount_in, EXIT_FEE).unwrap_optimized());
+    burn_shares(&e, c_sub(&e, pool_amount_in, exit_fee).unwrap_optimized());
     let factory = read_factory(&e);
-    push_shares(&e, factory, EXIT_FEE);
+    push_shares(&e, factory, exit_fee);
     push_underlying(&e, &token_out, user, token_amount_out);
 
     record_map.set(token_out, out_record);
