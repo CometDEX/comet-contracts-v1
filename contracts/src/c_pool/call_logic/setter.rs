@@ -25,7 +25,7 @@ pub fn execute_set_controller(e: Env, caller: Address, manager: Address) {
 }
 
 pub fn execute_set_public_swap(e: Env, caller: Address, val: bool) {
-    assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
+    assert_with_error!(&e, !read_finalize(&e), Error::ErrFinalized);
     write_public_swap(&e, val);
 }
 
