@@ -7,6 +7,10 @@ use crate::c_consts_256::*;
 use crate::c_pool::error::Error;
 
 // Divide bsy BONE
+use soroban_fixed_point_math::{FixedPoint, STROOP};
+use crate::c_consts_256::get_bone;
+
+// Divide by BONE
 fn c_toi(e: &Env, a: I256) -> I256 {
     a.div(&get_bone(e))
 }
