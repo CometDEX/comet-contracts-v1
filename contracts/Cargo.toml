@@ -8,6 +8,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
+num-bigint = "0.4.4"
 soroban-fixed-point-math = "1.0.0"
 soroban-sdk = { workspace = true }
 soroban-token-sdk = { workspace = true }

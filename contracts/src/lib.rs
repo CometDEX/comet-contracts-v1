@@ -7,3 +7,6 @@ mod c_math;
 mod c_num;
 mod c_pool;
 mod tests;
+mod c_num_256;
+mod c_consts_256;
+mod c_math_256;
