@@ -2,7 +2,6 @@
 extern crate std;
 use std::println;
 
-use num_bigint::BigInt;
 use soroban_sdk::{I256, Env};
 use soroban_sdk::unwrap::UnwrapOptimized;
 

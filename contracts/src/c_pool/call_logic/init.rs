@@ -2,7 +2,7 @@ use soroban_sdk::{assert_with_error, Address, Env, String};
 use soroban_token_sdk::metadata::TokenMetadata;
 
 use crate::{
-    c_consts::MIN_FEE,
+    c_consts_256::get_min_fee,
     c_pool::{
         error::Error,
         metadata::{
@@ -38,7 +38,7 @@ pub fn execute_init(e: Env, factory: Address, controller: Address) {
     put_total_shares(&e, 0);
 
     // Store the Swap Fee
-    write_swap_fee(&e, MIN_FEE);
+    write_swap_fee(&e, get_min_fee(&e).to_i128().unwrap());
 
     // Initialize Public Swap and Finalize as false
     write_finalize(&e, false);
