@@ -151,24 +151,23 @@ fn test_pool_functions() {
     assert_eq!(224999999, token1.balance(&user1));
 
     let token_1_price = client.get_spot_price_sans_fee(&token3.address, &token1.address);
-    assert_eq!(token_1_price, to_stroop(200));
-    // let token_1_price_fee = client.get_spot_price(&token3.address, &token1.address);
+    assert_eq!(token_1_price, 1999999996); // Close to 2000000000
+    let token_1_price_fee = client.get_spot_price(&token3.address, &token1.address);
     // let token_1_price_fee_check_float = ((10500.0 / 5.0) / (52.5 / 5.0)) * (1.0 / (1.0 - 0.003));
-    // // 200.6018054162487462
-    // // 200.6018000
-    // // Actual value due to Soroban having only 7 decimal places for token amounts
-    // assert_eq!(token_1_price_fee, 2006018000);
+    
+    // Actual with floats -> 200.6018054162487462
+    assert_eq!(token_1_price_fee, 2006018050);
 
-    // let tx = client.swap_exact_amount_in(
-    //     &token1.address,
-    //     &to_stroop(2.5),
-    //     &token3.address,
-    //     &to_stroop(475),
-    //     &to_stroop(200),
-    //     &user2,
-    // );
+    let tx = client.swap_exact_amount_in(
+        &token1.address,
+        &to_stroop(2.5),
+        &token3.address,
+        &to_stroop(475),
+        &to_stroop(200),
+        &user2,
+    );
 
-    // let val = client.get_spot_price(&token3.address, &token1.address);
+    let val = client.get_spot_price(&token3.address, &token1.address);
     // // Using Floats 182.804672101083406128
     // assert_eq!(val, 1828046606);
 

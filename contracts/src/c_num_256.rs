@@ -47,11 +47,13 @@ pub fn c_sub_sign(env: &Env, a: I256, b: I256) -> (I256, bool) {
 }
 
 pub fn c_mul(e: &Env, a: I256, b: I256) -> Result<I256, Error> {    
+
     Ok(a.fixed_mul_floor(e, b, get_bone(e)))
 }
 // Divide 2 numbers
 pub fn c_div(e: &Env, a: I256, b: I256) -> Result<I256, Error> {
- 
+    
+    // Ok(a.div(&b))
     Ok(a.fixed_div_floor(e, b, get_bone(e)))
 }
 

@@ -42,12 +42,12 @@ pub fn execute_get_spot_price(e: Env, token_in: Address, token_out: Address) -> 
     let out_record = record.get(token_out).unwrap_optimized();
     calc_spot_price(
         &e,
-        I256::from_i128(&e, in_record.balance),
-        I256::from_i128(&e,in_record.denorm),
-        I256::from_i128(&e,out_record.balance),
-        I256::from_i128(&e,out_record.denorm),
-        I256::from_i128(&e,read_swap_fee(&e)),
-    ).to_i128().unwrap()
+        I256::from_i128(&e, in_record.balance).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,in_record.denorm).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,out_record.balance).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,out_record.denorm).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,read_swap_fee(&e)).mul(&I256::from_i128(&e, 1e11 as i128)),
+    ).div(&I256::from_i128(&e, 1e11 as i128)).to_i128().unwrap()
 }
 
 // Get the spot price without considering the swap fee
@@ -57,10 +57,10 @@ pub fn execute_get_spot_price_sans_fee(e: Env, token_in: Address, token_out: Add
     let out_record = record.get(token_out).unwrap_optimized();
     calc_spot_price(
         &e,
-        I256::from_i128(&e,in_record.balance),
-        I256::from_i128(&e,in_record.denorm),
-        I256::from_i128(&e,out_record.balance),
-        I256::from_i128(&e,out_record.denorm),
+        I256::from_i128(&e,in_record.balance).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,in_record.denorm).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,out_record.balance).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,out_record.denorm).mul(&I256::from_i128(&e, 1e11 as i128)),
         I256::from_i128(&e,0),
-    ).to_i128().unwrap()
+    ).div(&I256::from_i128(&e, 1e11 as i128)).to_i128().unwrap()
 }
