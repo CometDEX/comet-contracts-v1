@@ -106,7 +106,8 @@ fn test_pool_functions_dep_wdr() {
 
     client.set_swap_fee(&to_stroop(0.003), &controller);
     client.finalize();
-    client.set_public_swap(&admin, &true);
+    // Should Fail
+    // client.set_public_swap(&admin, &true);
 
     token1.approve(&user1, &contract_address, &i128::MAX, &200);
     token2.approve(&user1, &contract_address, &i128::MAX, &200);
