@@ -109,6 +109,7 @@ fn test_pool_functions_dep_wdr() {
     client.finalize();
 
     // This should fail, yes.
+    // Should Fail
     // client.set_public_swap(&admin, &true);
 
     token1.approve(&user1, &contract_address, &i128::MAX, &200);
