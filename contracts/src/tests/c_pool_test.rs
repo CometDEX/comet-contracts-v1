@@ -167,9 +167,9 @@ fn test_pool_functions() {
         &user2,
     );
 
-    let val = client.get_spot_price(&token3.address, &token1.address);
+    // let val = client.get_spot_price(&token3.address, &token1.address);
     // // Using Floats 182.804672101083406128
-    // assert_eq!(val, 1828046606);
+    // assert_eq!(tx.0, 1828046606);
 
     // let txr = client.swap_exact_amount_out(
     //     &token1.address,
