@@ -2,6 +2,7 @@ use soroban_sdk::{
     assert_with_error, panic_with_error, symbol_short, token, unwrap::UnwrapOptimized, Address,
     Env, Symbol, Vec, I256,
 };
+use soroban_sdk::token::Client;
 
 use crate::{
     c_consts_256::{get_exit_fee, get_max_in_ratio, get_max_out_ratio},
@@ -91,7 +92,7 @@ pub fn execute_join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128
         };
         e.events()
             .publish((POOL, symbol_short!("join_pool")), event);
-        pull_underlying(&e, &t, user.clone(),  token_amount_in.to_i128().unwrap_optimized());
+        pull_underlying(&e, &t, user.clone(),  token_amount_in.to_i128().unwrap_optimized(), max_amounts_in.get(i).unwrap_optimized());
     }
 
     write_record(&e, records);
@@ -239,7 +240,7 @@ pub fn execute_swap_exact_amount_in(
     };
     e.events().publish((POOL, symbol_short!("swap")), event);
 
-    pull_underlying(&e, &token_in, user.clone(), token_amount_in);
+    pull_underlying(&e, &token_in, user.clone(), token_amount_in, token_amount_in.clone());
     push_underlying(&e, &token_out, user, token_amount_out.to_i128().unwrap_optimized());
 
     record_map.set(token_in, in_record);
@@ -340,7 +341,7 @@ pub fn execute_swap_exact_amount_out(
     };
     e.events().publish((POOL, symbol_short!("swap")), event);
 
-    pull_underlying(&e, &token_in, user.clone(), token_amount_in.to_i128().unwrap_optimized());
+    pull_underlying(&e, &token_in, user.clone(), token_amount_in.to_i128().unwrap_optimized(),max_amount_in);
     push_underlying(&e, &token_out, user, token_amount_out);
 
     let mut record_map = read_record(&e);
@@ -406,7 +407,7 @@ pub fn execute_dep_tokn_amt_in_get_lp_tokns_out(
     };
     e.events().publish((POOL, symbol_short!("deposit")), event);
 
-    pull_underlying(&e, &token_in, user.clone(), token_amount_in);
+    pull_underlying(&e, &token_in, user.clone(), token_amount_in, token_amount_in);
     mint_shares(e, user, pool_amount_out.to_i128().unwrap_optimized());
 
     pool_amount_out.to_i128().unwrap_optimized()
@@ -464,7 +465,7 @@ pub fn execute_dep_lp_tokn_amt_out_get_tokn_in(
     };
     e.events().publish((POOL, symbol_short!("deposit")), event);
 
-    pull_underlying(&e, &token_in, user.clone(), token_amount_in.to_i128().unwrap_optimized());
+    pull_underlying(&e, &token_in, user.clone(), token_amount_in.to_i128().unwrap_optimized(), max_amount_in);
     mint_shares(e, user, pool_amount_out);
 
     token_amount_in.to_i128().unwrap_optimized()

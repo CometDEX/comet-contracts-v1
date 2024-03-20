@@ -92,11 +92,13 @@ pub fn execute_rebind(e: Env, token: Address, balance: i128, denorm: i128, admin
 
     #[allow(clippy::comparison_chain)]
     if balance > old_balance {
+
         pull_underlying(
             &e,
             &token,
             admin,
             c_sub(&e, I256::from_i128(&e, balance), I256::from_i128(&e, old_balance)).unwrap_optimized().to_i128().unwrap(),
+            balance
         );
     } else if balance < old_balance {
         let token_balance_withdrawn = c_sub(&e, I256::from_i128(&e, old_balance), I256::from_i128(&e, balance)).unwrap_optimized();
