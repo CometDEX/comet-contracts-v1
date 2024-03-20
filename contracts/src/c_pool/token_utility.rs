@@ -15,7 +15,8 @@ use soroban_sdk::token::Client;
 
 // Transfers the Specific Token from the User’s Address to the Contract’s Address
 pub fn pull_underlying(e: &Env, token: &Address, from: Address, amount: i128) {
-    Client::new(e, token).transfer(&from, &e.current_contract_address(), &amount)
+    Client::new(e, token).approve(&from, &e.current_contract_address(),&amount, &1000);
+    Client::new(e, token).transfer_from(&e.current_contract_address(), &from, &e.current_contract_address(), &amount);
 }
 
 // Transfers the Specific Token from the Contract’s Address to the given 'to' Address
