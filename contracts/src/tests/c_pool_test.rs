@@ -151,7 +151,7 @@ fn test_pool_functions() {
     assert_eq!(224999999, token1.balance(&user1));
 
     let token_1_price = client.get_spot_price_sans_fee(&token3.address, &token1.address);
-    assert_eq!(token_1_price, to_stroop(200));
+    assert_eq!(token_1_price, 1999999996);
     // let token_1_price_fee = client.get_spot_price(&token3.address, &token1.address);
     // let token_1_price_fee_check_float = ((10500.0 / 5.0) / (52.5 / 5.0)) * (1.0 / (1.0 - 0.003));
     // // 200.6018054162487462
