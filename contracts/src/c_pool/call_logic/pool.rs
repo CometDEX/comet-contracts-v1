@@ -1,3 +1,7 @@
+
+use core::ops::Mul;
+
+use soroban_sdk::log;
 use soroban_sdk::{
     assert_with_error, panic_with_error, symbol_short, token, unwrap::UnwrapOptimized, Address,
     Env, Symbol, Vec, I256,
@@ -50,6 +54,8 @@ pub fn execute_join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128
     assert_with_error!(&e, pool_amount_out > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
 
+    //TODO: Scale it properly
+
     e.storage()
         .instance()
         .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
@@ -95,15 +101,18 @@ pub fn execute_join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128
             .publish((POOL, symbol_short!("join_pool")), event);
         pull_underlying(&e, &t, user.clone(),  token_amount_in.to_i128().unwrap_optimized(), max_amounts_in.get(i).unwrap_optimized());
     }
+    //TODO: DeScale it properly
 
     write_record(&e, records);
     mint_shares(e, user, pool_amount_out);
+    
 }
 
 // Helps a user exit the pool
 pub fn execute_exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128>, user: Address) {
     assert_with_error!(&e, pool_amount_in >= 0, Error::ErrNegative);
 
+    //TODO: Scale it properly
     e.storage()
         .instance()
         .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
@@ -148,6 +157,8 @@ pub fn execute_exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128
         push_underlying(&e, &t, user.clone(), token_amount_out.to_i128().unwrap_optimized())
     }
 
+    //TODO: Descale it properly
+
     write_record(&e, records);
 }
 
@@ -165,8 +176,13 @@ pub fn execute_swap_exact_amount_in(
     assert_with_error!(&e, token_amount_in >= 0, Error::ErrNegative);
     assert_with_error!(&e, min_amount_out >= 0, Error::ErrNegative);
     assert_with_error!(&e, max_price >= 0, Error::ErrNegative);
-
     assert_with_error!(&e, read_public_swap(&e), Error::ErrSwapNotPublic);
+
+    //TODO: Scale it properly
+
+    // let token_amount_in_scaled = token_amount_in.mul(1e11 as i128);
+    // let min_amount_out_scaled = min_amount_out.mul(1e11 as i128);
+    // let max_price_scaled = max_price.mul(1e11 as i128);
 
     e.storage()
         .instance()
@@ -196,17 +212,24 @@ pub fn execute_swap_exact_amount_in(
         I256::from_i128(&e,read_swap_fee(&e)),
     );
 
-    assert_with_error!(&e, spot_price_before <=  I256::from_i128(&e,max_price), Error::ErrBadLimitPrice);
-    let token_amount_out = calc_token_out_given_token_in(
+    log!(&e, "{} {}", spot_price_before, I256::from_i128(&e, max_price).mul(&I256::from_i128(&e, 1e11 as i128)));
+
+    assert_with_error!(&e, spot_price_before <=  I256::from_i128(&e, max_price).mul(&I256::from_i128(&e, 1e11 as i128)), Error::ErrBadLimitPrice);
+    let mut token_amount_out = calc_token_out_given_token_in(
         &e,
-        I256::from_i128(&e,in_record.balance),
-        I256::from_i128(&e,in_record.denorm),
-        I256::from_i128(&e,out_record.balance),
-        I256::from_i128(&e,out_record.denorm),
-        I256::from_i128(&e,token_amount_in),
-        I256::from_i128(&e,read_swap_fee(&e)),
+        I256::from_i128(&e,in_record.balance).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,in_record.denorm).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,out_record.balance).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,out_record.denorm).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,token_amount_in).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,read_swap_fee(&e)).mul(&I256::from_i128(&e, 1e11 as i128)),
     );
-    assert_with_error!(&e, token_amount_out >=  I256::from_i128(&e,min_amount_out), Error::ErrLimitOut);
+
+    token_amount_out = token_amount_out.div(&I256::from_i128(&e, 1e11 as i128));
+
+    log!(&e, "{} {}", token_amount_out, I256::from_i128(&e, min_amount_out));
+
+    assert_with_error!(&e, token_amount_out >=  I256::from_i128(&e, min_amount_out), Error::ErrLimitOut);
 
     in_record.balance = c_add(&e,  I256::from_i128(&e,in_record.balance),  I256::from_i128(&e,token_amount_in)).unwrap_optimized().to_i128().unwrap_optimized();
     out_record.balance = c_sub(&e,  I256::from_i128(&e,out_record.balance), token_amount_out.clone()).unwrap_optimized().to_i128().unwrap_optimized();
@@ -225,7 +248,9 @@ pub fn execute_swap_exact_amount_in(
         spot_price_after >= spot_price_before,
         Error::ErrMathApprox
     );
-    assert_with_error!(&e, spot_price_after <= I256::from_i128(&e, max_price), Error::ErrLimitPrice);
+    
+    log!(&e, "{} {}", spot_price_after, I256::from_i128(&e, max_price).mul(&I256::from_i128(&e, 1e11 as i128)));
+    assert_with_error!(&e, spot_price_after <= I256::from_i128(&e, max_price).mul(&I256::from_i128(&e, 1e11 as i128)), Error::ErrLimitPrice);
     assert_with_error!(
         &e,
         spot_price_before <= c_div(&e, I256::from_i128(&e, token_amount_in), token_amount_out.clone()).unwrap_optimized(),
@@ -241,6 +266,8 @@ pub fn execute_swap_exact_amount_in(
     };
     e.events().publish((POOL, symbol_short!("swap")), event);
 
+    //TODO: DeScale it properly
+
     pull_underlying(&e, &token_in, user.clone(), token_amount_in, token_amount_in.clone());
     push_underlying(&e, &token_out, user, token_amount_out.to_i128().unwrap_optimized());
 
@@ -248,6 +275,8 @@ pub fn execute_swap_exact_amount_in(
     record_map.set(token_out, out_record);
 
     write_record(&e, record_map);
+
+    log!(&e, "Hello {} {}", token_amount_out.to_i128().unwrap_optimized(), spot_price_after.to_i128().unwrap_optimized());
 
     (token_amount_out.to_i128().unwrap_optimized(), spot_price_after.to_i128().unwrap_optimized())
 }
@@ -266,6 +295,8 @@ pub fn execute_swap_exact_amount_out(
     assert_with_error!(&e, max_amount_in >= 0, Error::ErrNegative);
     assert_with_error!(&e, max_price >= 0, Error::ErrNegative);
     assert_with_error!(&e, read_public_swap(&e), Error::ErrSwapNotPublic);
+
+    //TODO: Scale it properly
 
     e.storage()
         .instance()
@@ -341,6 +372,9 @@ pub fn execute_swap_exact_amount_out(
         token_amount_in: token_amount_in.to_i128().unwrap_optimized(),
     };
     e.events().publish((POOL, symbol_short!("swap")), event);
+
+    //TODO: DeScale it properly
+
     pull_underlying(&e, &token_in, user.clone(), token_amount_in.to_i128().unwrap_optimized(), max_amount_in);
     push_underlying(&e, &token_out, user, token_amount_out);
 
@@ -363,8 +397,9 @@ pub fn execute_dep_tokn_amt_in_get_lp_tokns_out(
     assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
     assert_with_error!(&e, token_amount_in >= 0, Error::ErrNegative);
     assert_with_error!(&e, min_pool_amount_out >= 0, Error::ErrNegative);
-
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
+
+    //TODO: Scale it properly
 
     e.storage()
         .instance()
@@ -408,6 +443,8 @@ pub fn execute_dep_tokn_amt_in_get_lp_tokns_out(
     e.events().publish((POOL, symbol_short!("deposit")), event);
     pull_underlying(&e, &token_in, user.clone(), token_amount_in, token_amount_in);
     mint_shares(e, user, pool_amount_out.to_i128().unwrap_optimized());
+    
+    //TODO: DeScale it properly
 
     pool_amount_out.to_i128().unwrap_optimized()
 }
@@ -420,11 +457,11 @@ pub fn execute_dep_lp_tokn_amt_out_get_tokn_in(
     user: Address,
 ) -> i128 {
     assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
-
     assert_with_error!(&e, pool_amount_out >= 0, Error::ErrNegative);
     assert_with_error!(&e, max_amount_in >= 0, Error::ErrNegative);
-
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
+
+    //TODO: Scale it properly
 
     e.storage()
         .instance()
@@ -466,6 +503,8 @@ pub fn execute_dep_lp_tokn_amt_out_get_tokn_in(
     pull_underlying(&e, &token_in, user.clone(), token_amount_in.to_i128().unwrap_optimized(), max_amount_in);
     mint_shares(e, user, pool_amount_out);
 
+    //TODO: Descale it properly
+
     token_amount_in.to_i128().unwrap_optimized()
 }
 
@@ -479,6 +518,8 @@ pub fn execute_wdr_tokn_amt_in_get_lp_tokns_out(
     assert_with_error!(&e, pool_amount_in >= 0, Error::ErrNegative);
     assert_with_error!(&e, min_amount_out >= 0, Error::ErrNegative);
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
+
+    //TODO: Scale it properly
 
     e.storage()
         .instance()
@@ -525,6 +566,8 @@ pub fn execute_wdr_tokn_amt_in_get_lp_tokns_out(
 
     record_map.set(token_out, out_record);
     write_record(&e, record_map);
+    
+    //TODO: DeScale it properly
 
     token_amount_out.to_i128().unwrap_optimized()
 }
@@ -537,6 +580,8 @@ pub fn execute_wdr_tokn_amt_out_get_lp_tokns_in(
     user: Address,
 ) -> i128 {
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
+
+    //TODO: Scale it properly
 
     e.storage()
         .instance()
@@ -583,6 +628,8 @@ pub fn execute_wdr_tokn_amt_out_get_lp_tokns_in(
 
     record_map.set(token_out, out_record);
     write_record(&e, record_map);
+    
+    //TODO: DeScale it properly
 
     pool_amount_in.to_i128().unwrap_optimized()
 }

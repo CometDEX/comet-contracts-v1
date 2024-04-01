@@ -7,6 +7,7 @@ use crate::c_pool::comet::CometPoolContract;
 use crate::c_pool::comet::CometPoolContractClient;
 use crate::c_pool::error::Error;
 use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
+use soroban_sdk::testutils::Logs;
 use soroban_sdk::token;
 use soroban_sdk::xdr::AccountId;
 use soroban_sdk::Bytes;
@@ -152,25 +153,31 @@ fn test_pool_functions() {
 
     let token_1_price = client.get_spot_price_sans_fee(&token3.address, &token1.address);
     assert_eq!(token_1_price, 1999999996);
-    // let token_1_price_fee = client.get_spot_price(&token3.address, &token1.address);
+    let token_1_price_fee = client.get_spot_price(&token3.address, &token1.address);
     // let token_1_price_fee_check_float = ((10500.0 / 5.0) / (52.5 / 5.0)) * (1.0 / (1.0 - 0.003));
     // // 200.6018054162487462
     // // 200.6018000
     // // Actual value due to Soroban having only 7 decimal places for token amounts
-    // assert_eq!(token_1_price_fee, 2006018000);
+    assert_eq!(token_1_price_fee, 2006018050);
 
-    // let tx = client.swap_exact_amount_in(
-    //     &token1.address,
-    //     &to_stroop(2.5),
-    //     &token3.address,
-    //     &to_stroop(475),
-    //     &to_stroop(200),
-    //     &user2,
-    // );
+    let tx = client.swap_exact_amount_in(
+        &token1.address,
+        &to_stroop(2.5),
+        &token3.address,
+        &to_stroop(475),
+        &to_stroop(200),
+        &user2,
+    );
+    let logentry = env.logs().all().last().unwrap().clone();
+    println!("Entries {}", logentry);
 
-    // let val = client.get_spot_price(&token3.address, &token1.address);
+    // let logentry = env.logs().all().last().unwrap().clone();
+    // println!("Entries {}", logentry);
+    let val = client.get_spot_price(&token3.address, &token1.address);
+    // let logentry = env.logs().all().last().unwrap().clone();
+    // println!("Entries {}", logentry);
     // // Using Floats 182.804672101083406128
-    // assert_eq!(val, 1828046606);
+    assert_eq!(val, 1828046717);
 
     // let txr = client.swap_exact_amount_out(
     //     &token1.address,
