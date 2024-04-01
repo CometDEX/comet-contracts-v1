@@ -179,20 +179,20 @@ fn test_pool_functions() {
     // // Using Floats 182.804672101083406128
     assert_eq!(val, 1828046717);
 
-    // let txr = client.swap_exact_amount_out(
-    //     &token1.address,
-    //     &to_stroop(3),
-    //     &token2.address,
-    //     &to_stroop(1.0),
-    //     &to_stroop(500),
-    //     &user2,
-    // );
+    let txr = client.swap_exact_amount_out(
+        &token1.address,
+        &to_stroop(3),
+        &token2.address,
+        &to_stroop(1.0),
+        &to_stroop(500),
+        &user2,
+    );
 
     // // // Using Floats
     // // // 2.758274824473420261
-    // assert_eq!(txr.0, 27582695);
+    assert_eq!(txr.0, 27582748);
 
-    // client.set_freeze_status(&controller, &true);
+    client.set_freeze_status(&controller, &true);
 
     // // fails as expected
     // // client.join_pool(

@@ -326,16 +326,19 @@ pub fn execute_swap_exact_amount_out(
         I256::from_i128(&e,read_swap_fee(&e)),
     );
 
-    assert_with_error!(&e, spot_price_before <= I256::from_i128(&e, max_price), Error::ErrBadLimitPrice);
-    let token_amount_in = calc_token_in_given_token_out(
+    assert_with_error!(&e, spot_price_before <= I256::from_i128(&e, max_price).mul(&I256::from_i128(&e, 1e11 as i128)), Error::ErrBadLimitPrice);
+
+    let mut token_amount_in = calc_token_in_given_token_out(
         &e,
-        I256::from_i128(&e, in_record.balance),
-        I256::from_i128(&e,in_record.denorm), 
-        I256::from_i128(&e,out_record.balance),
-        I256::from_i128(&e,out_record.denorm),
-        I256::from_i128(&e,token_amount_out),
-        I256::from_i128(&e,read_swap_fee(&e)),
+        I256::from_i128(&e, in_record.balance).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,in_record.denorm).mul(&I256::from_i128(&e, 1e11 as i128)), 
+        I256::from_i128(&e,out_record.balance).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,out_record.denorm).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,token_amount_out).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,read_swap_fee(&e)).mul(&I256::from_i128(&e, 1e11 as i128)),
     );
+
+    token_amount_in = token_amount_in.div(&I256::from_i128(&e, 1e11 as i128));
 
     assert_with_error!(&e, token_amount_in > I256::from_i128(&e,0), Error::ErrMathApprox);
     assert_with_error!(&e, token_amount_in <=  I256::from_i128(&e,max_amount_in), Error::ErrLimitIn);
@@ -357,7 +360,7 @@ pub fn execute_swap_exact_amount_out(
         spot_price_after >= spot_price_before,
         Error::ErrMathApprox
     );
-    assert_with_error!(&e, spot_price_after <= I256::from_i128(&e,max_price), Error::ErrLimitPrice);
+    assert_with_error!(&e, spot_price_after <= I256::from_i128(&e,max_price).mul(&I256::from_i128(&e, 1e11 as i128)), Error::ErrLimitPrice);
     assert_with_error!(
         &e,
         spot_price_before <= c_div(&e, token_amount_in.clone(), I256::from_i128(&e,token_amount_out)).unwrap_optimized(),
