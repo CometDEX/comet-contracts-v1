@@ -1,6 +1,6 @@
 use soroban_sdk::{
-    assert_with_error, symbol_short, unwrap::UnwrapOptimized, Address, BytesN, Env, IntoVal, Val,
-    Vec,
+    assert_with_error, symbol_short, unwrap::UnwrapOptimized, Address, Bytes, BytesN, Env, IntoVal,
+    Val, Vec,
 };
 
 use crate::{
@@ -24,15 +24,21 @@ pub fn execute_new_c_pool(e: Env, salt: BytesN<32>, user: Address) -> Address {
         .instance()
         .get::<DataKeyFactory, BytesN<32>>(&DataKeyFactory::WasmHash)
         .unwrap_optimized();
+
+    // build salt dervied from user and provided salt to
+    let mut as_u8s: [u8; 56] = [0; 56];
+    user.to_string().copy_into_slice(&mut as_u8s);
+    let mut salt_as_bytes: Bytes = salt.into_val(&e);
+    salt_as_bytes.extend_from_array(&as_u8s);
+    let new_salt = e.crypto().keccak256(&salt_as_bytes);
+
     let id = e
         .deployer()
-        .with_address(user.clone(), salt)
+        .with_current_contract(new_salt)
         .deploy(wasm_hash);
-    // let x: Vec<Val> = Vec::new(&e);
+
     let val = e.current_contract_address().clone();
-
     let init_args: Vec<Val> = (val.clone(), user.clone()).into_val(&e);
-
     e.invoke_contract::<()>(&id, &symbol_short!("init"), init_args);
 
     let key = DataKeyFactory::IsCpool(id.clone());
