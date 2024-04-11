@@ -201,7 +201,7 @@ fn test_pool_functions() {
     // //     &user2,
     // // );
 
-    // client.exit_pool(&to_stroop(5), &vec![&env, 0, 0, 0], &user1);
+    client.exit_pool(&to_stroop(5), &vec![&env, 0, 0, 0], &user1);
 
     // // Increases due to swap earlier
     // println!("Token Balance of User1 = {}", token1.balance(&user1));
