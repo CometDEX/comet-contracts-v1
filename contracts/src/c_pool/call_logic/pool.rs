@@ -9,6 +9,7 @@ use soroban_sdk::{
 
 use soroban_sdk::token::Client;
 
+use crate::c_pool::token_utility::calculate_precision_multiplier;
 use crate::{
     c_consts_256::{get_exit_fee, get_max_in_ratio, get_max_out_ratio},
     c_math_256::{
@@ -215,17 +216,21 @@ pub fn execute_swap_exact_amount_in(
     log!(&e, "{} {}", spot_price_before, I256::from_i128(&e, max_price).mul(&I256::from_i128(&e, 1e11 as i128)));
 
     assert_with_error!(&e, spot_price_before <=  I256::from_i128(&e, max_price).mul(&I256::from_i128(&e, 1e11 as i128)), Error::ErrBadLimitPrice);
+    let token_in_multiplier = calculate_precision_multiplier(&e, token_in.clone());
+    let token_out_multiplier = calculate_precision_multiplier(&e, token_out.clone());
+
+
     let mut token_amount_out = calc_token_out_given_token_in(
         &e,
-        I256::from_i128(&e,in_record.balance).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,in_record.balance).mul(&token_in_multiplier),
         I256::from_i128(&e,in_record.denorm).mul(&I256::from_i128(&e, 1e11 as i128)),
-        I256::from_i128(&e,out_record.balance).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,out_record.balance).mul(&token_out_multiplier),
         I256::from_i128(&e,out_record.denorm).mul(&I256::from_i128(&e, 1e11 as i128)),
         I256::from_i128(&e,token_amount_in).mul(&I256::from_i128(&e, 1e11 as i128)),
         I256::from_i128(&e,read_swap_fee(&e)).mul(&I256::from_i128(&e, 1e11 as i128)),
     );
 
-    token_amount_out = token_amount_out.div(&I256::from_i128(&e, 1e11 as i128));
+    token_amount_out = token_amount_out.div(&token_out_multiplier);
 
     log!(&e, "{} {}", token_amount_out, I256::from_i128(&e, min_amount_out));
 
@@ -328,17 +333,21 @@ pub fn execute_swap_exact_amount_out(
 
     assert_with_error!(&e, spot_price_before <= I256::from_i128(&e, max_price).mul(&I256::from_i128(&e, 1e11 as i128)), Error::ErrBadLimitPrice);
 
+    
+    let token_in_multiplier = calculate_precision_multiplier(&e, token_in.clone());
+    let token_out_multiplier = calculate_precision_multiplier(&e, token_out.clone());
+    
     let mut token_amount_in = calc_token_in_given_token_out(
         &e,
-        I256::from_i128(&e, in_record.balance).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e, in_record.balance).mul(&token_in_multiplier),
         I256::from_i128(&e,in_record.denorm).mul(&I256::from_i128(&e, 1e11 as i128)), 
-        I256::from_i128(&e,out_record.balance).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,out_record.balance).mul(&token_out_multiplier),
         I256::from_i128(&e,out_record.denorm).mul(&I256::from_i128(&e, 1e11 as i128)),
-        I256::from_i128(&e,token_amount_out).mul(&I256::from_i128(&e, 1e11 as i128)),
+        I256::from_i128(&e,token_amount_out).mul(&token_out_multiplier),
         I256::from_i128(&e,read_swap_fee(&e)).mul(&I256::from_i128(&e, 1e11 as i128)),
     );
 
-    token_amount_in = token_amount_in.div(&I256::from_i128(&e, 1e11 as i128));
+    token_amount_in = token_amount_in.div(&token_in_multiplier);
 
     assert_with_error!(&e, token_amount_in > I256::from_i128(&e,0), Error::ErrMathApprox);
     assert_with_error!(&e, token_amount_in <=  I256::from_i128(&e,max_amount_in), Error::ErrLimitIn);

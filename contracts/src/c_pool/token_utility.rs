@@ -1,5 +1,5 @@
 //! Utilities for the LP Token
-use soroban_sdk::{ledger, panic_with_error, Address, Env};
+use soroban_sdk::{ledger, panic_with_error, Address, Env, I256};
 use soroban_token_sdk::TokenUtils;
 
 use crate::c_pool::error::Error;
@@ -83,4 +83,12 @@ pub fn check_nonnegative_amount(amount: i128) {
     if amount < 0 {
         panic!("negative amount is not allowed: {}", amount)
     }
+}
+
+
+// Function to calculate the precision multiplier for a token with less than 18 decimals.
+pub fn calculate_precision_multiplier(e: &Env, address: Address) -> I256 {
+    let no_of_decimals = Client::new(e, &address).decimals();
+    let decimal_diff = 18 - no_of_decimals;
+    I256::from_i128(e, 10).pow(decimal_diff)
 }
