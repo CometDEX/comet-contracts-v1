@@ -1,27 +1,26 @@
 use soroban_fixed_point_math::FixedPoint;
-use soroban_sdk::token::Client;
 use soroban_sdk::I256;
 use soroban_sdk::{
     assert_with_error, panic_with_error, symbol_short,
-    token::{self, TokenClient},
+    token,
     unwrap::UnwrapOptimized,
     Address, Env, Symbol, Vec,
 };
 
 use crate::c_consts::STROOP;
 use crate::{
-    c_consts::{EXIT_FEE, MAX_IN_RATIO, MAX_OUT_RATIO},
+    c_consts::{MAX_IN_RATIO, MAX_OUT_RATIO},
     c_math,
     c_pool::{
         error::Error,
         event::{DepositEvent, ExitEvent, JoinEvent, SwapEvent, WithdrawEvent},
         metadata::{
-            get_total_shares, read_factory, read_finalize, read_freeze, read_public_swap,
+            get_total_shares, read_finalize, read_freeze, read_public_swap,
             read_record, read_swap_fee, read_tokens, read_total_weight, write_record,
         },
-        storage_types::{Record, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
+        storage_types::{SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
         token_utility::{
-            burn_shares, mint_shares, pull_shares, pull_underlying, push_shares, push_underlying,
+            burn_shares, mint_shares, pull_shares, pull_underlying, push_underlying,
         },
     },
 };
@@ -256,7 +255,7 @@ pub fn execute_swap_exact_amount_out(
         .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
     let swap_fee = read_swap_fee(&e);
-    let mut record_map = read_record(&e);
+    let record_map = read_record(&e);
     let mut in_record = record_map
         .get(token_in.clone())
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));

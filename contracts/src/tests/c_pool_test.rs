@@ -5,18 +5,11 @@ extern crate std;
 use crate::c_consts::STROOP;
 use crate::c_pool::comet::CometPoolContract;
 use crate::c_pool::comet::CometPoolContractClient;
-use crate::c_pool::error::Error;
 use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
-use soroban_sdk::token;
-use soroban_sdk::xdr::AccountId;
-use soroban_sdk::Bytes;
 use soroban_sdk::String;
-use soroban_sdk::{testutils::Address as _, Address, IntoVal};
-use soroban_sdk::{vec, BytesN, Env, Symbol};
+use soroban_sdk::{testutils::Address as _, Address};
+use soroban_sdk::{vec, Env};
 
-fn create_token_contract<'a>(e: &Env, admin: &Address) -> MockTokenClient<'a> {
-    MockTokenClient::new(e, &e.register_stellar_asset_contract(admin.clone()))
-}
 
 fn create_and_init_token_contract<'a>(
     env: &'a Env,
@@ -36,13 +29,6 @@ fn create_and_init_token_contract<'a>(
     client
 }
 
-// fn install_token_wasm(e: &Env) -> BytesN<32> {
-//     soroban_sdk::contractimport!(
-//         file = "../target/wasm32-unknown-unknown/release/soroban_token_contract.wasm"
-//     );
-//     e.install_contract_wasm(WASM)
-// }
-
 fn to_stroop<T: Into<f64>>(a: T) -> i128 {
     (a.into() * 1e7) as i128
 }
@@ -50,28 +36,26 @@ fn to_stroop<T: Into<f64>>(a: T) -> i128 {
 #[test]
 fn test_pool_functions() {
     let env: Env = Env::default();
+    env.budget().reset_unlimited();
     env.mock_all_auths();
     let admin = soroban_sdk::Address::generate(&env);
-    let user1 = soroban_sdk::Address::generate(&env);
-    let user2 = soroban_sdk::Address::generate(&env);
     let contract_id = env.register_contract(None, CometPoolContract);
     let client = CometPoolContractClient::new(&env, &contract_id);
     let factory = admin.clone();
     let controller_arg = factory.clone();
     client.init(&factory, &controller_arg);
-    env.budget().reset_unlimited();
     // Create Admin
-    let mut admin1: Address = soroban_sdk::Address::generate(&env);
+    let admin1: Address = soroban_sdk::Address::generate(&env);
 
     // // Create 4 tokens
-    let mut token1 = create_and_init_token_contract(&env, &admin1, &7, "NebulaCoin", "NBC");
-    let mut token2 = create_and_init_token_contract(&env, &admin1, &7, "QuantumToken", "QTK");
-    let mut token3 = create_and_init_token_contract(&env, &admin1, &7, "SolariumCoin", "SLC");
-    let mut token4 = create_and_init_token_contract(&env, &admin1, &7, "StellarBit", "XBT");
+    let token1 = create_and_init_token_contract(&env, &admin1, &7, "NebulaCoin", "NBC");
+    let token2 = create_and_init_token_contract(&env, &admin1, &7, "QuantumToken", "QTK");
+    let token3 = create_and_init_token_contract(&env, &admin1, &7, "SolariumCoin", "SLC");
+    let token4 = create_and_init_token_contract(&env, &admin1, &7, "StellarBit", "XBT");
 
     // // Create 2 users
-    let mut user1 = soroban_sdk::Address::generate(&env);
-    let mut user2 = soroban_sdk::Address::generate(&env);
+    let user1 = soroban_sdk::Address::generate(&env);
+    let user2 = soroban_sdk::Address::generate(&env);
 
     token1.mint(&admin1, &to_stroop(50));
     token2.mint(&admin1, &to_stroop(20));
@@ -153,11 +137,10 @@ fn test_pool_functions() {
     let token_1_price = client.get_spot_price_sans_fee(&token3.address, &token1.address);
     assert_eq!(token_1_price, to_stroop(200));
     let token_1_price_fee = client.get_spot_price(&token3.address, &token1.address);
-    let token_1_price_fee_check_float = ((10500.0 / 5.0) / (52.5 / 5.0)) * (1.0 / (1.0 - 0.003));
     // Using Floats 200.6018054162487462
     assert_eq!(token_1_price_fee, 2006018054);
 
-    let tx = client.swap_exact_amount_in(
+    client.swap_exact_amount_in(
         &token1.address,
         &to_stroop(2.5),
         &token3.address,
@@ -185,13 +168,6 @@ fn test_pool_functions() {
 
     client.set_freeze_status(&controller, &true);
 
-    // fails as expected
-    // client.join_pool(
-    //     &to_stroop(5),
-    //     &vec![&env, i128::MAX, i128::MAX, i128::MAX],
-    //     &user2,
-    // );
-
     client.exit_pool(&to_stroop(5), &vec![&env, 0, 0, 0], &user1);
 
     // Increases due to swap earlier
@@ -205,15 +181,7 @@ fn test_pool_functions() {
         &vec![&env, i128::MAX, i128::MAX, i128::MAX],
         &user2,
     );
-
-    // assert_eq!(
-    //     client.try_set_swap_fee(&to_stroop(0.004), &controller),
-    //     Err(Ok(Status::from_type_and_code(
-    //         ScStatusType::ContractError,
-    //         1,
-    //     )))
-    // );
-    env.budget().reset_unlimited();
+    
 
     println!(
         "Token Balance 1 of Contract = {}",

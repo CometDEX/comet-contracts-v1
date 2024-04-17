@@ -1,31 +1,14 @@
 #![cfg(test)]
 
-use std::dbg;
 use std::println;
 extern crate std;
-use crate::c_consts::BONE;
-use crate::c_consts::EXIT_FEE;
 use crate::c_pool::comet::CometPoolContract;
 use crate::c_pool::comet::CometPoolContractClient;
 use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
-use soroban_sdk::token;
-use soroban_sdk::xdr::AccountId;
-use soroban_sdk::Bytes;
 use soroban_sdk::String;
-use soroban_sdk::{testutils::Address as _, Address, IntoVal};
-use soroban_sdk::{vec, BytesN, Env, Symbol};
-use token::Client as TokenClient;
+use soroban_sdk::{testutils::Address as _, Address};
+use soroban_sdk::{vec, Env};
 
-struct Clients {
-    core: CometPoolContractClient<'static>,
-    native_asset: token::Client<'static>,
-    native_asset_admin: token::StellarAssetClient<'static>,
-}
-
-// fn create_token_contract<'a>(e: &'a Env, admin: &'a soroban_sdk::Address) -> AdminClient<'a> {
-//     token::Client::new(&e, &e.register_stellar_asset_contract(admin.clone()));
-//     token::AdminClient::new(&e, &admin)
-// }
 
 fn create_and_init_token_contract<'a>(
     env: &'a Env,
@@ -44,13 +27,6 @@ fn create_and_init_token_contract<'a>(
     client
 }
 
-// fn install_token_wasm(e: &Env) -> BytesN<32> {
-//     soroban_sdk::contractimport!(
-//         file = "../target/wasm32-unknown-unknown/release/soroban_token_contract.wasm"
-//     );
-//     e.install_contract_wasm(WASM)
-// }
-
 fn to_stroop<T: Into<f64>>(a: T) -> i128 {
     (a.into() * 1e7) as i128
 }
@@ -60,25 +36,21 @@ fn test_pool_functions_dep_wdr() {
     let env = Env::default();
     env.mock_all_auths();
     let admin = soroban_sdk::Address::generate(&env);
-    let user1 = soroban_sdk::Address::generate(&env);
-    let user2 = soroban_sdk::Address::generate(&env);
     let contract_id = env.register_contract(None, CometPoolContract);
     let client = CometPoolContractClient::new(&env, &contract_id);
     let factory = admin.clone();
     let controller_arg = factory.clone();
     client.init(&factory, &controller_arg);
 
-    // // // Create Admin
-    let mut admin1 = soroban_sdk::Address::generate(&env);
+    // Create Admin
+    let admin1 = soroban_sdk::Address::generate(&env);
 
-    // // // Create 4 tokens
-    // let mut token1 = create_token_contract(&env, &admin1); // BAT token cannt be embedded inside Liquidity Pool
-    // let mut token2 = create_token_contract(&env, &admin1);
-    let mut token1 = create_and_init_token_contract(&env, &admin1, "SD", "SD");
-    let mut token2 = create_and_init_token_contract(&env, &admin1, "Sample", "RD");
+    // Create 4 tokens
+    let token1 = create_and_init_token_contract(&env, &admin1, "SD", "SD");
+    let token2 = create_and_init_token_contract(&env, &admin1, "Sample", "RD");
 
-    let mut user1 = soroban_sdk::Address::generate(&env);
-    let mut user2 = soroban_sdk::Address::generate(&env);
+    let user1 = soroban_sdk::Address::generate(&env);
+    let user2 = soroban_sdk::Address::generate(&env);
     token1.mint(&admin, &i128::MAX);
     token2.mint(&admin, &i128::MAX);
 
@@ -181,7 +153,7 @@ fn test_pool_functions_dep_wdr() {
 
     let prev_token_balance = token1.balance(&user2);
 
-    let pool_amount_out = client.dep_tokn_amt_in_get_lp_tokns_out(
+    client.dep_tokn_amt_in_get_lp_tokns_out(
         &token1.address,
         &to_stroop(0.001),
         &to_stroop(0.0001),
@@ -198,7 +170,7 @@ fn test_pool_functions_dep_wdr() {
         "Prev Token Balance {}",
         prev_token_balance_before_withdrawing
     );
-    let pool_amount_in: i128 = client.wdr_tokn_amt_out_get_lp_tokns_in(
+    client.wdr_tokn_amt_out_get_lp_tokns_in(
         &token1.address,
         &to_stroop(0.0009968),
         &to_stroop(0.1),

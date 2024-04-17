@@ -1,10 +1,10 @@
 //! Utilities to read and write contract's storage
 
 use crate::c_pool::storage_types::DataKey;
-use soroban_sdk::{unwrap::UnwrapOptimized, vec, Address, Bytes, BytesN, Env, Map, String, Vec};
+use soroban_sdk::{unwrap::UnwrapOptimized, vec, Address, Env, Map, String, Vec};
 use soroban_token_sdk::{metadata::TokenMetadata, TokenUtils};
 
-use super::storage_types::{DataKeyToken, Record, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD};
+use super::storage_types::{Record, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD};
 
 // Read all Token Addresses in the pool
 pub fn read_tokens(e: &Env) -> Vec<Address> {
@@ -114,7 +114,7 @@ pub fn read_total_weight(e: &Env) -> i128 {
     let key = DataKey::TotalWeight;
     e.storage()
         .instance()
-        .get::<DataKey, i128>(&DataKey::TotalWeight)
+        .get::<DataKey, i128>(&key)
         .unwrap_or(0_i128)
 }
 

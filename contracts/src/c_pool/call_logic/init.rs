@@ -26,9 +26,6 @@ pub fn execute_init(e: Env, factory: Address, controller: Address) {
     // Store the Controller Address (Pool Admin)
     write_controller(&e, controller);
 
-    // Get the Current Contract Address
-    let val: &Address = &e.current_contract_address();
-
     // Name of the LP Token
     let name = String::from_str(&e, "Comet Pool Token");
     // Symbol of the LP Token

@@ -1,5 +1,5 @@
 use soroban_sdk::{
-    assert_with_error, panic_with_error, unwrap::UnwrapOptimized, Address, Env, Vec,
+    assert_with_error, panic_with_error, unwrap::UnwrapOptimized, Address, Env,
 };
 
 use crate::{
@@ -8,10 +8,9 @@ use crate::{
     c_pool::{
         error::Error,
         metadata::{
-            get_total_shares, read_controller, read_finalize, read_public_swap, read_record,
-            read_swap_fee, read_tokens, read_total_weight,
+            read_record,
+            read_swap_fee, read_total_weight,
         },
-        storage_types::Record,
     },
 };
 
@@ -32,7 +31,7 @@ pub fn execute_get_normalized_weight(e: Env, token: Address) -> i128 {
         .get(token.clone())
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
     assert_with_error!(&e, val.bound, Error::ErrNotBound);
-    c_div(&e, val.denorm, read_total_weight(&e)).unwrap_optimized()
+    c_div(val.denorm, read_total_weight(&e)).unwrap_optimized()
 }
 
 // Calculate the spot considering the swap fee

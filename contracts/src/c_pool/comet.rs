@@ -1,10 +1,5 @@
 //! Liquidity Pool and Token Implementation
-use crate::{
-    c_consts::{
-        EXIT_FEE, INIT_POOL_SUPPLY, MAX_BOUND_TOKENS, MAX_FEE, MAX_IN_RATIO, MAX_OUT_RATIO,
-        MAX_TOTAL_WEIGHT, MAX_WEIGHT, MIN_BALANCE, MIN_BOUND_TOKENS, MIN_FEE, MIN_WEIGHT,
-    },
-    c_num::{c_add, c_div, c_mul, c_sub},
+use crate::
     c_pool::{
         allowance::{read_allowance, spend_allowance, write_allowance},
         balance::{read_balance, receive_balance, spend_balance},
@@ -28,7 +23,6 @@ use crate::{
             },
         },
         error::Error,
-        event,
         metadata::{
             get_total_shares, read_controller, read_decimal, read_finalize, read_name,
             read_public_swap, read_record, read_swap_fee, read_symbol, read_tokens,
@@ -36,13 +30,11 @@ use crate::{
         },
         storage_types::{SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
         token_utility::check_nonnegative_amount,
-    },
-};
+    };
 use soroban_sdk::{
-    assert_with_error, contract, contractimpl, log, panic_with_error, symbol_short, token,
-    unwrap::UnwrapOptimized, vec, Address, Bytes, BytesN, Env, Map, String, Symbol, Vec,
+    assert_with_error, contract, contractimpl,
+    unwrap::UnwrapOptimized, Address, Env, String, Vec,
 };
-use soroban_token_sdk::metadata::TokenMetadata;
 use soroban_token_sdk::TokenUtils;
 
 use super::metadata::put_total_shares;
@@ -348,21 +340,21 @@ impl CometPoolTrait for CometPoolContract {
     fn set_swap_fee(e: Env, fee: i128, caller: Address) {
         assert_with_error!(&e, caller == read_controller(&e), Error::ErrNotController);
         caller.require_auth();
-        execute_set_swap_fee(e, fee, caller);
+        execute_set_swap_fee(e, fee);
     }
 
     // Sets the value of the controller address, only can be set by the current controller
     fn set_controller(e: Env, caller: Address, manager: Address) {
         assert_with_error!(&e, caller == read_controller(&e), Error::ErrNotController);
         caller.require_auth();
-        execute_set_controller(e, caller, manager);
+        execute_set_controller(e, manager);
     }
 
     // Set the value of the Public Swap
     fn set_public_swap(e: Env, caller: Address, val: bool) {
         assert_with_error!(&e, caller == read_controller(&e), Error::ErrNotController);
         caller.require_auth();
-        execute_set_public_swap(e, caller, val);
+        execute_set_public_swap(e, val);
     }
 
     // Only Callable by the Pool Admin
@@ -370,7 +362,7 @@ impl CometPoolTrait for CometPoolContract {
     fn set_freeze_status(e: Env, caller: Address, val: bool) {
         assert_with_error!(&e, caller == read_controller(&e), Error::ErrNotController);
         caller.require_auth();
-        execute_set_freeze_status(e, caller, val);
+        execute_set_freeze_status(e, val);
     }
 
     // GETTER FUNCTIONS

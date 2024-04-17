@@ -1,7 +1,5 @@
 #![cfg(test)]
 extern crate std;
-use std::println;
-
 use soroban_sdk::unwrap::UnwrapOptimized;
 use soroban_sdk::Env;
 use soroban_sdk::I256;
@@ -16,36 +14,32 @@ use crate::c_pool::error::Error;
 
 #[test]
 fn test_c_add_overflow() {
-    let env: Env = Env::default();
     assert_eq!(
-        c_add(&env, 1, i128::MAX).err().unwrap_optimized(),
+        c_add(1, i128::MAX).err().unwrap_optimized(),
         Error::ErrAddOverflow
     );
 }
 
 #[test]
 fn test_c_sub_underflow() {
-    let env: Env = Env::default();
     assert_eq!(
-        c_sub(&env, 1, 2).err().unwrap_optimized(),
+        c_sub(1, 2).err().unwrap_optimized(),
         Error::ErrSubUnderflow
     );
 }
 
 #[test]
 fn test_c_mul_overflow() {
-    let env: Env = Env::default();
     assert_eq!(
-        c_mul(&env, 2, i128::MAX).err().unwrap_optimized(),
+        c_mul(2, i128::MAX).err().unwrap_optimized(),
         Error::ErrMulOverflow
     );
 }
 
 #[test]
 fn test_c_div_error_on_div_by_zero() {
-    let env: Env = Env::default();
     assert_eq!(
-        c_div(&env, 1, 0).err().unwrap_optimized(),
+        c_div(1, 0).err().unwrap_optimized(),
         Error::ErrDivInternal
     );
 }

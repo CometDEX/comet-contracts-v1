@@ -11,7 +11,7 @@ use crate::{
 };
 
 // Sets the swap fee, can only be set by the controller (pool admin)
-pub fn execute_set_swap_fee(e: Env, fee: i128, caller: Address) {
+pub fn execute_set_swap_fee(e: Env, fee: i128) {
     assert_with_error!(&e, fee >= 0, Error::ErrNegative);
     assert_with_error!(&e, !read_finalize(&e), Error::ErrFinalized);
     assert_with_error!(&e, fee >= MIN_FEE, Error::ErrMinFee);
@@ -20,15 +20,15 @@ pub fn execute_set_swap_fee(e: Env, fee: i128, caller: Address) {
 }
 
 // Sets the value of the controller address, only can be set by the current controller
-pub fn execute_set_controller(e: Env, caller: Address, manager: Address) {
+pub fn execute_set_controller(e: Env, manager: Address) {
     write_controller(&e, manager);
 }
 
-pub fn execute_set_public_swap(e: Env, caller: Address, val: bool) {
+pub fn execute_set_public_swap(e: Env, val: bool) {
     assert_with_error!(&e, !read_finalize(&e), Error::ErrFinalized);
     write_public_swap(&e, val);
 }
 
-pub fn execute_set_freeze_status(e: Env, caller: Address, val: bool) {
+pub fn execute_set_freeze_status(e: Env, val: bool) {
     write_freeze(&e, val);
 }

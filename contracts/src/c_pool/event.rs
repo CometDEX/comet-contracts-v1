@@ -1,5 +1,5 @@
 //! Definition of the Events used in the contract
-use soroban_sdk::{contracttype, symbol_short, Address, Env, Symbol};
+use soroban_sdk::{contracttype, Address};
 
 // Swap Token Event, emitted when tokens are swapped
 #[contracttype]

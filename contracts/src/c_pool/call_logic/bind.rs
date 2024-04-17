@@ -9,10 +9,10 @@ use crate::{
     c_pool::{
         error::Error,
         metadata::{
-            read_controller, read_factory, read_finalize, read_record, read_tokens,
+            read_factory, read_finalize, read_record, read_tokens,
             read_total_weight, write_record, write_tokens, write_total_weight,
         },
-        storage_types::{DataKey, Record},
+        storage_types::Record,
         token_utility::{pull_underlying, push_underlying},
     },
 };
@@ -72,9 +72,8 @@ pub fn execute_rebind(e: Env, token: Address, balance: i128, denorm: i128, admin
     #[allow(clippy::comparison_chain)]
     if denorm > old_weight {
         total_weight = c_add(
-            &e,
             total_weight,
-            c_sub(&e, denorm, old_weight).unwrap_optimized(),
+            c_sub(denorm, old_weight).unwrap_optimized(),
         )
         .unwrap_optimized();
         write_total_weight(&e, total_weight);
@@ -83,9 +82,8 @@ pub fn execute_rebind(e: Env, token: Address, balance: i128, denorm: i128, admin
         }
     } else if denorm < old_weight {
         total_weight = c_sub(
-            &e,
             total_weight,
-            c_sub(&e, old_weight, denorm).unwrap_optimized(),
+            c_sub(old_weight, denorm).unwrap_optimized(),
         )
         .unwrap_optimized();
         write_total_weight(&e, total_weight);
@@ -102,17 +100,17 @@ pub fn execute_rebind(e: Env, token: Address, balance: i128, denorm: i128, admin
             &e,
             &token,
             admin,
-            c_sub(&e, balance, old_balance).unwrap_optimized(),
+            c_sub(balance, old_balance).unwrap_optimized(),
             balance,
         );
     } else if balance < old_balance {
-        let token_balance_withdrawn = c_sub(&e, old_balance, balance).unwrap_optimized();
-        let token_exit_fee = c_mul(&e, token_balance_withdrawn, EXIT_FEE).unwrap_optimized();
+        let token_balance_withdrawn = c_sub(old_balance, balance).unwrap_optimized();
+        let token_exit_fee = c_mul(token_balance_withdrawn, EXIT_FEE).unwrap_optimized();
         push_underlying(
             &e,
             &token,
             admin,
-            c_sub(&e, token_balance_withdrawn, token_exit_fee).unwrap_optimized(),
+            c_sub(token_balance_withdrawn, token_exit_fee).unwrap_optimized(),
         );
         let factory = read_factory(&e);
         push_underlying(&e, &token, factory, token_exit_fee)
@@ -127,19 +125,18 @@ pub fn execute_unbind(e: Env, token: Address, user: Address) {
     assert_with_error!(&e, !read_finalize(&e), Error::ErrFinalized);
 
     let mut record_map: Map<Address, Record> = read_record(&e);
-    let mut record = record_map
+    let record = record_map
         .get(token.clone())
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
     assert_with_error!(&e, record.bound, Error::ErrNotBound);
 
     let token_balance = record.balance;
-    let token_exit_fee = c_mul(&e, token_balance, EXIT_FEE).unwrap_optimized();
+    let token_exit_fee = c_mul(token_balance, EXIT_FEE).unwrap_optimized();
     let curr_weight = read_total_weight(&e);
-    write_total_weight(&e, c_sub(&e, curr_weight, record.denorm).unwrap_optimized());
+    write_total_weight(&e, c_sub(curr_weight, record.denorm).unwrap_optimized());
     let index = record.index;
     let mut tokens = read_tokens(&e);
     let last = tokens.len() - 1;
-    let index_token = tokens.get(index).unwrap_optimized();
     let last_token = tokens.get(last).unwrap_optimized();
     tokens.set(index, last_token.clone());
     tokens.pop_back();
@@ -155,7 +152,7 @@ pub fn execute_unbind(e: Env, token: Address, user: Address) {
         &e,
         &token,
         user,
-        c_sub(&e, token_balance, token_exit_fee).unwrap_optimized(),
+        c_sub(token_balance, token_exit_fee).unwrap_optimized(),
     );
     let factory = read_factory(&e);
     push_underlying(&e, &token, factory, token_exit_fee);

@@ -1,5 +1,6 @@
 //! Declaration of the Storage Keys
-use soroban_sdk::{contracttype, Address, Map, Vec};
+use soroban_sdk::{contracttype, Address};
+
 pub(crate) const DAY_IN_LEDGERS: u32 = 17280;
 pub(crate) const SHARED_BUMP_AMOUNT: u32 = 69120; // 4 days
 pub(crate) const BALANCE_BUMP_AMOUNT: u32 = 518400; // 30 days

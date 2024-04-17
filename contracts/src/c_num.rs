@@ -10,7 +10,7 @@ use crate::{
 };
 
 // Add 2 numbers
-pub fn c_add(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
+pub fn c_add(a: i128, b: i128) -> Result<i128, Error> {
     let c = a.checked_add(b);
     match c {
         Some(val) => Ok(val),
@@ -19,7 +19,7 @@ pub fn c_add(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
 }
 
 // Subtract 2 numbers
-pub fn c_sub(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
+pub fn c_sub(a: i128, b: i128) -> Result<i128, Error> {
     let (c, flag) = c_sub_sign(a, b);
     if flag {
         return Err(Error::ErrSubUnderflow);
@@ -37,7 +37,7 @@ pub fn c_sub_sign(a: i128, b: i128) -> (i128, bool) {
 }
 
 // Multiply 2 numbers
-pub fn c_mul(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
+pub fn c_mul(a: i128, b: i128) -> Result<i128, Error> {
     match a.fixed_mul_floor(b, BONE) {
         Some(val) => Ok(val),
         None => Err(Error::ErrMulOverflow),
@@ -45,7 +45,7 @@ pub fn c_mul(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
 }
 
 // Divide 2 numbers
-pub fn c_div(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
+pub fn c_div(a: i128, b: i128) -> Result<i128, Error> {
     match a.fixed_div_floor(b, BONE) {
         Some(val) => Ok(val),
         None => Err(Error::ErrDivInternal),
