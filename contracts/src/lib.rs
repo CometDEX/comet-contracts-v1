@@ -1,9 +1,9 @@
 #![no_std]
 
-mod c_consts;
-mod c_math;
-mod c_num;
-mod c_pool;
+pub mod c_consts;
+pub mod c_math;
+pub mod c_num;
+pub mod c_pool;
 
 #[cfg(test)]
 mod tests;
