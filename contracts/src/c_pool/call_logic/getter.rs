@@ -40,14 +40,8 @@ pub fn execute_get_spot_price(e: Env, token_in: Address, token_out: Address) -> 
     let record = read_record(&e);
     let in_record = record.get(token_in).unwrap_optimized();
     let out_record = record.get(token_out).unwrap_optimized();
-    calc_spot_price(
-        &e,
-        in_record.balance,
-        in_record.denorm,
-        out_record.balance,
-        out_record.denorm,
-        read_swap_fee(&e),
-    )
+    let swap_fee = read_swap_fee(&e);
+    calc_spot_price(&in_record, &out_record, swap_fee)
 }
 
 // Get the spot price without considering the swap fee
@@ -55,12 +49,5 @@ pub fn execute_get_spot_price_sans_fee(e: Env, token_in: Address, token_out: Add
     let record = read_record(&e);
     let in_record = record.get(token_in).unwrap_optimized();
     let out_record = record.get(token_out).unwrap_optimized();
-    calc_spot_price(
-        &e,
-        in_record.balance,
-        in_record.denorm,
-        out_record.balance,
-        out_record.denorm,
-        0,
-    )
+    calc_spot_price(&in_record, &out_record, 0)
 }

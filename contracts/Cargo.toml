@@ -8,10 +8,10 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-soroban-fixed-point-math = "1.0.0"
+soroban-fixed-point-math = "1.1.0"
 soroban-sdk = { workspace = true }
 soroban-token-sdk = { workspace = true }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
-sep-41-token = { version = "0.3.0", features = ["testutils"] }
+sep-41-token = { version = "1.0.0", features = ["testutils"] }

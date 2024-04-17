@@ -10,10 +10,11 @@ pub(crate) const BALANCE_LIFETIME_THRESHOLD: u32 = BALANCE_BUMP_AMOUNT - DAY_IN_
 #[contracttype]
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Record {
-    pub bound: bool,
-    pub index: u32,
-    pub denorm: i128,
     pub balance: i128,
+    pub denorm: i128,
+    pub scalar: i128,
+    pub index: u32,
+    pub bound: bool,
 }
 
 // Data Keys for Pool' Storage Data

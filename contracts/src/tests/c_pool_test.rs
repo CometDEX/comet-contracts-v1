@@ -2,7 +2,7 @@
 
 use std::println;
 extern crate std;
-use crate::c_consts::BONE;
+use crate::c_consts::STROOP;
 use crate::c_pool::comet::CometPoolContract;
 use crate::c_pool::comet::CometPoolContractClient;
 use crate::c_pool::error::Error;
@@ -130,7 +130,7 @@ fn test_pool_functions() {
     let swap_fee = client.get_swap_fee();
     assert_eq!(swap_fee, to_stroop(0.003));
     client.finalize();
-    assert_eq!(client.balance(&controller), 100 * BONE);
+    assert_eq!(client.balance(&controller), 100 * STROOP);
 
     token1.approve(&user1, &contract_id, &i128::MAX, &200);
     token2.approve(&user1, &contract_id, &i128::MAX, &200);
@@ -147,17 +147,15 @@ fn test_pool_functions() {
         &vec![&env, i128::MAX, i128::MAX, i128::MAX],
         &user1,
     );
-    assert_eq!(105000010001, client.get_balance(&token3.address));
-    assert_eq!(224999949, token1.balance(&user1));
+    assert_eq!(105000000000, client.get_balance(&token3.address));
+    assert_eq!(225000000, token1.balance(&user1));
 
     let token_1_price = client.get_spot_price_sans_fee(&token3.address, &token1.address);
     assert_eq!(token_1_price, to_stroop(200));
     let token_1_price_fee = client.get_spot_price(&token3.address, &token1.address);
     let token_1_price_fee_check_float = ((10500.0 / 5.0) / (52.5 / 5.0)) * (1.0 / (1.0 - 0.003));
-    // 200.6018054162487462
-    // 200.6018000
-    // Actual value due to Soroban having only 7 decimal places for token amounts
-    assert_eq!(token_1_price_fee, 2006018000);
+    // Using Floats 200.6018054162487462
+    assert_eq!(token_1_price_fee, 2006018054);
 
     let tx = client.swap_exact_amount_in(
         &token1.address,
@@ -170,7 +168,7 @@ fn test_pool_functions() {
 
     let val = client.get_spot_price(&token3.address, &token1.address);
     // Using Floats 182.804672101083406128
-    assert_eq!(val, 1828046606);
+    assert_eq!(val, 1828046720);
 
     let txr = client.swap_exact_amount_out(
         &token1.address,
@@ -181,9 +179,9 @@ fn test_pool_functions() {
         &user2,
     );
 
-    // // Using Floats
-    // // 2.758274824473420261
-    assert_eq!(txr.0, 27582695);
+    // Using Floats
+    // 2.758274824473420261
+    assert_eq!(txr.0, 27582749);
 
     client.set_freeze_status(&controller, &true);
 

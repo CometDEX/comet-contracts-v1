@@ -4,7 +4,9 @@ use std::println;
 
 use soroban_sdk::unwrap::UnwrapOptimized;
 use soroban_sdk::Env;
+use soroban_sdk::I256;
 
+use crate::c_consts::BONE;
 use crate::c_num::c_add;
 use crate::c_num::c_div;
 use crate::c_num::c_mul;
@@ -49,19 +51,15 @@ fn test_c_div_error_on_div_by_zero() {
 }
 
 #[test]
+#[should_panic="Error(Contract, #34)"]
 fn test_c_pow() {
     let env: Env = Env::default();
-    assert_eq!(
-        c_pow(&env, 0, 2).err().unwrap_optimized(),
-        Error::ErrCPowBaseTooLow
-    )
+    c_pow(&env, &I256::from_i32(&env, 0), &I256::from_i32(&env, 2), false);
 }
 
 #[test]
+#[should_panic="Error(Contract, #35)"]
 fn test_c_pow_high() {
     let env: Env = Env::default();
-    assert_eq!(
-        c_pow(&env, i128::MAX, 2).err().unwrap_optimized(),
-        Error::ErrCPowBaseTooHigh
-    );
+    c_pow(&env, &I256::from_i128(&env, 2 * BONE), &I256::from_i32(&env, 2), false);
 }

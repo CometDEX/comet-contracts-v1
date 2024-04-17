@@ -4,12 +4,6 @@ use crate::{
         EXIT_FEE, INIT_POOL_SUPPLY, MAX_BOUND_TOKENS, MAX_FEE, MAX_IN_RATIO, MAX_OUT_RATIO,
         MAX_TOTAL_WEIGHT, MAX_WEIGHT, MIN_BALANCE, MIN_BOUND_TOKENS, MIN_FEE, MIN_WEIGHT,
     },
-    c_math::{
-        self, calc_lp_token_amount_given_token_deposits_in,
-        calc_lp_token_amount_given_token_withdrawal_amount, calc_spot_price,
-        calc_token_deposits_in_given_lp_token_amount, calc_token_in_given_token_out,
-        calc_token_out_given_token_in, calc_token_withdrawal_amount_given_lp_token_amount,
-    },
     c_num::{c_add, c_div, c_mul, c_sub},
     c_pool::{
         allowance::{read_allowance, spend_allowance, write_allowance},
@@ -656,7 +650,6 @@ impl TokenInterface for CometPoolContract {
         spend_balance(&e, from.clone(), amount);
         TokenUtils::new(&e).events().burn(from, amount);
         put_total_shares(&e, total - amount);
-
     }
 
     fn decimals(e: Env) -> u32 {

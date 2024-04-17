@@ -1,5 +1,6 @@
 use soroban_sdk::{
-    assert_with_error, panic_with_error, unwrap::UnwrapOptimized, Address, Env, Map,
+    assert_with_error, panic_with_error, token::TokenClient, unwrap::UnwrapOptimized, Address, Env,
+    Map,
 };
 
 use crate::{
@@ -32,11 +33,16 @@ pub fn execute_bind(e: Env, token: Address, balance: i128, denorm: i128, admin: 
         assert_with_error!(&e, record.bound == false, Error::ErrIsBound);
     }
 
+    let decimals = TokenClient::new(&e, &token).decimals();
+    assert_with_error!(&e, decimals <= 18, Error::ErrTokenInvalid);
+    let scalar = 10i128.pow(18 - decimals);
+
     let record = Record {
-        bound: true,
-        index,
-        denorm: 0,
         balance: 0,
+        denorm: 0,
+        scalar,
+        index,
+        bound: true,
     };
     record_map.set(token.clone(), record);
     write_record(&e, record_map);
@@ -92,13 +98,12 @@ pub fn execute_rebind(e: Env, token: Address, balance: i128, denorm: i128, admin
 
     #[allow(clippy::comparison_chain)]
     if balance > old_balance {
-
         pull_underlying(
             &e,
             &token,
             admin,
             c_sub(&e, balance, old_balance).unwrap_optimized(),
-            balance
+            balance,
         );
     } else if balance < old_balance {
         let token_balance_withdrawn = c_sub(&e, old_balance, balance).unwrap_optimized();
