@@ -96,7 +96,6 @@ pub fn calc_token_in_given_token_out(
 
     let token_amount_in = token_balance_in.fixed_mul_ceil(&e, &balance_ratio, &bone);
     let adjusted_in = token_amount_in.fixed_div_ceil(&e, &fee_adjust_ratio, &bone);
-
     downscale_ceil(e, &adjusted_in, in_record.scalar)
 }
 
@@ -353,7 +352,7 @@ mod tests {
         assert_eq!(scaled, expected);
 
         // takes floor
-        scaled = scaled.add(&I256::from_i32(&env, 1));
+        scaled = scaled.add(&I256::from_i128(&env, STROOP_SCALAR / 10));
         let floor = downscale_floor(&env, &scaled, STROOP_SCALAR);
         assert_eq!(x, floor);
 
@@ -378,5 +377,139 @@ mod tests {
         let x = I256::from_i128(&env, i128::MAX);
         let too_large = x.mul(&I256::from_i128(&env, STROOP_SCALAR)).add(&x);
         downscale_ceil(&env, &too_large, STROOP_SCALAR);
+    }
+
+    #[test]
+    fn test_calc_stroop_inputs_round_correctly() {
+        let env = Env::default();
+        let swap_fee = 0_0030000;
+        let supply = 55 * STROOP / 10; // 5.5 * STROOP
+
+        // price: 1.94 in to 1 out
+        let record_1 = Record {
+            balance: 5 * STROOP,
+            denorm: 3 * STROOP,
+            scalar: STROOP_SCALAR,
+            index: 0,
+            bound: true,
+        };
+        let record_2 = Record {
+            balance: 6 * STROOP,
+            denorm: 7 * STROOP,
+            scalar: STROOP_SCALAR,
+            index: 0,
+            bound: true,
+        };
+
+        // swap
+        let result = calc_token_in_given_token_out(&env, &record_1, &record_2, 1, swap_fee);
+        assert_eq!(result, 2);
+        let result = calc_token_in_given_token_out(&env, &record_2, &record_1, 1, swap_fee);
+        assert_eq!(result, 1);
+
+        let result = calc_token_out_given_token_in(&env, &record_1, &record_2, 1, swap_fee);
+        assert_eq!(result, 0);
+        let result = calc_token_out_given_token_in(&env, &record_2, &record_1, 1, swap_fee);
+        assert_eq!(result, 1);
+
+        // exit
+        let result = calc_exit_ratio(&env, 10 * STROOP, 1);
+        assert_eq!(result, I256::from_i128(&env, STROOP_SCALAR / 10));
+
+        let result = calc_exit_withdrawal_amount(
+            &env,
+            &record_2,
+            &I256::from_i128(&env, STROOP_SCALAR / 10),
+        );
+        assert_eq!(result, 0);
+
+        // join
+        let result = calc_join_ratio(&env, BONE, 1);
+        assert_eq!(result, I256::from_i32(&env, 1));
+
+        let result = calc_join_deposit_amount(&env, &record_1, &I256::from_i32(&env, 1));
+        assert_eq!(result, 1);
+
+        // deposit
+        let result = calc_lp_token_amount_given_token_deposits_in(
+            &env,
+            &record_1,
+            supply,
+            10 * STROOP,
+            1,
+            swap_fee,
+        );
+        assert_eq!(result, 0);
+
+        let result = calc_token_deposits_in_given_lp_token_amount(
+            &env,
+            &record_1,
+            supply,
+            10 * STROOP,
+            1,
+            swap_fee,
+        );
+        assert_eq!(result, 4);
+
+        let result = calc_lp_token_amount_given_token_deposits_in(
+            &env,
+            &record_2,
+            supply,
+            10 * STROOP,
+            1,
+            swap_fee,
+        );
+        assert_eq!(result, 0);
+
+        let result = calc_token_deposits_in_given_lp_token_amount(
+            &env,
+            &record_2,
+            supply,
+            10 * STROOP,
+            1,
+            swap_fee,
+        );
+        assert_eq!(result, 2);
+
+        // withdraw
+        let result = calc_lp_token_amount_given_token_withdrawal_amount(
+            &env,
+            &record_1,
+            supply,
+            10 * STROOP,
+            1,
+            swap_fee,
+        );
+        assert_eq!(result, 1);
+
+        let result = calc_token_withdrawal_amount_given_lp_token_amount(
+            &env,
+            &record_1,
+            supply,
+            10 * STROOP,
+            1,
+            swap_fee,
+        );
+        assert_eq!(result, 3);
+
+        let result = calc_lp_token_amount_given_token_withdrawal_amount(
+            &env,
+            &record_2,
+            supply,
+            10 * STROOP,
+            1,
+            swap_fee,
+        );
+        assert_eq!(result, 1);
+
+        let result = calc_token_withdrawal_amount_given_lp_token_amount(
+            &env,
+            &record_2,
+            supply,
+            10 * STROOP,
+            1,
+            swap_fee,
+        );
+        assert_eq!(result, 1);
     }
 }

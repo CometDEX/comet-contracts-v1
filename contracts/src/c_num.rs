@@ -132,7 +132,7 @@ fn c_pow_approx(e: &Env, base: &I256, exp: &I256, precision: &I256, round_up: bo
         } else {
             term.clone()
         };
-        if abs_term <= prec || i == 50 {
+        if abs_term <= prec {
             break;
         }
     }
@@ -144,7 +144,7 @@ fn c_pow_approx(e: &Env, base: &I256, exp: &I256, precision: &I256, round_up: bo
         if term > zero && !round_up {
             // the final applied term was additive - the current sum is likely an overestimate
             sum = sum.sub(&term);
-        } else if round_up {
+        } else if term < zero && round_up {
             // the final applied term was subtractive - the current sum is likely an understimate
             sum = sum.sub(&term);
         }

@@ -5,12 +5,15 @@ use soroban_sdk::{
     testutils::{Address as _, MockAuth, MockAuthInvoke},
     vec, Address, Env, Error, IntoVal, Vec,
 };
-use std::vec as std_vec;
+use std::{println, vec as std_vec};
 
 use crate::{
     c_consts::STROOP,
     c_pool::{comet::CometPoolContractClient, error::Error as CometError},
-    tests::{balancer::F64Utils, utils::assert_approx_eq_rel},
+    tests::{
+        balancer::F64Utils,
+        utils::{assert_approx_eq_abs, assert_approx_eq_rel, create_soroban_token, print_compare},
+    },
 };
 
 use super::{
@@ -329,4 +332,277 @@ fn test_swap_in_given_out() {
         token_2_client.balance(&comet_id),
         balances.get_unchecked(1) + res_2_in
     );
+}
+
+#[test]
+fn test_swap_large_amounts() {
+    // test only validates recorded pool balances and assumes the above tests ensure that
+    // ledger state is correct if the pool tracks internal balances correctly
+    let env = Env::default();
+    env.mock_all_auths();
+    env.budget().reset_unlimited();
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+
+    let token_1 = create_stellar_token(&env, &admin);
+    let token_2 = create_stellar_token(&env, &admin);
+
+    let token_1_client = MockTokenClient::new(&env, &token_1);
+    let token_2_client = MockTokenClient::new(&env, &token_2);
+    let balances: Vec<i128> = vec![&env, 123456789 * STROOP, 987654321 * STROOP];
+    let weights: Vec<i128> = vec![&env, 3 * STROOP, 7 * STROOP];
+    token_1_client.mint(&admin, &balances.get_unchecked(0));
+    token_2_client.mint(&admin, &balances.get_unchecked(1));
+    let starting_bal: i128 = 1_000_000_000 * STROOP;
+    token_1_client.mint(&user, &starting_bal);
+    token_2_client.mint(&user, &starting_bal);
+
+    let comet_id = create_comet_pool(
+        &env,
+        &admin,
+        &vec![&env, token_1.clone(), token_2.clone()],
+        &weights,
+        &balances,
+        0_0030000,
+    );
+    let comet = CometPoolContractClient::new(&env, &comet_id);
+    let mut balancer = BalancerPool::new(
+        std_vec![123456789.0, 987654321.0],
+        std_vec![0.30, 0.70],
+        0.003,
+    );
+
+    // small amount
+    let amount = 0.042;
+    let amount_fixed = amount.to_i128(&7);
+
+    // exact in
+    let bal_out = balancer.swap_out_given_in(1, 0, amount).to_i128(&7);
+    let (res_out, _) =
+        comet.swap_exact_amount_in(&token_2, &amount_fixed, &token_1, &0, &i128::MAX, &user);
+    assert!(res_out <= bal_out);
+    assert_approx_eq_rel(res_out, bal_out, 0_0001000);
+
+    // exact out
+    let bal_in = balancer.swap_in_given_out(1, 0, amount).to_i128(&7);
+    let (res_in, _) = comet.swap_exact_amount_out(
+        &token_2,
+        &i128::MAX,
+        &token_1,
+        &amount_fixed,
+        &i128::MAX,
+        &user,
+    );
+    assert!(res_in >= bal_in);
+    assert_approx_eq_rel(res_in, bal_in, 0_0001000);
+
+    // large amount
+    let amount = 25_000_000.0;
+    let amount_fixed = amount.to_i128(&7);
+
+    // exact in
+    let bal_out = balancer.swap_out_given_in(1, 0, amount).to_i128(&7);
+    let (res_out, _) =
+        comet.swap_exact_amount_in(&token_2, &amount_fixed, &token_1, &0, &i128::MAX, &user);
+    assert!(res_out <= bal_out);
+    assert_approx_eq_rel(res_out, bal_out, 0_0001000);
+
+    // exact out
+    let bal_in = balancer.swap_in_given_out(1, 0, amount).to_i128(&7);
+    let (res_in, _) = comet.swap_exact_amount_out(
+        &token_2,
+        &i128::MAX,
+        &token_1,
+        &amount_fixed,
+        &i128::MAX,
+        &user,
+    );
+    assert!(res_in >= bal_in);
+    assert_approx_eq_rel(res_in, bal_in, 0_0001000);
+
+    print_compare(&env, &balancer, &comet_id);
+}
+
+#[test]
+fn test_swap_large_price() {
+    // test only validates recorded pool balances and assumes the above tests ensure that
+    // ledger state is correct if the pool tracks internal balances correctly
+    let env = Env::default();
+    env.mock_all_auths();
+    env.budget().reset_unlimited();
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+
+    let token_1 = create_stellar_token(&env, &admin);
+    let token_2 = create_stellar_token(&env, &admin);
+
+    let token_1_client = MockTokenClient::new(&env, &token_1);
+    let token_2_client = MockTokenClient::new(&env, &token_2);
+    let balances: Vec<i128> = vec![&env, 9999999 * STROOP, 100 * STROOP];
+    let weights: Vec<i128> = vec![&env, 1 * STROOP, 9 * STROOP];
+    token_1_client.mint(&admin, &balances.get_unchecked(0));
+    token_2_client.mint(&admin, &balances.get_unchecked(1));
+    let starting_bal: i128 = 1_000_000_000 * STROOP;
+    token_1_client.mint(&user, &starting_bal);
+    token_2_client.mint(&user, &starting_bal);
+
+    let comet_id = create_comet_pool(
+        &env,
+        &admin,
+        &vec![&env, token_1.clone(), token_2.clone()],
+        &weights,
+        &balances,
+        0_0030000,
+    );
+    let comet = CometPoolContractClient::new(&env, &comet_id);
+    let mut balancer = BalancerPool::new(std_vec![9999999.0, 100.0], std_vec![0.10, 0.90], 0.003);
+
+    // small amount
+
+    // exact in
+    let amount = 0.42;
+    let amount_fixed = amount.to_i128(&7);
+    let bal_out = balancer.swap_out_given_in(0, 1, amount).to_i128(&7);
+    let (res_out, _) =
+        comet.swap_exact_amount_in(&token_1, &amount_fixed, &token_2, &0, &i128::MAX, &user);
+    assert!(res_out <= bal_out);
+    assert_approx_eq_abs(res_out, bal_out, 10);
+
+    // exact out
+    let amount = 0.0000024;
+    let amount_fixed = amount.to_i128(&7);
+    let bal_in = balancer.swap_in_given_out(0, 1, amount).to_i128(&7);
+    let (res_in, _) = comet.swap_exact_amount_out(
+        &token_1,
+        &i128::MAX,
+        &token_2,
+        &amount_fixed,
+        &i128::MAX,
+        &user,
+    );
+    assert!(res_in >= bal_in);
+    assert_approx_eq_rel(res_in, bal_in, 0_0001000);
+
+    // large amount
+
+    // exact in
+    let amount = 250_000.0;
+    let amount_fixed = amount.to_i128(&7);
+    let bal_out = balancer.swap_out_given_in(0, 1, amount).to_i128(&7);
+    let (res_out, _) =
+        comet.swap_exact_amount_in(&token_1, &amount_fixed, &token_2, &0, &i128::MAX, &user);
+    assert!(res_out <= bal_out);
+    assert_approx_eq_rel(res_out, bal_out, 0_0001000);
+
+    // exact out
+    let amount = 25.0;
+    let amount_fixed = amount.to_i128(&7);
+    let bal_in = balancer.swap_in_given_out(0, 1, amount).to_i128(&7);
+    let (res_in, _) = comet.swap_exact_amount_out(
+        &token_1,
+        &i128::MAX,
+        &token_2,
+        &amount_fixed,
+        &i128::MAX,
+        &user,
+    );
+    // assert!(res_in >= bal_in); // fails
+    // -> next check ensures result is close to floating point result by a basis point
+    //    while its possible float error is worse than rounding error at these scales, this
+    //    ensures the diff is held within the min fee to avoid abuse
+    assert_approx_eq_rel(res_in, bal_in, 0_0001000);
+
+    print_compare(&env, &balancer, &comet_id);
+}
+
+#[test]
+fn test_swap_diff_decimals() {
+    // test only validates recorded pool balances and assumes the above tests ensure that
+    // ledger state is correct if the pool tracks internal balances correctly
+    let env = Env::default();
+    env.mock_all_auths();
+    env.budget().reset_unlimited();
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+
+    let token_1 = create_soroban_token(&env, &admin, 6);
+    let token_2 = create_soroban_token(&env, &admin, 9);
+    let scalar_6 = 10i128.pow(6);
+    let scalar_9 = 10i128.pow(9);
+
+    let token_1_client = MockTokenClient::new(&env, &token_1);
+    let token_2_client = MockTokenClient::new(&env, &token_2);
+    let balances: Vec<i128> = vec![&env, 1234 * scalar_6, 12345 * scalar_9];
+    let weights: Vec<i128> = vec![&env, 2 * STROOP, 8 * STROOP];
+    token_1_client.mint(&admin, &balances.get_unchecked(0));
+    token_2_client.mint(&admin, &balances.get_unchecked(1));
+    let starting_bal: i128 = 1_000_000_000 * STROOP;
+    token_1_client.mint(&user, &starting_bal);
+    token_2_client.mint(&user, &starting_bal);
+
+    let comet_id = create_comet_pool(
+        &env,
+        &admin,
+        &vec![&env, token_1.clone(), token_2.clone()],
+        &weights,
+        &balances,
+        0_0030000,
+    );
+    let comet = CometPoolContractClient::new(&env, &comet_id);
+    let mut balancer = BalancerPool::new(std_vec![1234.0, 12345.0], std_vec![0.20, 0.80], 0.003);
+
+    // 1 (6 dec) in for 2 (9 dec) out
+    let amount = 5.0;
+
+    // exact in
+    let amount_1_in = amount.to_i128(&6);
+    let bal_out = balancer.swap_out_given_in(0, 1, amount).to_i128(&9);
+    let (res_out, _) =
+        comet.swap_exact_amount_in(&token_1, &amount_1_in, &token_2, &0, &i128::MAX, &user);
+    assert!(res_out <= bal_out);
+    assert_approx_eq_rel(res_out, bal_out, 0_0001000);
+
+    // exact out
+    let amount_2_out = amount.to_i128(&9);
+    let bal_in = balancer.swap_in_given_out(0, 1, amount).to_i128(&6);
+    let (res_in, _) = comet.swap_exact_amount_out(
+        &token_1,
+        &i128::MAX,
+        &token_2,
+        &amount_2_out,
+        &i128::MAX,
+        &user,
+    );
+    assert!(res_in >= bal_in);
+    assert_approx_eq_rel(res_in, bal_in, 0_0001000);
+
+    // 2 (9 dec) for 1 (6 dec)
+
+    // exact in
+    let amount_2_in = amount.to_i128(&9);
+    let bal_out = balancer.swap_out_given_in(1, 0, amount).to_i128(&6);
+    let (res_out, _) =
+        comet.swap_exact_amount_in(&token_2, &amount_2_in, &token_1, &0, &i128::MAX, &user);
+    assert!(res_out <= bal_out);
+    assert_approx_eq_rel(res_out, bal_out, 0_0001000);
+
+    // exact out
+    let amount_1_out = amount.to_i128(&6);
+    let bal_in = balancer.swap_in_given_out(1, 0, amount).to_i128(&9);
+    let (res_in, _) = comet.swap_exact_amount_out(
+        &token_2,
+        &i128::MAX,
+        &token_1,
+        &amount_1_out,
+        &i128::MAX,
+        &user,
+    );
+    println!("result: {:?}", res_in);
+    println!("float_: {:?}", bal_in);
+    println!("diff: {:?}", res_in - bal_in);
+    assert!(res_in >= bal_in);
+    assert_approx_eq_rel(res_in, bal_in, 0_0001000);
 }

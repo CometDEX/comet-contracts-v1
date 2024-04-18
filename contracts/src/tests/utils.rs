@@ -58,13 +58,18 @@ pub fn create_soroban_token(env: &Env, admin: &Address, decimal: u32) -> Address
 pub fn assert_approx_eq_rel(a: i128, b: i128, percentage: i128) {
     let rel_delta = b.fixed_mul_floor(percentage, STROOP).unwrap();
 
+    assert_approx_eq_abs(a, b, rel_delta);
+}
+
+/// Asset that `b` is within `abs` of `a`
+pub fn assert_approx_eq_abs(a: i128, b: i128, abs: i128) {
     assert!(
-        a > b - rel_delta && a < b + rel_delta,
+        a > b - abs && a < b + abs,
         "assertion failed: `(left != right)` \
          (left: `{:?}`, right: `{:?}`, epsilon: `{:?}`)",
         a,
         b,
-        rel_delta
+        abs
     );
 }
 

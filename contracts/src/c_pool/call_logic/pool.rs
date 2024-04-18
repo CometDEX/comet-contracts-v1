@@ -195,7 +195,6 @@ pub fn execute_swap_exact_amount_in(
         Error::ErrMathApprox
     );
     assert_with_error!(&e, spot_price_after <= max_price, Error::ErrLimitPrice);
-    // TODO: Check if this works for different token_in and token_out decimals
     assert_with_error!(
         &e,
         spot_price_before
@@ -302,7 +301,6 @@ pub fn execute_swap_exact_amount_out(
         Error::ErrMathApprox
     );
     assert_with_error!(&e, spot_price_after <= max_price, Error::ErrLimitPrice);
-    // TODO: Check if this works for different token_in and token_out decimals
     assert_with_error!(
         &e,
         spot_price_before
