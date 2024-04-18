@@ -71,16 +71,11 @@ pub fn write_factory(e: &Env, d: Address) {
     e.storage().instance().set(&key, &d)
 }
 
-// TODO: Tests fail during bundle_bind on second `controller.require_auth` call during
-//       rebind when set to instance storage. Setting to persistent storage as workaround.
 // Read Controller
 pub fn read_controller(e: &Env) -> Address {
     let key = DataKey::Controller;
     e.storage()
-        .persistent()
-        .extend_ttl(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
-    e.storage()
-        .persistent()
+        .instance()
         .get::<DataKey, Address>(&key)
         .unwrap_optimized()
 }
@@ -88,10 +83,7 @@ pub fn read_controller(e: &Env) -> Address {
 // Write Controller
 pub fn write_controller(e: &Env, d: Address) {
     let key = DataKey::Controller;
-    e.storage().persistent().set(&key, &d);
-    e.storage()
-        .persistent()
-        .extend_ttl(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+    e.storage().instance().set(&key, &d);
 }
 
 // Read Swap Fee
