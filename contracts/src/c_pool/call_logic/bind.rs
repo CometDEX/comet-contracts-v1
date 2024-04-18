@@ -4,12 +4,12 @@ use soroban_sdk::{
 };
 
 use crate::{
-    c_consts::{EXIT_FEE, MAX_BOUND_TOKENS, MAX_TOTAL_WEIGHT, MAX_WEIGHT, MIN_BALANCE, MIN_WEIGHT},
-    c_num::{c_add, c_mul, c_sub},
+    c_consts::{MAX_BOUND_TOKENS, MAX_TOTAL_WEIGHT, MAX_WEIGHT, MIN_BALANCE, MIN_WEIGHT},
+    c_num::{c_add, c_sub},
     c_pool::{
         error::Error,
         metadata::{
-            read_factory, read_finalize, read_record, read_tokens,
+            read_finalize, read_record, read_tokens,
             read_total_weight, write_record, write_tokens, write_total_weight,
         },
         storage_types::Record,
@@ -105,15 +105,12 @@ pub fn execute_rebind(e: Env, token: Address, balance: i128, denorm: i128, admin
         );
     } else if balance < old_balance {
         let token_balance_withdrawn = c_sub(old_balance, balance).unwrap_optimized();
-        let token_exit_fee = c_mul(token_balance_withdrawn, EXIT_FEE).unwrap_optimized();
         push_underlying(
             &e,
             &token,
             admin,
-            c_sub(token_balance_withdrawn, token_exit_fee).unwrap_optimized(),
+            token_balance_withdrawn,
         );
-        let factory = read_factory(&e);
-        push_underlying(&e, &token, factory, token_exit_fee)
     }
 
     record_map.set(token, record);
@@ -131,7 +128,6 @@ pub fn execute_unbind(e: Env, token: Address, user: Address) {
     assert_with_error!(&e, record.bound, Error::ErrNotBound);
 
     let token_balance = record.balance;
-    let token_exit_fee = c_mul(token_balance, EXIT_FEE).unwrap_optimized();
     let curr_weight = read_total_weight(&e);
     write_total_weight(&e, c_sub(curr_weight, record.denorm).unwrap_optimized());
     let index = record.index;
@@ -152,8 +148,6 @@ pub fn execute_unbind(e: Env, token: Address, user: Address) {
         &e,
         &token,
         user,
-        c_sub(token_balance, token_exit_fee).unwrap_optimized(),
+        token_balance,
     );
-    let factory = read_factory(&e);
-    push_underlying(&e, &token, factory, token_exit_fee);
 }
