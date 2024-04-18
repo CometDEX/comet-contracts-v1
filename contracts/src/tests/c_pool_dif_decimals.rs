@@ -5,11 +5,10 @@ use std::println;
 extern crate std;
 use crate::c_pool::comet::CometPoolContract;
 use crate::c_pool::comet::CometPoolContractClient;
-use soroban_sdk::String;
 use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
+use soroban_sdk::String;
 use soroban_sdk::{testutils::Address as _, Address};
 use soroban_sdk::{vec, Env};
-
 
 fn create_and_init_token_contract<'a>(
     env: &'a Env,

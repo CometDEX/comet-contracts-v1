@@ -9,8 +9,8 @@ use crate::{
     c_pool::{
         error::Error,
         metadata::{
-            read_finalize, read_record, read_tokens,
-            read_total_weight, write_record, write_tokens, write_total_weight,
+            read_finalize, read_record, read_tokens, read_total_weight, write_record, write_tokens,
+            write_total_weight,
         },
         storage_types::Record,
         token_utility::{pull_underlying, push_underlying},
@@ -71,21 +71,15 @@ pub fn execute_rebind(e: Env, token: Address, balance: i128, denorm: i128, admin
 
     #[allow(clippy::comparison_chain)]
     if denorm > old_weight {
-        total_weight = c_add(
-            total_weight,
-            c_sub(denorm, old_weight).unwrap_optimized(),
-        )
-        .unwrap_optimized();
+        total_weight =
+            c_add(total_weight, c_sub(denorm, old_weight).unwrap_optimized()).unwrap_optimized();
         write_total_weight(&e, total_weight);
         if total_weight > MAX_TOTAL_WEIGHT {
             panic_with_error!(&e, Error::ErrMaxTotalWeight);
         }
     } else if denorm < old_weight {
-        total_weight = c_sub(
-            total_weight,
-            c_sub(old_weight, denorm).unwrap_optimized(),
-        )
-        .unwrap_optimized();
+        total_weight =
+            c_sub(total_weight, c_sub(old_weight, denorm).unwrap_optimized()).unwrap_optimized();
         write_total_weight(&e, total_weight);
     }
 
@@ -105,12 +99,7 @@ pub fn execute_rebind(e: Env, token: Address, balance: i128, denorm: i128, admin
         );
     } else if balance < old_balance {
         let token_balance_withdrawn = c_sub(old_balance, balance).unwrap_optimized();
-        push_underlying(
-            &e,
-            &token,
-            admin,
-            token_balance_withdrawn,
-        );
+        push_underlying(&e, &token, admin, token_balance_withdrawn);
     }
 
     record_map.set(token, record);
@@ -144,10 +133,5 @@ pub fn execute_unbind(e: Env, token: Address, user: Address) {
 
     write_record(&e, record_map);
 
-    push_underlying(
-        &e,
-        &token,
-        user,
-        token_balance,
-    );
+    push_underlying(&e, &token, user, token_balance);
 }

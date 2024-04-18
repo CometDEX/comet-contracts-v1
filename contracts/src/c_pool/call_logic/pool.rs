@@ -1,10 +1,8 @@
 use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::I256;
 use soroban_sdk::{
-    assert_with_error, panic_with_error, symbol_short,
-    token,
-    unwrap::UnwrapOptimized,
-    Address, Env, Symbol, Vec,
+    assert_with_error, panic_with_error, symbol_short, token, unwrap::UnwrapOptimized, Address,
+    Env, Symbol, Vec,
 };
 
 use crate::c_consts::STROOP;
@@ -15,13 +13,11 @@ use crate::{
         error::Error,
         event::{DepositEvent, ExitEvent, JoinEvent, SwapEvent, WithdrawEvent},
         metadata::{
-            get_total_shares, read_finalize, read_freeze, read_public_swap,
-            read_record, read_swap_fee, read_tokens, read_total_weight, write_record,
+            get_total_shares, read_finalize, read_freeze, read_public_swap, read_record,
+            read_swap_fee, read_tokens, read_total_weight, write_record,
         },
         storage_types::{SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
-        token_utility::{
-            burn_shares, mint_shares, pull_shares, pull_underlying, push_underlying,
-        },
+        token_utility::{burn_shares, mint_shares, pull_shares, pull_underlying, push_underlying},
     },
 };
 const POOL: Symbol = symbol_short!("POOL");

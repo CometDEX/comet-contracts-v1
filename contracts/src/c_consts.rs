@@ -21,4 +21,3 @@ pub const MAX_TOTAL_WEIGHT: i128 = STROOP * 50;
 pub const MIN_WEIGHT: i128 = STROOP;
 pub const MAX_WEIGHT: i128 = STROOP * 50;
 pub const MIN_BALANCE: i128 = 100;
-

@@ -7,12 +7,22 @@ use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
 use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{testutils::Address as _, token::TokenClient, Address, Env, String, Vec};
 
-use crate::{c_consts::STROOP, c_pool::comet::{CometPoolContract, CometPoolContractClient}, tests::balancer::F64Utils};
+use crate::{
+    c_consts::STROOP,
+    c_pool::comet::{CometPoolContract, CometPoolContractClient},
+    tests::balancer::F64Utils,
+};
 
 use super::balancer::BalancerPool;
 
-
-pub fn create_comet_pool(env: &Env, controller: &Address, tokens: &Vec<Address>, weights: &Vec<i128>, balances: &Vec<i128>, swap_fee: i128) -> Address {
+pub fn create_comet_pool(
+    env: &Env,
+    controller: &Address,
+    tokens: &Vec<Address>,
+    weights: &Vec<i128>,
+    balances: &Vec<i128>,
+    swap_fee: i128,
+) -> Address {
     let contract_id = env.register_contract(None, CometPoolContract);
     let client = CometPoolContractClient::new(&env, &contract_id);
 
@@ -25,7 +35,6 @@ pub fn create_comet_pool(env: &Env, controller: &Address, tokens: &Vec<Address>,
     contract_id
 }
 
-
 pub fn create_stellar_token(env: &Env, admin: &Address) -> Address {
     let contract_id = env.register_stellar_asset_contract(admin.clone());
     contract_id
@@ -34,7 +43,12 @@ pub fn create_stellar_token(env: &Env, admin: &Address) -> Address {
 pub fn create_soroban_token(env: &Env, admin: &Address, decimal: u32) -> Address {
     let contract_id = env.register_contract_wasm(None, MockTokenWASM);
     let client = MockTokenClient::new(&env, &contract_id);
-    client.initialize(&admin, &decimal, &String::from_str(env, "NAME"), &String::from_str(env, "SYMBOL"));
+    client.initialize(
+        &admin,
+        &decimal,
+        &String::from_str(env, "NAME"),
+        &String::from_str(env, "SYMBOL"),
+    );
     contract_id
 }
 

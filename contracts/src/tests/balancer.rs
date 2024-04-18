@@ -2,8 +2,8 @@
 #![cfg(test)]
 extern crate std;
 
-use std::vec::Vec;
 use std::f64;
+use std::vec::Vec;
 
 /// Basic impl of a f64 Balancer Pool.
 /// Does not account for protections like max in, max out, etc.
@@ -48,7 +48,7 @@ impl BalancerPool {
     }
 
     /// Swap token in for token out given a fixed input amount `amount`
-    /// 
+    ///
     /// Returns the number of tokens out
     pub fn swap_out_given_in(&mut self, token_in: usize, token_out: usize, amount: f64) -> f64 {
         let amount_net_fees = amount * (1.0 - self.swap_fee);
@@ -63,7 +63,7 @@ impl BalancerPool {
     }
 
     /// Swap token in for token out given a fixed output amount `amount`
-    /// 
+    ///
     /// Returns the number of tokens in
     pub fn swap_in_given_out(&mut self, token_in: usize, token_out: usize, amount: f64) -> f64 {
         let ratio = self.balances[token_out] / (self.balances[token_out] - amount);
@@ -78,7 +78,7 @@ impl BalancerPool {
     }
 
     /// Join pool with `to_mint` tokens
-    /// 
+    ///
     /// Returns the amount of each token that was added to the pool
     pub fn join_pool(&mut self, to_mint: f64) -> Vec<f64> {
         let ratio = (self.supply + to_mint) / self.supply - 1.0;
@@ -93,7 +93,7 @@ impl BalancerPool {
     }
 
     /// Exit pool with `to_burn` tokens
-    /// 
+    ///
     /// Returns the amount of each token that was removed from the pool
     pub fn exit_pool(&mut self, to_burn: f64) -> Vec<f64> {
         let ratio = 1.0 - (self.supply - to_burn) / self.supply;
@@ -106,9 +106,9 @@ impl BalancerPool {
         self.supply -= to_burn;
         vec_out
     }
- 
+
     /// Add liquidity to the pool with `amount` of `token`
-    /// 
+    ///
     /// Returns the amount of LP tokens minted
     pub fn single_sided_dep_given_in(&mut self, token: usize, amount: f64) -> f64 {
         let weighted_fee = (1.0 - self.weights[token]) * self.swap_fee;
@@ -124,13 +124,13 @@ impl BalancerPool {
     }
 
     /// Add liquidity to the pool with `amount` of pool shares minted
-    /// 
+    ///
     /// Returns the amount of tokens deposited
     pub fn single_sided_dep_given_out(&mut self, token: usize, amount: f64) -> f64 {
         let ratio = 1.0 + amount / self.supply;
-        let weighted_ratio = ratio.powf(1.0/self.weights[token]) - 1.0;
+        let weighted_ratio = ratio.powf(1.0 / self.weights[token]) - 1.0;
         let amount_in_net_fees = self.balances[token] * weighted_ratio;
-        
+
         let weighted_fee = (1.0 - self.weights[token]) * self.swap_fee;
         let amount_in = amount_in_net_fees / (1.0 - weighted_fee);
 
@@ -140,7 +140,7 @@ impl BalancerPool {
     }
 
     /// Withdrawn liquditiy from the pool with `amount` of pool shares
-    /// 
+    ///
     /// Returns the amount of `token` withdrawn
     pub fn single_sided_wd_given_in(&mut self, token: usize, amount: f64) -> f64 {
         let ratio = 1.0 - amount / self.supply;
@@ -156,7 +156,7 @@ impl BalancerPool {
     }
 
     /// Withdrawn liquditiy from the pool with `amount` of `tokens` withdrawn
-    /// 
+    ///
     /// Returns the amount of pool shares burnt
     pub fn single_sided_wd_given_out(&mut self, token: usize, amount: f64) -> f64 {
         let weighted_fee = 1.0 - (1.0 - self.weights[token]) * self.swap_fee;

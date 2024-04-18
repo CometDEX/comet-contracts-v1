@@ -1,16 +1,11 @@
-use soroban_sdk::{
-    assert_with_error, panic_with_error, unwrap::UnwrapOptimized, Address, Env,
-};
+use soroban_sdk::{assert_with_error, panic_with_error, unwrap::UnwrapOptimized, Address, Env};
 
 use crate::{
     c_math::calc_spot_price,
     c_num::c_div,
     c_pool::{
         error::Error,
-        metadata::{
-            read_record,
-            read_swap_fee, read_total_weight,
-        },
+        metadata::{read_record, read_swap_fee, read_total_weight},
     },
 };
 

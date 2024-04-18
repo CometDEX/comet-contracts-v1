@@ -309,7 +309,7 @@ pub fn calc_exit_withdrawal_amount(e: &Env, out_record: &Record, exit_ratio: &I2
 /********** Scaling Utils **********/
 
 /// Upscale a number to 18 decimals and 256 bits for use in pool math
-/// 
+///
 /// Requires that "amount" is less that 1.7e19 * scalar
 ///
 /// Will fail if `amount` is greater than 1e18 * scalar

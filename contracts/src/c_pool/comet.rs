@@ -1,40 +1,37 @@
 //! Liquidity Pool and Token Implementation
-use crate::
-    c_pool::{
-        allowance::{read_allowance, spend_allowance, write_allowance},
-        balance::{read_balance, receive_balance, spend_balance},
-        call_logic::{
-            bind::{execute_bind, execute_rebind, execute_unbind},
-            finalize::execute_finalize,
-            getter::{
-                execute_get_denormalized_weight, execute_get_normalized_weight,
-                execute_get_spot_price, execute_get_spot_price_sans_fee,
-            },
-            init::execute_init,
-            pool::{
-                execute_dep_lp_tokn_amt_out_get_tokn_in, execute_dep_tokn_amt_in_get_lp_tokns_out,
-                execute_exit_pool, execute_gulp, execute_join_pool, execute_swap_exact_amount_in,
-                execute_swap_exact_amount_out, execute_wdr_tokn_amt_in_get_lp_tokns_out,
-                execute_wdr_tokn_amt_out_get_lp_tokns_in,
-            },
-            setter::{
-                execute_set_controller, execute_set_freeze_status, execute_set_public_swap,
-                execute_set_swap_fee,
-            },
+use crate::c_pool::{
+    allowance::{read_allowance, spend_allowance, write_allowance},
+    balance::{read_balance, receive_balance, spend_balance},
+    call_logic::{
+        bind::{execute_bind, execute_rebind, execute_unbind},
+        finalize::execute_finalize,
+        getter::{
+            execute_get_denormalized_weight, execute_get_normalized_weight, execute_get_spot_price,
+            execute_get_spot_price_sans_fee,
         },
-        error::Error,
-        metadata::{
-            get_total_shares, read_controller, read_decimal, read_finalize, read_name,
-            read_public_swap, read_record, read_swap_fee, read_symbol, read_tokens,
-            read_total_weight,
+        init::execute_init,
+        pool::{
+            execute_dep_lp_tokn_amt_out_get_tokn_in, execute_dep_tokn_amt_in_get_lp_tokns_out,
+            execute_exit_pool, execute_gulp, execute_join_pool, execute_swap_exact_amount_in,
+            execute_swap_exact_amount_out, execute_wdr_tokn_amt_in_get_lp_tokns_out,
+            execute_wdr_tokn_amt_out_get_lp_tokns_in,
         },
-        storage_types::{SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
-        token_utility::check_nonnegative_amount,
-    };
+        setter::{
+            execute_set_controller, execute_set_freeze_status, execute_set_public_swap,
+            execute_set_swap_fee,
+        },
+    },
+    error::Error,
+    metadata::{
+        get_total_shares, read_controller, read_decimal, read_finalize, read_name,
+        read_public_swap, read_record, read_swap_fee, read_symbol, read_tokens, read_total_weight,
+    },
+    storage_types::{SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
+    token_utility::check_nonnegative_amount,
+};
 use soroban_sdk::{
-    assert_with_error, contract, contractimpl,
-    unwrap::UnwrapOptimized, Address, Env, String, Vec,
-    token::TokenInterface
+    assert_with_error, contract, contractimpl, token::TokenInterface, unwrap::UnwrapOptimized,
+    Address, Env, String, Vec,
 };
 use soroban_token_sdk::TokenUtils;
 

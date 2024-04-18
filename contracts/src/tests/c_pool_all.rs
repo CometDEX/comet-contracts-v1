@@ -9,7 +9,6 @@ use soroban_sdk::String;
 use soroban_sdk::{testutils::Address as _, Address};
 use soroban_sdk::{vec, Env};
 
-
 fn create_and_init_token_contract<'a>(
     env: &'a Env,
     admin_id: &'a Address,

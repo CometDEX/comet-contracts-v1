@@ -10,7 +10,6 @@ use soroban_sdk::String;
 use soroban_sdk::{testutils::Address as _, Address};
 use soroban_sdk::{vec, Env};
 
-
 fn create_and_init_token_contract<'a>(
     env: &'a Env,
     admin_id: &'a Address,
@@ -181,7 +180,6 @@ fn test_pool_functions() {
         &vec![&env, i128::MAX, i128::MAX, i128::MAX],
         &user2,
     );
-    
 
     println!(
         "Token Balance 1 of Contract = {}",

@@ -1,4 +1,7 @@
-use crate::c_pool::{error::Error, storage_types::{DataKeyToken, BALANCE_BUMP_AMOUNT}};
+use crate::c_pool::{
+    error::Error,
+    storage_types::{DataKeyToken, BALANCE_BUMP_AMOUNT},
+};
 use soroban_sdk::{assert_with_error, Address, Env};
 
 use super::storage_types::BALANCE_LIFETIME_THRESHOLD;
