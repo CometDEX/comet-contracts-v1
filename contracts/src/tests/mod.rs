@@ -6,5 +6,6 @@ pub mod c_pool_dif_decimals;
 mod utils;
 mod balancer;
 
+pub mod c_pool_single_sided;
 pub mod c_pool_swap;
 pub mod c_pool_join_exit;

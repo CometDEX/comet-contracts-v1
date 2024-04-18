@@ -34,6 +34,7 @@ impl BalancerPool {
         }
     }
 
+    #[allow(dead_code)]
     pub fn print(&self) {
         std::println!("BalancerPool: ");
         std::println!("  balances: {:?}", self.balances);
@@ -105,32 +106,69 @@ impl BalancerPool {
         self.supply -= to_burn;
         vec_out
     }
-
-    // TODO: Properly handle fees and both dep and wd given out
  
-    /// Add liquidity to the pool with `amount` of token
+    /// Add liquidity to the pool with `amount` of `token`
     /// 
     /// Returns the amount of LP tokens minted
     pub fn single_sided_dep_given_in(&mut self, token: usize, amount: f64) -> f64 {
-        let ratio = 1.0 + amount / self.balances[token];
+        let weighted_fee = (1.0 - self.weights[token]) * self.swap_fee;
+        let amount_net_fees = amount * (1.0 - weighted_fee);
+
+        let ratio = 1.0 + amount_net_fees / self.balances[token];
         let weighted_ratio = ratio.powf(self.weights[token]) - 1.0;
         let issued = self.supply * weighted_ratio;
+
         self.balances[token] += amount;
         self.supply += issued;
         issued
     }
 
-    /// Withdrawn liquditiy from the pool with `amount` of `token`
+    /// Add liquidity to the pool with `amount` of pool shares minted
+    /// 
+    /// Returns the amount of tokens deposited
+    pub fn single_sided_dep_given_out(&mut self, token: usize, amount: f64) -> f64 {
+        let ratio = 1.0 + amount / self.supply;
+        let weighted_ratio = ratio.powf(1.0/self.weights[token]) - 1.0;
+        let amount_in_net_fees = self.balances[token] * weighted_ratio;
+        
+        let weighted_fee = (1.0 - self.weights[token]) * self.swap_fee;
+        let amount_in = amount_in_net_fees / (1.0 - weighted_fee);
+
+        self.balances[token] += amount_in;
+        self.supply += amount;
+        amount_in
+    }
+
+    /// Withdrawn liquditiy from the pool with `amount` of pool shares
     /// 
     /// Returns the amount of `token` withdrawn
-    pub fn single_sided_wd_given_out(&mut self, token: usize, amount: f64) -> f64 {
+    pub fn single_sided_wd_given_in(&mut self, token: usize, amount: f64) -> f64 {
         let ratio = 1.0 - amount / self.supply;
         let weighted_ratio = 1.0 - ratio.powf(1.0 / self.weights[token]);
 
-        let withdrawn = self.balances[token] * weighted_ratio;
-        self.balances[token] -= withdrawn;
+        let withdrawn_with_fee = self.balances[token] * weighted_ratio;
+        let weighted_fee = 1.0 - (1.0 - self.weights[token]) * self.swap_fee;
+        let withdrawn_net_fee = withdrawn_with_fee * weighted_fee;
+
+        self.balances[token] -= withdrawn_net_fee;
         self.supply -= amount;
-        withdrawn
+        withdrawn_net_fee
+    }
+
+    /// Withdrawn liquditiy from the pool with `amount` of `tokens` withdrawn
+    /// 
+    /// Returns the amount of pool shares burnt
+    pub fn single_sided_wd_given_out(&mut self, token: usize, amount: f64) -> f64 {
+        let weighted_fee = 1.0 - (1.0 - self.weights[token]) * self.swap_fee;
+        let withdrawn_with_fee = amount / weighted_fee;
+
+        let ratio = 1.0 - withdrawn_with_fee / self.balances[token];
+        let weighted_ratio = 1.0 - ratio.powf(self.weights[token]);
+        let amount_burnt = self.supply * weighted_ratio;
+
+        self.balances[token] -= amount;
+        self.supply -= amount_burnt;
+        amount_burnt
     }
 }
 

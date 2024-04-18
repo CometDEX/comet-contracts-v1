@@ -421,8 +421,8 @@ pub fn execute_dep_lp_tokn_amt_out_get_tokn_in(
 ) -> i128 {
     assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
 
-    assert_with_error!(&e, pool_amount_out >= 0, Error::ErrNegative);
-    assert_with_error!(&e, max_amount_in >= 0, Error::ErrNegative);
+    assert_with_error!(&e, pool_amount_out > 0, Error::ErrNegativeOrZero);
+    assert_with_error!(&e, max_amount_in > 0, Error::ErrNegativeOrZero);
 
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
     assert_with_error!(&e, read_public_swap(&e), Error::ErrSwapNotPublic);
@@ -555,8 +555,8 @@ pub fn execute_wdr_tokn_amt_out_get_lp_tokns_in(
     max_pool_amount_in: i128,
     user: Address,
 ) -> i128 {
-    assert_with_error!(&e, token_amount_out >= 0, Error::ErrNegative);
-    assert_with_error!(&e, max_pool_amount_in >= 0, Error::ErrNegative);
+    assert_with_error!(&e, token_amount_out > 0, Error::ErrNegativeOrZero);
+    assert_with_error!(&e, max_pool_amount_in > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
     assert_with_error!(&e, read_public_swap(&e), Error::ErrSwapNotPublic);
 
@@ -576,7 +576,7 @@ pub fn execute_wdr_tokn_amt_out_get_lp_tokns_in(
                 .balance
                 .fixed_mul_ceil(MAX_OUT_RATIO, STROOP)
                 .unwrap_optimized(),
-        Error::ErrMaxInRatio
+        Error::ErrMaxOutRatio
     );
 
     let swap_fee = read_swap_fee(&e);

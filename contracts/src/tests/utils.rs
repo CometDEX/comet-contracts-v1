@@ -54,6 +54,7 @@ pub fn assert_approx_eq_rel(a: i128, b: i128, percentage: i128) {
     );
 }
 
+#[allow(dead_code)]
 pub fn print_compare(e: &Env, balancer: &BalancerPool, comet: &Address) {
     println!("## Comparing: ");
     let client = CometPoolContractClient::new(&e, &comet);

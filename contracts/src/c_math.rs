@@ -257,7 +257,7 @@ pub fn calc_token_withdrawal_amount_given_lp_token_amount(
     let token_amount_out_before_fee = token_balance_out.sub(&new_token_balance_out);
 
     let zaz = bone.sub(&normalized_weight).fixed_mul_floor(e, &fee, &bone);
-    let result = token_amount_out_before_fee.fixed_div_floor(&e, &bone.sub(&zaz), &bone);
+    let result = token_amount_out_before_fee.fixed_mul_floor(&e, &bone.sub(&zaz), &bone);
 
     downscale_floor(e, &result, out_record.scalar)
 }
