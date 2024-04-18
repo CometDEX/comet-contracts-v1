@@ -56,10 +56,10 @@ pub fn calc_token_out_given_token_in(
     let adjusted_in = token_amount_in.fixed_mul_floor(&e, &fee_adjust_ratio, &bone);
 
     let base = token_balance_in.fixed_div_floor(&e, &token_balance_in.add(&adjusted_in), &bone);
-    let power = c_pow(e, &base, &weight_ratio, false);
+    let power = c_pow(e, &base, &weight_ratio, true);
     let balance_ratio = bone.sub(&power);
-
     let result = token_balance_out.fixed_mul_floor(&e, &balance_ratio, &bone);
+
     downscale_floor(e, &result, out_record.scalar)
 }
 
@@ -91,7 +91,7 @@ pub fn calc_token_in_given_token_out(
 
     let base =
         token_balance_out.fixed_div_ceil(&e, &token_balance_out.sub(&token_amount_out), &bone);
-    let power = c_pow(e, &base, &weight_ratio, false);
+    let power = c_pow(e, &base, &weight_ratio, true);
     let balance_ratio = power.sub(&bone);
 
     let token_amount_in = token_balance_in.fixed_mul_ceil(&e, &balance_ratio, &bone);

@@ -84,7 +84,7 @@ pub fn execute_join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128
 
 // Helps a user exit the pool
 pub fn execute_exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128>, user: Address) {
-    assert_with_error!(&e, pool_amount_in >= 0, Error::ErrNegative);
+    assert_with_error!(&e, pool_amount_in > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
 
     e.storage()
@@ -271,7 +271,7 @@ pub fn execute_swap_exact_amount_out(
                 .balance
                 .fixed_mul_ceil(MAX_OUT_RATIO, STROOP)
                 .unwrap_optimized(),
-        Error::ErrMaxInRatio
+        Error::ErrMaxOutRatio
     );
 
     let spot_price_before = c_math::calc_spot_price(&in_record, &out_record, swap_fee);

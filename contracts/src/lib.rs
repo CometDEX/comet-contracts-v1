@@ -7,3 +7,6 @@ pub mod c_pool;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+extern crate std;
