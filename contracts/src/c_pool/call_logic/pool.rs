@@ -344,10 +344,11 @@ pub fn execute_dep_tokn_amt_in_get_lp_tokns_out(
     user: Address,
 ) -> i128 {
     assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
-    assert_with_error!(&e, token_amount_in >= 0, Error::ErrNegative);
+    assert_with_error!(&e, token_amount_in > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, min_pool_amount_out >= 0, Error::ErrNegative);
 
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
+    assert_with_error!(&e, read_public_swap(&e), Error::ErrSwapNotPublic);
 
     e.storage()
         .instance()
@@ -424,6 +425,7 @@ pub fn execute_dep_lp_tokn_amt_out_get_tokn_in(
     assert_with_error!(&e, max_amount_in >= 0, Error::ErrNegative);
 
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
+    assert_with_error!(&e, read_public_swap(&e), Error::ErrSwapNotPublic);
 
     e.storage()
         .instance()
@@ -484,9 +486,10 @@ pub fn execute_wdr_tokn_amt_in_get_lp_tokns_out(
     min_amount_out: i128,
     user: Address,
 ) -> i128 {
-    assert_with_error!(&e, pool_amount_in >= 0, Error::ErrNegative);
+    assert_with_error!(&e, pool_amount_in > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, min_amount_out >= 0, Error::ErrNegative);
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
+    assert_with_error!(&e, read_public_swap(&e), Error::ErrSwapNotPublic);
 
     e.storage()
         .instance()
@@ -552,7 +555,10 @@ pub fn execute_wdr_tokn_amt_out_get_lp_tokns_in(
     max_pool_amount_in: i128,
     user: Address,
 ) -> i128 {
+    assert_with_error!(&e, token_amount_out >= 0, Error::ErrNegative);
+    assert_with_error!(&e, max_pool_amount_in >= 0, Error::ErrNegative);
     assert_with_error!(&e, read_finalize(&e), Error::ErrNotFinalized);
+    assert_with_error!(&e, read_public_swap(&e), Error::ErrSwapNotPublic);
 
     e.storage()
         .instance()
