@@ -2,8 +2,8 @@
 
 use std::println;
 extern crate std;
-use crate::c_pool::comet::CometPoolContract;
 use crate::c_pool::comet::CometPoolContractClient;
+use crate::tests::utils::create_comet_pool;
 use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
 use soroban_sdk::String;
 use soroban_sdk::{testutils::Address as _, Address};
@@ -34,12 +34,8 @@ fn to_stroop<T: Into<f64>>(a: T) -> i128 {
 fn test_pool_functions_dep_wdr() {
     let env = Env::default();
     env.mock_all_auths();
+    env.budget().reset_unlimited();
     let admin = soroban_sdk::Address::generate(&env);
-    let contract_id = env.register_contract(None, CometPoolContract);
-    let client = CometPoolContractClient::new(&env, &contract_id);
-    let factory = admin.clone();
-    let controller_arg = factory.clone();
-    client.init(&factory, &controller_arg);
 
     // Create Admin
     let admin1 = soroban_sdk::Address::generate(&env);
@@ -57,34 +53,18 @@ fn test_pool_functions_dep_wdr() {
     token1.mint(&user2, &to_stroop(40000000));
     token2.mint(&user1, &to_stroop(40000000));
 
-    let controller = client.get_controller();
-    assert_eq!(controller, admin);
-    let num_tokens = client.get_tokens();
-    assert_eq!(num_tokens.len(), 0);
+    let tokens = vec![&env, token1.address.clone(), token2.address.clone()];
+    let weights = vec![&env, 5454545, 4545455];
+    let balances = vec![&env, to_stroop(50), to_stroop(20)];
+    let contract_id =
+        create_comet_pool(&env, &admin, &tokens, &weights, &balances, to_stroop(0.003));
+    let client = CometPoolContractClient::new(&env, &contract_id);
 
-    let contract_address = contract_id;
-    env.budget().reset_unlimited();
-    // token1.approve(&admin, &contract_address, &i128::MAX, &200);
-    // token2.approve(&admin, &contract_address, &i128::MAX, &200);
+    token1.approve(&user1, &contract_id, &i128::MAX, &200);
+    token2.approve(&user1, &contract_id, &i128::MAX, &200);
 
-    client.bind(&token1.address, &to_stroop(4), &to_stroop(12), &admin);
-    client.bind(&token2.address, &to_stroop(10), &to_stroop(10), &admin);
-
-    // client.bundle_bind(&vec![&env, token1.address.clone() ,token2.address.clone() ],
-    //     &vec![&env, to_stroop(4), to_stroop(12)],
-    //     &vec![&env, to_stroop(10), to_stroop(10)]
-    // );
-
-    client.set_swap_fee(&to_stroop(0.003), &controller);
-    client.finalize();
-    // Should Fail
-    // client.set_public_swap(&admin, &true);
-
-    token1.approve(&user1, &contract_address, &i128::MAX, &200);
-    token2.approve(&user1, &contract_address, &i128::MAX, &200);
-
-    token1.approve(&user2, &contract_address, &i128::MAX, &200);
-    token2.approve(&user2, &contract_address, &i128::MAX, &200);
+    token1.approve(&user2, &contract_id, &i128::MAX, &200);
+    token2.approve(&user2, &contract_id, &i128::MAX, &200);
 
     let pool_supply = client.get_total_supply();
     client.join_pool(&to_stroop(120), &vec![&env, i128::MAX, i128::MAX], &user1);

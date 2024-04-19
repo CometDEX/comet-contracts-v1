@@ -36,7 +36,7 @@ fn test_swap_out_given_in() {
     let token_1_client = MockTokenClient::new(&env, &token_1);
     let token_2_client = MockTokenClient::new(&env, &token_2);
     let balances: Vec<i128> = vec![&env, 100 * STROOP, 75 * STROOP];
-    let weights: Vec<i128> = vec![&env, 5 * STROOP, 5 * STROOP];
+    let weights: Vec<i128> = vec![&env, 5 * STROOP / 10, 5 * STROOP / 10];
     token_1_client.mint(&admin, &balances.get_unchecked(0));
     token_2_client.mint(&admin, &balances.get_unchecked(1));
     let starting_bal: i128 = 100_000 * STROOP;
@@ -188,7 +188,7 @@ fn test_swap_in_given_out() {
     let token_1_client = MockTokenClient::new(&env, &token_1);
     let token_2_client = MockTokenClient::new(&env, &token_2);
     let balances: Vec<i128> = vec![&env, 100 * STROOP, 75 * STROOP];
-    let weights: Vec<i128> = vec![&env, 5 * STROOP, 5 * STROOP];
+    let weights: Vec<i128> = vec![&env, 5 * STROOP / 10, 5 * STROOP / 10];
     token_1_client.mint(&admin, &balances.get_unchecked(0));
     token_2_client.mint(&admin, &balances.get_unchecked(1));
     let starting_bal: i128 = 100_000 * STROOP;
@@ -351,7 +351,7 @@ fn test_swap_large_amounts() {
     let token_1_client = MockTokenClient::new(&env, &token_1);
     let token_2_client = MockTokenClient::new(&env, &token_2);
     let balances: Vec<i128> = vec![&env, 123456789 * STROOP, 987654321 * STROOP];
-    let weights: Vec<i128> = vec![&env, 3 * STROOP, 7 * STROOP];
+    let weights: Vec<i128> = vec![&env, 3 * STROOP / 10, 7 * STROOP / 10];
     token_1_client.mint(&admin, &balances.get_unchecked(0));
     token_2_client.mint(&admin, &balances.get_unchecked(1));
     let starting_bal: i128 = 1_000_000_000 * STROOP;
@@ -441,7 +441,7 @@ fn test_swap_large_price() {
     let token_1_client = MockTokenClient::new(&env, &token_1);
     let token_2_client = MockTokenClient::new(&env, &token_2);
     let balances: Vec<i128> = vec![&env, 9999999 * STROOP, 100 * STROOP];
-    let weights: Vec<i128> = vec![&env, 1 * STROOP, 9 * STROOP];
+    let weights: Vec<i128> = vec![&env, 1 * STROOP / 10, 9 * STROOP / 10];
     token_1_client.mint(&admin, &balances.get_unchecked(0));
     token_2_client.mint(&admin, &balances.get_unchecked(1));
     let starting_bal: i128 = 1_000_000_000 * STROOP;
@@ -536,7 +536,7 @@ fn test_swap_diff_decimals() {
     let token_1_client = MockTokenClient::new(&env, &token_1);
     let token_2_client = MockTokenClient::new(&env, &token_2);
     let balances: Vec<i128> = vec![&env, 1234 * scalar_6, 12345 * scalar_9];
-    let weights: Vec<i128> = vec![&env, 2 * STROOP, 8 * STROOP];
+    let weights: Vec<i128> = vec![&env, 2 * STROOP / 10, 8 * STROOP / 10];
     token_1_client.mint(&admin, &balances.get_unchecked(0));
     token_2_client.mint(&admin, &balances.get_unchecked(1));
     let starting_bal: i128 = 1_000_000_000 * STROOP;

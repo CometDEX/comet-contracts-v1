@@ -3,12 +3,7 @@ use crate::c_pool::{
     allowance::{read_allowance, spend_allowance, write_allowance},
     balance::{read_balance, receive_balance, spend_balance},
     call_logic::{
-        bind::{execute_bind, execute_rebind, execute_unbind},
-        finalize::execute_finalize,
-        getter::{
-            execute_get_denormalized_weight, execute_get_normalized_weight, execute_get_spot_price,
-            execute_get_spot_price_sans_fee,
-        },
+        getter::{execute_get_spot_price, execute_get_spot_price_sans_fee},
         init::execute_init,
         pool::{
             execute_dep_lp_tokn_amt_out_get_tokn_in, execute_dep_tokn_amt_in_get_lp_tokns_out,
@@ -16,26 +11,21 @@ use crate::c_pool::{
             execute_swap_exact_amount_out, execute_wdr_tokn_amt_in_get_lp_tokns_out,
             execute_wdr_tokn_amt_out_get_lp_tokns_in,
         },
-        setter::{
-            execute_set_controller, execute_set_freeze_status, execute_set_public_swap,
-            execute_set_swap_fee,
-        },
     },
-    error::Error,
     metadata::{
-        get_total_shares, read_controller, read_decimal, read_finalize, read_name,
-        read_public_swap, read_record, read_swap_fee, read_symbol, read_tokens, read_total_weight,
+        get_total_shares, read_controller, read_decimal, read_name, read_record, read_swap_fee,
+        read_symbol, read_tokens,
     },
     storage_types::{SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
     token_utility::check_nonnegative_amount,
 };
 use soroban_sdk::{
-    assert_with_error, contract, contractimpl, token::TokenInterface, unwrap::UnwrapOptimized,
-    Address, Env, String, Vec,
+    contract, contractimpl, token::TokenInterface, unwrap::UnwrapOptimized, Address, Env, String,
+    Vec,
 };
 use soroban_token_sdk::TokenUtils;
 
-use super::metadata::put_total_shares;
+use super::metadata::{put_total_shares, write_controller, write_freeze};
 
 #[contract]
 pub struct CometPoolContract;
@@ -43,73 +33,45 @@ pub struct CometPoolContract;
 #[contractimpl]
 impl CometPoolContract {
     // Initialize the Pool and the LP Token
-    pub fn init(e: Env, factory: Address, controller: Address) {
-        // Check if the Contract Storage is already initialized
-
-        execute_init(e, factory, controller);
-    }
-
-    pub fn bundle_bind(e: Env, token: Vec<Address>, balance: Vec<i128>, denorm: Vec<i128>) {
-        // token::Client::approve()
-        let controller: Address = read_controller(&e);
+    pub fn init(
+        e: Env,
+        controller: Address,
+        tokens: Vec<Address>,
+        weights: Vec<i128>,
+        balances: Vec<i128>,
+        swap_fee: i128,
+    ) {
         controller.require_auth();
-
-        for i in 0..token.len() {
-            execute_bind(
-                e.clone(),
-                token.get(i).unwrap_optimized(),
-                balance.get(i).unwrap_optimized(),
-                denorm.get(i).unwrap_optimized(),
-                controller.clone(),
-            );
-        }
-    }
-
-    // Binds tokens to the Pool
-    pub fn bind(e: Env, token: Address, balance: i128, denorm: i128, admin: Address) {
-        let controller = read_controller(&e);
-        controller.require_auth();
-        execute_bind(e, token, balance, denorm, admin);
-    }
-
-    // If you you want to adjust values of the token which was already called using bind
-    pub fn rebind(e: Env, token: Address, balance: i128, denorm: i128, admin: Address) {
-        let controller = read_controller(&e);
-        controller.require_auth();
-        execute_rebind(e, token, balance, denorm, admin);
-    }
-
-    // Removes a specific token from the Liquidity Pool
-    pub fn unbind(e: Env, token: Address, user: Address) {
-        let controller = read_controller(&e);
-        assert_with_error!(&e, user == controller, Error::ErrNotController);
-        controller.require_auth();
-        execute_unbind(e, token, user);
-    }
-
-    // Finalizes the Pool
-    // Set true for Public Swap
-    // Mint Pool Tokens to the controller Address
-    pub fn finalize(e: Env) {
-        let controller = read_controller(&e);
-        controller.require_auth();
-        execute_finalize(e, controller);
+        e.storage()
+            .instance()
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        execute_init(&e, controller, tokens, weights, balances, swap_fee);
     }
 
     // Absorbing tokens into the pool directly sent to the current contract
     pub fn gulp(e: Env, t: Address) {
+        e.storage()
+            .instance()
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         execute_gulp(e, t);
     }
 
     // Helps a users join the pool
     pub fn join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128>, user: Address) {
         user.require_auth();
+        e.storage()
+            .instance()
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+
         execute_join_pool(e, pool_amount_out, max_amounts_in, user);
     }
 
     // Helps a user exit the pool
     pub fn exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128>, user: Address) {
         user.require_auth();
+        e.storage()
+            .instance()
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         execute_exit_pool(e, pool_amount_in, min_amounts_out, user);
     }
 
@@ -125,7 +87,9 @@ impl CometPoolContract {
         user: Address,
     ) -> (i128, i128) {
         user.require_auth();
-
+        e.storage()
+            .instance()
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         execute_swap_exact_amount_in(
             e,
             token_in,
@@ -149,6 +113,9 @@ impl CometPoolContract {
         user: Address,
     ) -> (i128, i128) {
         user.require_auth();
+        e.storage()
+            .instance()
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         execute_swap_exact_amount_out(
             e,
             token_in,
@@ -170,7 +137,9 @@ impl CometPoolContract {
         user: Address,
     ) -> i128 {
         user.require_auth();
-
+        e.storage()
+            .instance()
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         execute_dep_tokn_amt_in_get_lp_tokns_out(
             e,
             token_in,
@@ -189,7 +158,9 @@ impl CometPoolContract {
         user: Address,
     ) -> i128 {
         user.require_auth();
-
+        e.storage()
+            .instance()
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         execute_dep_lp_tokn_amt_out_get_tokn_in(e, token_in, pool_amount_out, max_amount_in, user)
     }
 
@@ -204,7 +175,9 @@ impl CometPoolContract {
         user: Address,
     ) -> i128 {
         user.require_auth();
-
+        e.storage()
+            .instance()
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         execute_wdr_tokn_amt_in_get_lp_tokns_out(e, token_out, pool_amount_in, min_amount_out, user)
     }
 
@@ -219,6 +192,9 @@ impl CometPoolContract {
         user: Address,
     ) -> i128 {
         user.require_auth();
+        e.storage()
+            .instance()
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         execute_wdr_tokn_amt_out_get_lp_tokns_in(
             e,
             token_out,
@@ -228,33 +204,23 @@ impl CometPoolContract {
         )
     }
 
-    // Sets the swap fee, can only be set by the controller (pool admin)
-    pub fn set_swap_fee(e: Env, fee: i128, caller: Address) {
-        assert_with_error!(&e, caller == read_controller(&e), Error::ErrNotController);
-        caller.require_auth();
-        execute_set_swap_fee(e, fee);
-    }
-
     // Sets the value of the controller address, only can be set by the current controller
-    pub fn set_controller(e: Env, caller: Address, manager: Address) {
-        assert_with_error!(&e, caller == read_controller(&e), Error::ErrNotController);
-        caller.require_auth();
-        execute_set_controller(e, manager);
-    }
-
-    // Set the value of the Public Swap
-    pub fn set_public_swap(e: Env, caller: Address, val: bool) {
-        assert_with_error!(&e, caller == read_controller(&e), Error::ErrNotController);
-        caller.require_auth();
-        execute_set_public_swap(e, val);
+    pub fn set_controller(e: Env, manager: Address) {
+        read_controller(&e).require_auth();
+        e.storage()
+            .instance()
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        write_controller(&e, manager);
     }
 
     // Only Callable by the Pool Admin
     // Freezes Functions and only allows withdrawals
-    pub fn set_freeze_status(e: Env, caller: Address, val: bool) {
-        assert_with_error!(&e, caller == read_controller(&e), Error::ErrNotController);
-        caller.require_auth();
-        execute_set_freeze_status(e, val);
+    pub fn set_freeze_status(e: Env, val: bool) {
+        read_controller(&e).require_auth();
+        e.storage()
+            .instance()
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        write_freeze(&e, val);
     }
 
     // GETTER FUNCTIONS
@@ -269,11 +235,6 @@ impl CometPoolContract {
         read_controller(&e)
     }
 
-    // Get the total dernormalized weight
-    pub fn get_total_denormalized_weight(e: Env) -> i128 {
-        read_total_weight(&e)
-    }
-
     // Get the Current Tokens in the Pool
     pub fn get_tokens(e: Env) -> Vec<Address> {
         read_tokens(&e)
@@ -282,18 +243,13 @@ impl CometPoolContract {
     // Get the balance of the Token
     pub fn get_balance(e: Env, token: Address) -> i128 {
         let val = read_record(&e).get(token).unwrap_optimized();
-        assert_with_error!(&e, val.bound, Error::ErrNotBound);
         val.balance
     }
 
-    // Get the denormalized weight of the token
-    pub fn get_denormalized_weight(e: Env, token: Address) -> i128 {
-        execute_get_denormalized_weight(e, token)
-    }
-
-    // Get the normalized weight of the token
+    // Get the weight of the token in decimal form with 7 decimals
     pub fn get_normalized_weight(e: Env, token: Address) -> i128 {
-        execute_get_normalized_weight(e, token)
+        let val = read_record(&e).get(token).unwrap_optimized();
+        val.weight
     }
 
     // Calculate the spot considering the swap fee
@@ -309,21 +265,6 @@ impl CometPoolContract {
     // Get the spot price without considering the swap fee
     pub fn get_spot_price_sans_fee(e: Env, token_in: Address, token_out: Address) -> i128 {
         execute_get_spot_price_sans_fee(e, token_in, token_out)
-    }
-
-    // Check if the Pool can be used for swapping by normal users
-    pub fn is_public_swap(e: Env) -> bool {
-        read_public_swap(&e)
-    }
-
-    // Check if the Pool is finalized by the Controller
-    pub fn is_finalized(e: Env) -> bool {
-        read_finalize(&e)
-    }
-
-    // Check if the token Address is bound to the pool
-    pub fn is_bound(e: Env, t: Address) -> bool {
-        read_record(&e).get(t).unwrap_optimized().bound
     }
 }
 

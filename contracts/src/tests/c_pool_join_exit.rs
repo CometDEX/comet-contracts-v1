@@ -36,7 +36,7 @@ fn test_join_exit() {
     let token_3_client = MockTokenClient::new(&env, &token_3);
 
     let balances: Vec<i128> = vec![&env, 100 * STROOP, 150 * STROOP, 50 * STROOP];
-    let weights: Vec<i128> = vec![&env, 2 * STROOP, 5 * STROOP, 3 * STROOP];
+    let weights: Vec<i128> = vec![&env, 2 * STROOP / 10, 5 * STROOP / 10, 3 * STROOP / 10];
     token_1_client.mint(&admin, &balances.get_unchecked(0));
     token_2_client.mint(&admin, &balances.get_unchecked(1));
     token_3_client.mint(&admin, &balances.get_unchecked(2));

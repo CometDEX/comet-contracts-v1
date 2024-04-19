@@ -14,10 +14,9 @@ pub(crate) const BALANCE_LIFETIME_THRESHOLD: u32 = BALANCE_BUMP_AMOUNT - 20 * DA
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Record {
     pub balance: i128,
-    pub denorm: i128,
+    pub weight: i128,
     pub scalar: i128,
     pub index: u32,
-    pub bound: bool,
 }
 
 // Data Keys for Pool' Storage Data
@@ -27,7 +26,6 @@ pub enum DataKey {
     Factory,       // Address of the Factory Contract
     Controller,    // Address of the Controller Account
     SwapFee,       // i128
-    TotalWeight,   // i128
     AllTokenVec,   // Vec<Address>
     AllRecordData, // Map<Address, Record>
     TokenShare,    // Address

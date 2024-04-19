@@ -1,7 +1,7 @@
 //! Utilities to read and write contract's storage
 
 use crate::c_pool::storage_types::DataKey;
-use soroban_sdk::{unwrap::UnwrapOptimized, vec, Address, Env, Map, String, Vec};
+use soroban_sdk::{unwrap::UnwrapOptimized, Address, Env, Map, String, Vec};
 use soroban_token_sdk::{metadata::TokenMetadata, TokenUtils};
 
 use super::storage_types::{Record, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD};
@@ -9,14 +9,13 @@ use super::storage_types::{Record, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD
 // Read all Token Addresses in the pool
 pub fn read_tokens(e: &Env) -> Vec<Address> {
     let key = DataKey::AllTokenVec;
-    if let Some(arr) = e.storage().persistent().get::<DataKey, Vec<Address>>(&key) {
-        e.storage()
-            .persistent()
-            .extend_ttl(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
-        arr
-    } else {
-        vec![e]
-    }
+    e.storage()
+        .persistent()
+        .extend_ttl(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .get::<DataKey, Vec<Address>>(&key)
+        .unwrap_optimized()
 }
 
 // Write All Tokens Addresses to the Vector
@@ -31,20 +30,13 @@ pub fn write_tokens(e: &Env, new: Vec<Address>) {
 // Read Record
 pub fn read_record(e: &Env) -> Map<Address, Record> {
     let key_rec = DataKey::AllRecordData;
-    if let Some(rec) = e
-        .storage()
+    e.storage()
+        .persistent()
+        .extend_ttl(&key_rec, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+    e.storage()
         .persistent()
         .get::<DataKey, Map<Address, Record>>(&key_rec)
-    {
-        e.storage().persistent().extend_ttl(
-            &key_rec,
-            SHARED_LIFETIME_THRESHOLD,
-            SHARED_BUMP_AMOUNT,
-        );
-        rec
-    } else {
-        Map::<Address, Record>::new(e)
-    }
+        .unwrap_optimized()
 }
 
 // Write Record
@@ -101,32 +93,17 @@ pub fn write_swap_fee(e: &Env, d: i128) {
     e.storage().instance().set(&key, &d)
 }
 
-// Read Total Weight
-pub fn read_total_weight(e: &Env) -> i128 {
-    let key = DataKey::TotalWeight;
-    e.storage()
-        .instance()
-        .get::<DataKey, i128>(&key)
-        .unwrap_or(0_i128)
-}
-
-// Write Total Weight
-pub fn write_total_weight(e: &Env, d: i128) {
-    let key = DataKey::TotalWeight;
-    e.storage().instance().set(&key, &d)
-}
-
 // Read Total Shares
 pub fn get_total_shares(e: &Env) -> i128 {
-    e.storage().persistent().extend_ttl(
-        &DataKey::TotalShares,
-        SHARED_LIFETIME_THRESHOLD,
-        SHARED_BUMP_AMOUNT,
-    );
-    e.storage()
-        .persistent()
-        .get::<DataKey, i128>(&DataKey::TotalShares)
-        .unwrap_optimized()
+    let key = DataKey::TotalShares;
+    if let Some(supply) = e.storage().persistent().get::<DataKey, i128>(&key) {
+        e.storage()
+            .persistent()
+            .extend_ttl(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        supply
+    } else {
+        0
+    }
 }
 
 // Update Total Shares
