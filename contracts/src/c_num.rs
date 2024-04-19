@@ -1,56 +1,13 @@
 //! Comet Pool Arithmetic Primitives
 
 use c_consts::BONE;
-use soroban_fixed_point_math::{FixedPoint, SorobanFixedPoint};
+use soroban_fixed_point_math::SorobanFixedPoint;
 use soroban_sdk::{assert_with_error, unwrap::UnwrapOptimized, Env, I256};
 
 use crate::{
     c_consts::{self, CPOW_PRECISION, MAX_CPOW_BASE, MIN_CPOW_BASE},
     c_pool::error::Error,
 };
-
-// Add 2 numbers
-pub fn c_add(a: i128, b: i128) -> Result<i128, Error> {
-    let c = a.checked_add(b);
-    match c {
-        Some(val) => Ok(val),
-        None => Err(Error::ErrAddOverflow),
-    }
-}
-
-// Subtract 2 numbers
-pub fn c_sub(a: i128, b: i128) -> Result<i128, Error> {
-    let (c, flag) = c_sub_sign(a, b);
-    if flag {
-        return Err(Error::ErrSubUnderflow);
-    }
-    Ok(c)
-}
-
-// Determine the sign of the input numbers
-pub fn c_sub_sign(a: i128, b: i128) -> (i128, bool) {
-    if a >= b {
-        (a.checked_sub(b).unwrap_optimized(), false)
-    } else {
-        (b.checked_sub(a).unwrap_optimized(), true)
-    }
-}
-
-// Multiply 2 numbers
-pub fn c_mul(a: i128, b: i128) -> Result<i128, Error> {
-    match a.fixed_mul_floor(b, BONE) {
-        Some(val) => Ok(val),
-        None => Err(Error::ErrMulOverflow),
-    }
-}
-
-// Divide 2 numbers
-pub fn c_div(a: i128, b: i128) -> Result<i128, Error> {
-    match a.fixed_div_floor(b, BONE) {
-        Some(val) => Ok(val),
-        None => Err(Error::ErrDivInternal),
-    }
-}
 
 /// Perform a - b, or panic if a < b
 pub fn sub_no_negative(e: &Env, a: &I256, b: &I256) -> I256 {

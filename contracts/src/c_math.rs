@@ -126,7 +126,11 @@ pub fn calc_lp_token_amount_given_token_deposits_in(
     let pool_ratio = c_pow(e, &balance_ratio, &normalized_weight, false);
     let new_pool_supply = pool_ratio.fixed_mul_floor(&e, &pool_supply, &bone);
 
-    downscale_floor(e, &sub_no_negative(e, &new_pool_supply, &pool_supply), STROOP_SCALAR)
+    downscale_floor(
+        e,
+        &sub_no_negative(e, &new_pool_supply, &pool_supply),
+        STROOP_SCALAR,
+    )
 }
 
 /// Calculates the amount of deposited tokens required by pool,
@@ -221,7 +225,8 @@ pub fn calc_token_withdrawal_amount_given_lp_token_amount(
     let token_out_ratio = c_pow(e, &pool_ratio, &exp, false);
     let new_token_balance_out = token_balance_out.fixed_mul_floor(&e, &token_out_ratio, &bone);
 
-    let token_amount_out_before_fee = sub_no_negative(e, &token_balance_out, &new_token_balance_out);
+    let token_amount_out_before_fee =
+        sub_no_negative(e, &token_balance_out, &new_token_balance_out);
 
     let zaz = bone.sub(&normalized_weight).fixed_mul_floor(e, &fee, &bone);
     let result = token_amount_out_before_fee.fixed_mul_floor(&e, &bone.sub(&zaz), &bone);
