@@ -52,6 +52,12 @@ pub fn c_div(a: i128, b: i128) -> Result<i128, Error> {
     }
 }
 
+/// Perform a - b, or panic if a < b
+pub fn sub_no_negative(e: &Env, a: &I256, b: &I256) -> I256 {
+    assert_with_error!(e, a >= b, Error::ErrSubUnderflow);
+    a.sub(&b)
+}
+
 /// Calculate base^exp where base and exp are fixed point numbers with 18 decimals.
 ///
 /// Approximates the result such that:

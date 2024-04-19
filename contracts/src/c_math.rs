@@ -4,7 +4,7 @@ use soroban_sdk::{assert_with_error, unwrap::UnwrapOptimized, Env, I256};
 
 use crate::{
     c_consts::{BONE, STROOP, STROOP_SCALAR},
-    c_num::c_pow,
+    c_num::{c_pow, sub_no_negative},
     c_pool::{error::Error, storage_types::Record},
 };
 
@@ -57,7 +57,7 @@ pub fn calc_token_out_given_token_in(
 
     let base = token_balance_in.fixed_div_floor(&e, &token_balance_in.add(&adjusted_in), &bone);
     let power = c_pow(e, &base, &weight_ratio, true);
-    let balance_ratio = bone.sub(&power);
+    let balance_ratio = sub_no_negative(e, &bone, &power);
     let result = token_balance_out.fixed_mul_floor(&e, &balance_ratio, &bone);
 
     downscale_floor(e, &result, out_record.scalar)
@@ -92,7 +92,7 @@ pub fn calc_token_in_given_token_out(
     let base =
         token_balance_out.fixed_div_ceil(&e, &token_balance_out.sub(&token_amount_out), &bone);
     let power = c_pow(e, &base, &weight_ratio, true);
-    let balance_ratio = power.sub(&bone);
+    let balance_ratio = sub_no_negative(e, &power, &bone);
 
     let token_amount_in = token_balance_in.fixed_mul_ceil(&e, &balance_ratio, &bone);
     let adjusted_in = token_amount_in.fixed_div_ceil(&e, &fee_adjust_ratio, &bone);
@@ -134,7 +134,7 @@ pub fn calc_lp_token_amount_given_token_deposits_in(
     let pool_ratio = c_pow(e, &balance_ratio, &normalized_weight, false);
     let new_pool_supply = pool_ratio.fixed_mul_floor(&e, &pool_supply, &bone);
 
-    downscale_floor(e, &new_pool_supply.sub(&pool_supply), STROOP_SCALAR)
+    downscale_floor(e, &sub_no_negative(e, &new_pool_supply, &pool_supply), STROOP_SCALAR)
 }
 
 /// Calculates the amount of deposited tokens required by pool,
@@ -171,7 +171,7 @@ pub fn calc_token_deposits_in_given_lp_token_amount(
     let token_in_ratio = c_pow(e, &pool_ratio, &boo, false);
     let new_token_balance_in = token_balance_in.fixed_mul_ceil(&e, &token_in_ratio, &bone);
 
-    let token_amount_in_after_fee = new_token_balance_in.sub(&token_balance_in);
+    let token_amount_in_after_fee = sub_no_negative(e, &new_token_balance_in, &token_balance_in);
     let zar = bone.sub(&normalized_weight).fixed_mul_floor(e, &fee, &bone);
     let result = token_amount_in_after_fee.fixed_div_ceil(&e, &bone.sub(&zar), &bone);
 
@@ -214,7 +214,7 @@ pub fn calc_lp_token_amount_given_token_withdrawal_amount(
 
     let pool_ratio = c_pow(e, &balance_ratio, &normalized_weight, true);
     let new_pool_supply = pool_ratio.fixed_mul_ceil(&e, &pool_supply, &bone);
-    let result = pool_supply.sub(&new_pool_supply);
+    let result = sub_no_negative(&e, &pool_supply, &new_pool_supply);
 
     downscale_ceil(e, &result, STROOP_SCALAR)
 }
@@ -253,7 +253,7 @@ pub fn calc_token_withdrawal_amount_given_lp_token_amount(
     let token_out_ratio = c_pow(e, &pool_ratio, &exp, false);
     let new_token_balance_out = token_balance_out.fixed_mul_floor(&e, &token_out_ratio, &bone);
 
-    let token_amount_out_before_fee = token_balance_out.sub(&new_token_balance_out);
+    let token_amount_out_before_fee = sub_no_negative(e, &token_balance_out, &new_token_balance_out);
 
     let zaz = bone.sub(&normalized_weight).fixed_mul_floor(e, &fee, &bone);
     let result = token_amount_out_before_fee.fixed_mul_floor(&e, &bone.sub(&zaz), &bone);
