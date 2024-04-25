@@ -5,7 +5,7 @@ use std::vec::Vec as std_Vec;
 
 use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
 use soroban_fixed_point_math::FixedPoint;
-use soroban_sdk::{testutils::Address as _, token::TokenClient, Address, Env, String, Vec};
+use soroban_sdk::{token::TokenClient, Address, Env, String, Vec};
 
 use crate::{
     c_consts::STROOP,
@@ -26,12 +26,7 @@ pub fn create_comet_pool(
     let contract_id = env.register_contract(None, CometPoolContract);
     let client = CometPoolContractClient::new(&env, &contract_id);
 
-    client.init(&Address::generate(&env), &controller);
-    client.bundle_bind(tokens, balances, weights);
-
-    client.set_swap_fee(&swap_fee, &controller);
-    client.set_public_swap(&controller, &true);
-    client.finalize();
+    client.init(&controller, &tokens, &weights, &balances, &swap_fee);
     contract_id
 }
 

@@ -15,11 +15,11 @@ pub fn calc_spot_price(in_record: &Record, out_record: &Record, swap_fee: i128) 
     // don't upscale to preserve "token in" / "token out" precision
     let numer = in_record
         .balance
-        .fixed_div_floor(in_record.denorm, STROOP)
+        .fixed_div_floor(in_record.weight, STROOP)
         .unwrap_optimized();
     let denom = out_record
         .balance
-        .fixed_div_floor(out_record.denorm, STROOP)
+        .fixed_div_floor(out_record.weight, STROOP)
         .unwrap_optimized();
     let ratio = numer.fixed_div_floor(denom, STROOP).unwrap_optimized();
     ratio
@@ -47,8 +47,8 @@ pub fn calc_token_out_given_token_in(
     let weight_ratio = upscale(
         e,
         in_record
-            .denorm
-            .fixed_div_floor(out_record.denorm, STROOP)
+            .weight
+            .fixed_div_floor(out_record.weight, STROOP)
             .unwrap_optimized(),
         STROOP_SCALAR,
     );
@@ -83,8 +83,8 @@ pub fn calc_token_in_given_token_out(
     let weight_ratio = upscale(
         e,
         out_record
-            .denorm
-            .fixed_div_ceil(in_record.denorm, STROOP)
+            .weight
+            .fixed_div_ceil(in_record.weight, STROOP)
             .unwrap_optimized(),
         STROOP_SCALAR,
     );
@@ -107,7 +107,6 @@ pub fn calc_lp_token_amount_given_token_deposits_in(
     e: &Env,
     in_record: &Record,
     pool_supply: i128,
-    total_weight: i128,
     token_amount_in: i128,
     swap_fee: i128,
 ) -> i128 {
@@ -117,14 +116,7 @@ pub fn calc_lp_token_amount_given_token_deposits_in(
     let pool_supply = upscale(e, pool_supply, STROOP_SCALAR);
     let fee = upscale(e, swap_fee, STROOP_SCALAR);
 
-    let normalized_weight = upscale(
-        e,
-        in_record
-            .denorm
-            .fixed_div_floor(total_weight, STROOP)
-            .unwrap_optimized(),
-        STROOP_SCALAR,
-    );
+    let normalized_weight = upscale(e, in_record.weight, STROOP_SCALAR);
     let zaz = bone.sub(&normalized_weight).fixed_mul_floor(e, &fee, &bone);
     let token_amount_in_after_fee = token_amount_in.fixed_mul_floor(&e, &bone.sub(&zaz), &bone);
 
@@ -134,7 +126,11 @@ pub fn calc_lp_token_amount_given_token_deposits_in(
     let pool_ratio = c_pow(e, &balance_ratio, &normalized_weight, false);
     let new_pool_supply = pool_ratio.fixed_mul_floor(&e, &pool_supply, &bone);
 
-    downscale_floor(e, &sub_no_negative(e, &new_pool_supply, &pool_supply), STROOP_SCALAR)
+    downscale_floor(
+        e,
+        &sub_no_negative(e, &new_pool_supply, &pool_supply),
+        STROOP_SCALAR,
+    )
 }
 
 /// Calculates the amount of deposited tokens required by pool,
@@ -145,7 +141,6 @@ pub fn calc_token_deposits_in_given_lp_token_amount(
     e: &Env,
     in_record: &Record,
     pool_supply: i128,
-    total_weight: i128,
     pool_amount_out: i128,
     swap_fee: i128,
 ) -> i128 {
@@ -155,14 +150,7 @@ pub fn calc_token_deposits_in_given_lp_token_amount(
     let pool_supply = upscale(e, pool_supply, STROOP_SCALAR);
     let fee = upscale(e, swap_fee, STROOP_SCALAR);
 
-    let normalized_weight = upscale(
-        e,
-        in_record
-            .denorm
-            .fixed_div_ceil(total_weight, STROOP)
-            .unwrap_optimized(),
-        STROOP_SCALAR,
-    );
+    let normalized_weight = upscale(e, in_record.weight, STROOP_SCALAR);
 
     let new_pool_supply = pool_supply.add(&pool_amount_out);
     let pool_ratio = new_pool_supply.fixed_div_ceil(&e, &pool_supply, &bone);
@@ -186,7 +174,6 @@ pub fn calc_lp_token_amount_given_token_withdrawal_amount(
     e: &Env,
     out_record: &Record,
     pool_supply: i128,
-    total_weight: i128,
     token_amount_out: i128,
     swap_fee: i128,
 ) -> i128 {
@@ -196,14 +183,7 @@ pub fn calc_lp_token_amount_given_token_withdrawal_amount(
     let pool_supply = upscale(e, pool_supply, STROOP_SCALAR);
     let fee = upscale(e, swap_fee, STROOP_SCALAR);
 
-    let normalized_weight = upscale(
-        e,
-        out_record
-            .denorm
-            .fixed_div_ceil(total_weight, STROOP)
-            .unwrap_optimized(),
-        STROOP_SCALAR,
-    );
+    let normalized_weight = upscale(e, out_record.weight, STROOP_SCALAR);
 
     let zoo = bone.sub(&normalized_weight);
     let zar = zoo.fixed_mul_floor(e, &fee, &bone);
@@ -227,7 +207,6 @@ pub fn calc_token_withdrawal_amount_given_lp_token_amount(
     e: &Env,
     out_record: &Record,
     pool_supply: i128,
-    total_weight: i128,
     pool_amount_in: i128,
     swap_fee: i128,
 ) -> i128 {
@@ -237,14 +216,7 @@ pub fn calc_token_withdrawal_amount_given_lp_token_amount(
     let pool_supply = upscale(e, pool_supply, STROOP_SCALAR);
     let fee = upscale(e, swap_fee, STROOP_SCALAR);
 
-    let normalized_weight = upscale(
-        e,
-        out_record
-            .denorm
-            .fixed_div_floor(total_weight, STROOP)
-            .unwrap_optimized(),
-        STROOP_SCALAR,
-    );
+    let normalized_weight = upscale(e, out_record.weight, STROOP_SCALAR);
 
     let new_pool_supply = pool_supply.sub(&pool_amount_in);
     let pool_ratio = new_pool_supply.fixed_div_floor(&e, &pool_supply, &bone);
@@ -253,7 +225,8 @@ pub fn calc_token_withdrawal_amount_given_lp_token_amount(
     let token_out_ratio = c_pow(e, &pool_ratio, &exp, false);
     let new_token_balance_out = token_balance_out.fixed_mul_floor(&e, &token_out_ratio, &bone);
 
-    let token_amount_out_before_fee = sub_no_negative(e, &token_balance_out, &new_token_balance_out);
+    let token_amount_out_before_fee =
+        sub_no_negative(e, &token_balance_out, &new_token_balance_out);
 
     let zaz = bone.sub(&normalized_weight).fixed_mul_floor(e, &fee, &bone);
     let result = token_amount_out_before_fee.fixed_mul_floor(&e, &bone.sub(&zaz), &bone);
@@ -388,17 +361,15 @@ mod tests {
         // price: 1.94 in to 1 out
         let record_1 = Record {
             balance: 5 * STROOP,
-            denorm: 3 * STROOP,
+            weight: 3 * STROOP / 10,
             scalar: STROOP_SCALAR,
             index: 0,
-            bound: true,
         };
         let record_2 = Record {
             balance: 6 * STROOP,
-            denorm: 7 * STROOP,
+            weight: 7 * STROOP / 10,
             scalar: STROOP_SCALAR,
             index: 0,
-            bound: true,
         };
 
         // swap
@@ -431,84 +402,40 @@ mod tests {
         assert_eq!(result, 1);
 
         // deposit
-        let result = calc_lp_token_amount_given_token_deposits_in(
-            &env,
-            &record_1,
-            supply,
-            10 * STROOP,
-            1,
-            swap_fee,
-        );
+        let result =
+            calc_lp_token_amount_given_token_deposits_in(&env, &record_1, supply, 1, swap_fee);
         assert_eq!(result, 0);
 
-        let result = calc_token_deposits_in_given_lp_token_amount(
-            &env,
-            &record_1,
-            supply,
-            10 * STROOP,
-            1,
-            swap_fee,
-        );
+        let result =
+            calc_token_deposits_in_given_lp_token_amount(&env, &record_1, supply, 1, swap_fee);
         assert_eq!(result, 4);
 
-        let result = calc_lp_token_amount_given_token_deposits_in(
-            &env,
-            &record_2,
-            supply,
-            10 * STROOP,
-            1,
-            swap_fee,
-        );
+        let result =
+            calc_lp_token_amount_given_token_deposits_in(&env, &record_2, supply, 1, swap_fee);
         assert_eq!(result, 0);
 
-        let result = calc_token_deposits_in_given_lp_token_amount(
-            &env,
-            &record_2,
-            supply,
-            10 * STROOP,
-            1,
-            swap_fee,
-        );
+        let result =
+            calc_token_deposits_in_given_lp_token_amount(&env, &record_2, supply, 1, swap_fee);
         assert_eq!(result, 2);
 
         // withdraw
         let result = calc_lp_token_amount_given_token_withdrawal_amount(
-            &env,
-            &record_1,
-            supply,
-            10 * STROOP,
-            1,
-            swap_fee,
+            &env, &record_1, supply, 1, swap_fee,
         );
         assert_eq!(result, 1);
 
         let result = calc_token_withdrawal_amount_given_lp_token_amount(
-            &env,
-            &record_1,
-            supply,
-            10 * STROOP,
-            1,
-            swap_fee,
+            &env, &record_1, supply, 1, swap_fee,
         );
         assert_eq!(result, 3);
 
         let result = calc_lp_token_amount_given_token_withdrawal_amount(
-            &env,
-            &record_2,
-            supply,
-            10 * STROOP,
-            1,
-            swap_fee,
+            &env, &record_2, supply, 1, swap_fee,
         );
         assert_eq!(result, 1);
 
         let result = calc_token_withdrawal_amount_given_lp_token_amount(
-            &env,
-            &record_2,
-            supply,
-            10 * STROOP,
-            1,
-            swap_fee,
+            &env, &record_2, supply, 1, swap_fee,
         );
         assert_eq!(result, 1);
     }

@@ -36,7 +36,7 @@ fn test_single_sided_dep() {
     let token_1_client = MockTokenClient::new(&env, &token_1);
     let token_2_client = MockTokenClient::new(&env, &token_2);
     let balances: Vec<i128> = vec![&env, 100 * STROOP, 50 * STROOP];
-    let weights: Vec<i128> = vec![&env, 8 * STROOP, 2 * STROOP];
+    let weights: Vec<i128> = vec![&env, 8 * STROOP / 10, 2 * STROOP / 10];
     token_1_client.mint(&admin, &balances.get_unchecked(0));
     token_2_client.mint(&admin, &balances.get_unchecked(1));
     let starting_bal: i128 = 100_000 * STROOP;
@@ -247,7 +247,7 @@ fn test_single_sided_wdr() {
     let token_1_client = MockTokenClient::new(&env, &token_1);
     let token_2_client = MockTokenClient::new(&env, &token_2);
     let balances: Vec<i128> = vec![&env, 100 * STROOP, 50 * STROOP];
-    let weights: Vec<i128> = vec![&env, 6 * STROOP, 4 * STROOP];
+    let weights: Vec<i128> = vec![&env, 6 * STROOP / 10, 4 * STROOP / 10];
     token_1_client.mint(&admin, &balances.get_unchecked(0));
     token_2_client.mint(&admin, &balances.get_unchecked(1));
     let starting_bal: i128 = 100_000 * STROOP;
@@ -468,7 +468,7 @@ fn test_single_sided_deposit_large_price() {
     let token_1_client = MockTokenClient::new(&env, &token_1);
     let token_2_client = MockTokenClient::new(&env, &token_2);
     let balances: Vec<i128> = vec![&env, 100 * STROOP, 99_999_999 * STROOP];
-    let weights: Vec<i128> = vec![&env, 2 * STROOP, 8 * STROOP];
+    let weights: Vec<i128> = vec![&env, 2 * STROOP / 10, 8 * STROOP / 10];
     token_1_client.mint(&admin, &balances.get_unchecked(0));
     token_2_client.mint(&admin, &balances.get_unchecked(1));
     let starting_bal: i128 = 100_000_000_000 * STROOP;
@@ -542,7 +542,7 @@ fn test_single_sided_withdraw_large_price() {
     let token_1_client = MockTokenClient::new(&env, &token_1);
     let token_2_client = MockTokenClient::new(&env, &token_2);
     let balances: Vec<i128> = vec![&env, 100 * STROOP, 99_999_999 * STROOP];
-    let weights: Vec<i128> = vec![&env, 2 * STROOP, 8 * STROOP];
+    let weights: Vec<i128> = vec![&env, 2 * STROOP / 10, 8 * STROOP / 10];
     token_1_client.mint(&admin, &balances.get_unchecked(0));
     token_2_client.mint(&admin, &balances.get_unchecked(1));
     let starting_bal: i128 = 100_000_000_000 * STROOP;
