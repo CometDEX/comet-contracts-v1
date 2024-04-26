@@ -69,7 +69,16 @@ fn test_swap_out_given_in() {
     assert_eq!(
         result.err(),
         Some(Ok(Error::from_contract_error(
-            CometError::ErrNegative as u32
+            CometError::ErrNegativeOrZero as u32
+        )))
+    );
+
+    // verify zero input
+    let result = comet.try_swap_exact_amount_in(&token_1, &0, &token_2, &0, &i128::MAX, &user);
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrNegativeOrZero as u32
         )))
     );
 
@@ -228,7 +237,24 @@ fn test_swap_in_given_out() {
     assert_eq!(
         result.err(),
         Some(Ok(Error::from_contract_error(
-            CometError::ErrNegative as u32
+            CometError::ErrNegativeOrZero as u32
+        )))
+    );
+
+    // verify zero input
+    let result =
+        comet.try_swap_exact_amount_out(&token_2, &i128::MAX, &token_1, &0, &i128::MAX, &user);
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrNegativeOrZero as u32
+        )))
+    );
+    let result = comet.try_swap_exact_amount_out(&token_2, &0, &token_1, &1, &i128::MAX, &user);
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrNegativeOrZero as u32
         )))
     );
 

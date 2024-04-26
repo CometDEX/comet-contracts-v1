@@ -119,7 +119,7 @@ pub fn execute_swap_exact_amount_in(
     user: Address,
 ) -> (i128, i128) {
     assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
-    assert_with_error!(&e, token_amount_in >= 0, Error::ErrNegative);
+    assert_with_error!(&e, token_amount_in > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, min_amount_out >= 0, Error::ErrNegative);
     assert_with_error!(&e, max_price >= 0, Error::ErrNegative);
 
@@ -217,8 +217,8 @@ pub fn execute_swap_exact_amount_out(
     user: Address,
 ) -> (i128, i128) {
     assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
-    assert_with_error!(&e, token_amount_out >= 0, Error::ErrNegative);
-    assert_with_error!(&e, max_amount_in >= 0, Error::ErrNegative);
+    assert_with_error!(&e, token_amount_out > 0, Error::ErrNegativeOrZero);
+    assert_with_error!(&e, max_amount_in > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, max_price >= 0, Error::ErrNegative);
 
     let swap_fee = read_swap_fee(&e);
