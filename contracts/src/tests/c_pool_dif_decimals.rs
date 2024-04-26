@@ -1,24 +1,13 @@
 #![cfg(test)]
 
-use std::dbg;
 use std::println;
 extern crate std;
-use crate::c_consts::BONE;
-use crate::c_pool::comet::CometPoolContract;
 use crate::c_pool::comet::CometPoolContractClient;
-use crate::c_pool::error::Error;
-use soroban_sdk::token;
-use soroban_sdk::xdr::AccountId;
-use soroban_sdk::String;
-// use soroban_sdk::xdr::ScStatusType;
+use crate::tests::utils::create_comet_pool;
 use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
-use soroban_sdk::Bytes;
-use soroban_sdk::{testutils::Address as _, Address, IntoVal};
-use soroban_sdk::{vec, BytesN, Env, Symbol};
-
-fn create_token_contract<'a>(e: &'a Env, admin: &'a soroban_sdk::Address) -> token::Client<'a> {
-    token::Client::new(&e, &e.register_stellar_asset_contract(admin.clone()))
-}
+use soroban_sdk::String;
+use soroban_sdk::{testutils::Address as _, Address};
+use soroban_sdk::{vec, Env};
 
 fn create_and_init_token_contract<'a>(
     env: &'a Env,
@@ -38,13 +27,6 @@ fn create_and_init_token_contract<'a>(
     client
 }
 
-// fn install_token_wasm(e: &Env) -> BytesN<32> {
-//     soroban_sdk::contractimport!(
-//         file = "../target/wasm32-unknown-unknown/release/soroban_token_contract.wasm"
-//     );
-//     e.install_contract_wasm(WASM)
-// }
-
 fn to_stroop<T: Into<f64>>(a: T) -> i128 {
     (a.into() * 1e7) as i128
 }
@@ -57,30 +39,21 @@ fn test_pool_functions_different_decimals() {
     let env: Env = Env::default();
     env.mock_all_auths();
     let admin = soroban_sdk::Address::generate(&env);
-    let user1 = soroban_sdk::Address::generate(&env);
-    let user2 = soroban_sdk::Address::generate(&env);
-    let contract_id = env.register_contract(None, CometPoolContract);
-    let client = CometPoolContractClient::new(&env, &contract_id);
-    let factory = admin.clone();
-    let controller_arg = factory.clone();
-    client.init(&factory, &controller_arg);
+
     env.budget().reset_unlimited();
 
     // Create Admin
-    let mut admin1 = soroban_sdk::Address::generate(&env);
+    let admin1 = soroban_sdk::Address::generate(&env);
 
     // Create 4 tokens
-    let mut token1: MockTokenClient<'_> =
+    let token1: MockTokenClient<'_> =
         create_and_init_token_contract(&env, &admin1, &5, "NebulaCoin", "NBC");
-    let mut token2: MockTokenClient<'_> =
+    let token2: MockTokenClient<'_> =
         create_and_init_token_contract(&env, &admin1, &7, "StroopCoin", "STRP");
 
-    // let mut token1 = create_token_contract(&env, &admin1);
-    // let mut token2 = create_token_contract(&env, &admin1);
-
     // Create 2 users
-    let mut user1 = soroban_sdk::Address::generate(&env);
-    let mut user2 = soroban_sdk::Address::generate(&env);
+    let user1 = soroban_sdk::Address::generate(&env);
+    let user2 = soroban_sdk::Address::generate(&env);
 
     token1.mint(&admin1, &to_six_dec(50));
     token2.mint(&admin1, &to_stroop(20));
@@ -99,37 +72,18 @@ fn test_pool_functions_different_decimals() {
     token1.mint(&user2, &to_six_dec(12));
     token2.mint(&user2, &to_stroop(5));
 
-    let controller = client.get_controller();
-    assert_eq!(controller, admin);
-    let num_tokens = client.get_tokens();
-    assert_eq!(num_tokens.len(), 0);
+    let tokens = vec![&env, token1.address.clone(), token2.address.clone()];
+    let weights = vec![&env, 5000000, 5000000];
+    let balances = vec![&env, to_six_dec(50), to_stroop(20)];
+    let contract_id =
+        create_comet_pool(&env, &admin, &tokens, &weights, &balances, to_stroop(0.003));
+    let client = CometPoolContractClient::new(&env, &contract_id);
 
-    let contract_address = contract_id;
-    // token1.approve(&admin, &contract_address, &i128::MAX, &200);
-    // token2.approve(&admin, &contract_address, &i128::MAX, &200);
+    token1.approve(&user1, &contract_id, &i128::MAX, &200);
+    token2.approve(&user1, &contract_id, &i128::MAX, &200);
 
-    // client.bind(&token1.address, &to_six_dec(50), &to_stroop(5), &admin);
-    // client.bind(&token2.address, &to_stroop(20), &to_stroop(5), &admin);
-
-    client.bundle_bind(
-        &vec![&env, token1.address.clone(), token2.address.clone()],
-        &vec![&env, to_six_dec(50), to_stroop(20)],
-        &vec![&env, to_stroop(5), to_stroop(5)],
-    );
-
-    dbg!("Checking the Authorization for Bundle Bindc");
-    dbg!(env.auths());
-
-    client.set_swap_fee(&to_stroop(0.003), &controller);
-    let swap_fee = client.get_swap_fee();
-    assert_eq!(swap_fee, to_stroop(0.003));
-    client.finalize();
-
-    token1.approve(&user1, &contract_address, &i128::MAX, &200);
-    token2.approve(&user1, &contract_address, &i128::MAX, &200);
-
-    token1.approve(&user2, &contract_address, &i128::MAX, &200);
-    token2.approve(&user2, &contract_address, &i128::MAX, &200);
+    token1.approve(&user2, &contract_id, &i128::MAX, &200);
+    token2.approve(&user2, &contract_id, &i128::MAX, &200);
 
     println!("Token Balance of User1 before = {}", token1.balance(&user2));
 

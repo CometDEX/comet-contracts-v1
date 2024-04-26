@@ -1,22 +1,21 @@
 //! Utilities to read and write contract's storage
 
 use crate::c_pool::storage_types::DataKey;
-use soroban_sdk::{unwrap::UnwrapOptimized, vec, Address, Bytes, BytesN, Env, Map, String, Vec};
+use soroban_sdk::{unwrap::UnwrapOptimized, Address, Env, Map, String, Vec};
 use soroban_token_sdk::{metadata::TokenMetadata, TokenUtils};
 
-use super::storage_types::{DataKeyToken, Record, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD};
+use super::storage_types::{Record, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD};
 
 // Read all Token Addresses in the pool
 pub fn read_tokens(e: &Env) -> Vec<Address> {
     let key = DataKey::AllTokenVec;
-    if let Some(arr) = e.storage().persistent().get::<DataKey, Vec<Address>>(&key) {
-        e.storage()
-            .persistent()
-            .extend_ttl(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
-        arr
-    } else {
-        vec![e]
-    }
+    e.storage()
+        .persistent()
+        .extend_ttl(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+    e.storage()
+        .persistent()
+        .get::<DataKey, Vec<Address>>(&key)
+        .unwrap_optimized()
 }
 
 // Write All Tokens Addresses to the Vector
@@ -31,20 +30,13 @@ pub fn write_tokens(e: &Env, new: Vec<Address>) {
 // Read Record
 pub fn read_record(e: &Env) -> Map<Address, Record> {
     let key_rec = DataKey::AllRecordData;
-    if let Some(rec) = e
-        .storage()
+    e.storage()
+        .persistent()
+        .extend_ttl(&key_rec, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+    e.storage()
         .persistent()
         .get::<DataKey, Map<Address, Record>>(&key_rec)
-    {
-        e.storage().persistent().extend_ttl(
-            &key_rec,
-            SHARED_LIFETIME_THRESHOLD,
-            SHARED_BUMP_AMOUNT,
-        );
-        rec
-    } else {
-        Map::<Address, Record>::new(e)
-    }
+        .unwrap_optimized()
 }
 
 // Write Record
@@ -71,16 +63,11 @@ pub fn write_factory(e: &Env, d: Address) {
     e.storage().instance().set(&key, &d)
 }
 
-// TODO: Tests fail during bundle_bind on second `controller.require_auth` call during
-//       rebind when set to instance storage. Setting to persistent storage as workaround.
 // Read Controller
 pub fn read_controller(e: &Env) -> Address {
     let key = DataKey::Controller;
     e.storage()
-        .persistent()
-        .extend_ttl(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
-    e.storage()
-        .persistent()
+        .instance()
         .get::<DataKey, Address>(&key)
         .unwrap_optimized()
 }
@@ -88,10 +75,7 @@ pub fn read_controller(e: &Env) -> Address {
 // Write Controller
 pub fn write_controller(e: &Env, d: Address) {
     let key = DataKey::Controller;
-    e.storage().persistent().set(&key, &d);
-    e.storage()
-        .persistent()
-        .extend_ttl(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+    e.storage().instance().set(&key, &d);
 }
 
 // Read Swap Fee
@@ -109,32 +93,17 @@ pub fn write_swap_fee(e: &Env, d: i128) {
     e.storage().instance().set(&key, &d)
 }
 
-// Read Total Weight
-pub fn read_total_weight(e: &Env) -> i128 {
-    let key = DataKey::TotalWeight;
-    e.storage()
-        .instance()
-        .get::<DataKey, i128>(&DataKey::TotalWeight)
-        .unwrap_or(0_i128)
-}
-
-// Write Total Weight
-pub fn write_total_weight(e: &Env, d: i128) {
-    let key = DataKey::TotalWeight;
-    e.storage().instance().set(&key, &d)
-}
-
 // Read Total Shares
 pub fn get_total_shares(e: &Env) -> i128 {
-    e.storage().persistent().extend_ttl(
-        &DataKey::TotalShares,
-        SHARED_LIFETIME_THRESHOLD,
-        SHARED_BUMP_AMOUNT,
-    );
-    e.storage()
-        .persistent()
-        .get::<DataKey, i128>(&DataKey::TotalShares)
-        .unwrap_optimized()
+    let key = DataKey::TotalShares;
+    if let Some(supply) = e.storage().persistent().get::<DataKey, i128>(&key) {
+        e.storage()
+            .persistent()
+            .extend_ttl(&key, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        supply
+    } else {
+        0
+    }
 }
 
 // Update Total Shares

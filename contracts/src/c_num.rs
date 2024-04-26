@@ -1,157 +1,119 @@
 //! Comet Pool Arithmetic Primitives
 
 use c_consts::BONE;
-use soroban_fixed_point_math::{FixedPoint, STROOP};
-use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Env};
+use soroban_fixed_point_math::SorobanFixedPoint;
+use soroban_sdk::{assert_with_error, unwrap::UnwrapOptimized, Env, I256};
 
 use crate::{
     c_consts::{self, CPOW_PRECISION, MAX_CPOW_BASE, MIN_CPOW_BASE},
     c_pool::error::Error,
 };
 
-// Divide by BONE
-fn c_toi(e: &Env, a: i128) -> i128 {
-    let c = a.checked_div(BONE);
-    match c {
-        Some(val) => val,
-        None => panic_with_error!(e, Error::ErrDivInternal),
-    }
+/// Perform a - b, or panic if a < b
+pub fn sub_no_negative(e: &Env, a: &I256, b: &I256) -> I256 {
+    assert_with_error!(e, a >= b, Error::ErrSubUnderflow);
+    a.sub(&b)
 }
 
-// Multiply by BONE after dividing by BONE
-fn c_floor(e: &Env, a: i128) -> i128 {
-    let c = c_toi(e, a).checked_mul(BONE);
-    match c {
-        Some(val) => val,
-        None => panic_with_error!(e, Error::ErrMulOverflow),
-    }
-}
+/// Calculate base^exp where base and exp are fixed point numbers with 18 decimals.
+///
+/// Approximates the result such that:
+/// -> base^(int exp) * approximate of base^(decimal exp)
+pub fn c_pow(e: &Env, base: &I256, exp: &I256, round_up: bool) -> I256 {
+    assert_with_error!(
+        e,
+        base >= &I256::from_i128(e, MIN_CPOW_BASE),
+        Error::ErrCPowBaseTooLow
+    );
+    assert_with_error!(
+        e,
+        base <= &I256::from_i128(e, MAX_CPOW_BASE),
+        Error::ErrCPowBaseTooHigh
+    );
 
-// Add 2 numbers
-pub fn c_add(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
-    let c = a.checked_add(b);
-    match c {
-        Some(val) => Ok(val),
-        None => Err(Error::ErrAddOverflow),
+    let bone = I256::from_i128(e, BONE);
+    let int = exp.div(&bone);
+    let remain = exp.sub(&int.mul(&bone));
+    let whole_pow = c_powi(e, &base, &(int.to_i128().unwrap_optimized() as u32));
+    if remain == I256::from_i128(e, 0) {
+        return whole_pow;
     }
-}
-
-// Subtract 2 numbers
-pub fn c_sub(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
-    let (c, flag) = c_sub_sign(a, b);
-    if flag {
-        return Err(Error::ErrSubUnderflow);
-    }
-    Ok(c)
-}
-
-// Determine the sign of the input numbers
-pub fn c_sub_sign(a: i128, b: i128) -> (i128, bool) {
-    if a >= b {
-        (a.checked_sub(b).unwrap_optimized(), false)
+    let partial_result = c_pow_approx(
+        e,
+        &base,
+        &remain,
+        &I256::from_i128(e, CPOW_PRECISION),
+        round_up,
+    );
+    if round_up {
+        whole_pow.fixed_mul_ceil(e, &partial_result, &bone)
     } else {
-        (b.checked_sub(a).unwrap_optimized(), true)
+        whole_pow.fixed_mul_floor(e, &partial_result, &bone)
     }
 }
 
-// Multiply 2 numbers
-pub fn c_mul(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
-    match a.fixed_mul_floor(b, BONE) {
-        Some(val) => Ok(val),
-        None => Err(Error::ErrMulOverflow),
-    }
-}
+// Calculate a^n where n is an integer
+fn c_powi(e: &Env, a: &I256, n: &u32) -> I256 {
+    let bone = I256::from_i128(e, BONE);
+    let mut z = if n % 2 != 0 { a.clone() } else { bone.clone() };
 
-// Divide 2 numbers
-pub fn c_div(e: &Env, a: i128, b: i128) -> Result<i128, Error> {
-    match a.fixed_div_floor(b, BONE) {
-        Some(val) => Ok(val),
-        None => Err(Error::ErrDivInternal),
-    }
-}
-
-// Calculate a^n
-pub fn c_powi(e: &Env, a: i128, n: i128) -> i128 {
-    let mut z = if n.checked_rem_euclid(2).unwrap_or(0) != 0 {
-        a
-    } else {
-        BONE
-    };
-
-    let mut a = a;
-    let mut n = n.checked_div(2).unwrap_optimized();
-
+    let mut a = a.clone();
+    let mut n = n / 2;
     while n != 0 {
-        a = c_mul(e, a, a).unwrap_optimized();
-
-        if n.checked_rem_euclid(2).unwrap_or(0) != 0 {
-            z = c_mul(e, z, a).unwrap_optimized();
+        a = a.fixed_mul_floor(e, &a, &bone);
+        if n % 2 != 0 {
+            z = z.fixed_mul_floor(e, &a, &bone);
         }
-
-        n = n.checked_div(2).unwrap_optimized();
+        n = n / 2
     }
-
     z
 }
 
-// Calculate Power of a Base Value
-pub fn c_pow(e: &Env, base: i128, exp: i128) -> Result<i128, Error> {
-    if base < MIN_CPOW_BASE {
-        return Err(Error::ErrCPowBaseTooLow);
-    }
-
-    if base > MAX_CPOW_BASE {
-        return Err(Error::ErrCPowBaseTooHigh);
-    }
-
-    let whole = c_floor(e, exp);
-
-    let remain = c_sub(e, exp, whole).unwrap_optimized();
-
-    let whole_pow = c_powi(e, base, c_toi(e, whole));
-
-    if remain == 0 {
-        return Ok(whole_pow);
-    }
-
-    let partial_result = c_pow_approx(e, base, remain, CPOW_PRECISION);
-    Ok(c_mul(e, whole_pow, partial_result).unwrap_optimized())
-}
-
 // Calculate approximate Power Value
-pub fn c_pow_approx(e: &Env, base: i128, exp: i128, precision: i128) -> i128 {
-    let a = exp;
-    let (x, xneg) = c_sub_sign(base, BONE);
-    let mut term = BONE;
-    let mut sum = term;
-    let mut negative = false;
-    let mut i: i128 = 1;
-    while term >= precision {
-        let big_k = i.checked_mul(BONE).unwrap_optimized();
-        let (c, cneg) = c_sub_sign(a, c_sub(e, big_k, BONE).unwrap_optimized());
-        term = c_mul(e, term, c_mul(e, c, x).unwrap_optimized()).unwrap_optimized();
-        term = c_div(e, term, big_k).unwrap_optimized();
+fn c_pow_approx(e: &Env, base: &I256, exp: &I256, precision: &I256, round_up: bool) -> I256 {
+    // term 0
+    let bone = I256::from_i128(e, BONE);
+    let zero = I256::from_i32(e, 0);
+    let n_1 = I256::from_i32(e, -1);
+    let x = base.sub(&bone);
+    let mut term = bone.clone();
+    let mut sum = term.clone();
+    let prec = precision.clone();
+    // Capped to limit iterations in the event of a poor approximation
+    // Max resource impact at 50 iterations:
+    //  -> CPU: 5M inst
+    //  -> Mem: 150 kB
+    for i in 1..51 {
+        let big_k = I256::from_i128(e, i * BONE);
+        let c = exp.sub(&big_k.sub(&bone));
+        term = term.fixed_mul_floor(e, &c.fixed_mul_floor(e, &x, &bone), &bone);
+        term = term.fixed_div_floor(e, &big_k, &bone);
+        sum = sum.add(&term);
 
-        if term == 0 {
+        let abs_term = if term < zero {
+            term.mul(&n_1)
+        } else {
+            term.clone()
+        };
+        if abs_term <= prec {
             break;
         }
-
-        if xneg {
-            negative = !negative;
-        }
-
-        if cneg {
-            negative = !negative;
-        }
-
-        if negative {
-            sum = c_sub(e, sum, term).unwrap_optimized();
-        } else {
-            sum = c_add(e, sum, term).unwrap_optimized();
-        }
-
-        i = i.checked_add(1).unwrap_optimized();
     }
-
+    // the series has predicatable approximations bounds, so we can adjust the final sum by
+    // the final term to (almost) ensure the sum is either an under or over estimate based
+    // on the rounding direction.
+    if x > zero {
+        // series will oscillate due to negative `c` values and a starting positive value.
+        if term > zero && !round_up {
+            // the final applied term was additive - the current sum is likely an overestimate
+            sum = sum.sub(&term);
+        } else if term < zero && round_up {
+            // the final applied term was subtractive - the current sum is likely an understimate
+            sum = sum.sub(&term);
+        }
+    } else if !round_up {
+        // series is monotonically decreasing, so the final term is an overestimate
+        sum = sum.add(&term);
+    }
     sum
 }

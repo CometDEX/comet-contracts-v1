@@ -9,7 +9,7 @@ pub enum Error {
     ErrMinFee = 3,
     ErrMaxFee = 4,
     ErrNotController = 5,
-    ErrNotFinalized = 6,
+    ErrInvalidVectorLen = 6,
     AlreadyInitialized = 7,
     ErrIsBound = 8,
     ErrNotBound = 9,
@@ -19,7 +19,7 @@ pub enum Error {
     ErrMinBalance = 13,
     ErrFreezeOnlyWithdrawals = 14,
     ErrMinTokens = 15,
-    ErrSwapNotPublic = 16,
+    ErrSwapFee = 16,
     ErrMaxInRatio = 17,
     ErrMathApprox = 18,
     ErrLimitIn = 19,
@@ -27,7 +27,7 @@ pub enum Error {
     ErrMaxOutRatio = 21,
     ErrBadLimitPrice = 22,
     ErrLimitPrice = 23,
-    ErrMaxTotalWeight = 24,
+    ErrTotalWeight = 24,
     ErrTokenAmountIsNegative = 25,
     ErrNotAuthorizedByAdmin = 26,
     ErrInsufficientAllowance = 27,
@@ -41,5 +41,5 @@ pub enum Error {
     ErrCPowBaseTooHigh = 35,
     ErrInvalidExpirationLedger = 36,
     ErrNegativeOrZero = 37,
-
+    ErrTokenInvalid = 38,
 }

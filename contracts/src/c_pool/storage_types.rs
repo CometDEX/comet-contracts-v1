@@ -1,19 +1,22 @@
 //! Declaration of the Storage Keys
-use soroban_sdk::{contracttype, Address, Map, Vec};
+use soroban_sdk::{contracttype, Address};
+
 pub(crate) const DAY_IN_LEDGERS: u32 = 17280;
-pub(crate) const SHARED_BUMP_AMOUNT: u32 = 69120; // 4 days
-pub(crate) const BALANCE_BUMP_AMOUNT: u32 = 518400; // 30 days
+
+pub(crate) const SHARED_BUMP_AMOUNT: u32 = 31 * DAY_IN_LEDGERS;
 pub(crate) const SHARED_LIFETIME_THRESHOLD: u32 = SHARED_BUMP_AMOUNT - DAY_IN_LEDGERS;
-pub(crate) const BALANCE_LIFETIME_THRESHOLD: u32 = BALANCE_BUMP_AMOUNT - DAY_IN_LEDGERS;
+
+pub(crate) const BALANCE_BUMP_AMOUNT: u32 = 120 * DAY_IN_LEDGERS;
+pub(crate) const BALANCE_LIFETIME_THRESHOLD: u32 = BALANCE_BUMP_AMOUNT - 20 * DAY_IN_LEDGERS;
 
 // Token Details Struct
 #[contracttype]
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Record {
-    pub bound: bool,
-    pub index: u32,
-    pub denorm: i128,
     pub balance: i128,
+    pub weight: i128,
+    pub scalar: i128,
+    pub index: u32,
 }
 
 // Data Keys for Pool' Storage Data
@@ -23,7 +26,6 @@ pub enum DataKey {
     Factory,       // Address of the Factory Contract
     Controller,    // Address of the Controller Account
     SwapFee,       // i128
-    TotalWeight,   // i128
     AllTokenVec,   // Vec<Address>
     AllRecordData, // Map<Address, Record>
     TokenShare,    // Address
