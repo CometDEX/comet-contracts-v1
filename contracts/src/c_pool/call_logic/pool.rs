@@ -136,7 +136,7 @@ pub fn execute_swap_exact_amount_in(
         token_amount_in
             <= in_record
                 .balance
-                .fixed_mul_ceil(MAX_IN_RATIO, STROOP)
+                .fixed_mul_floor(MAX_IN_RATIO, STROOP)
                 .unwrap_optimized(),
         Error::ErrMaxInRatio
     );
@@ -234,7 +234,7 @@ pub fn execute_swap_exact_amount_out(
         token_amount_out
             <= out_record
                 .balance
-                .fixed_mul_ceil(MAX_OUT_RATIO, STROOP)
+                .fixed_mul_floor(MAX_OUT_RATIO, STROOP)
                 .unwrap_optimized(),
         Error::ErrMaxOutRatio
     );
@@ -321,7 +321,7 @@ pub fn execute_dep_tokn_amt_in_get_lp_tokns_out(
         token_amount_in
             <= in_record
                 .balance
-                .fixed_mul_ceil(MAX_IN_RATIO, STROOP)
+                .fixed_mul_floor(MAX_IN_RATIO, STROOP)
                 .unwrap_optimized(),
         Error::ErrMaxInRatio
     );
@@ -392,7 +392,7 @@ pub fn execute_dep_lp_tokn_amt_out_get_tokn_in(
         token_amount_in
             <= in_record
                 .balance
-                .fixed_mul_ceil(MAX_IN_RATIO, STROOP)
+                .fixed_mul_floor(MAX_IN_RATIO, STROOP)
                 .unwrap_optimized(),
         Error::ErrMaxInRatio
     );
@@ -447,9 +447,9 @@ pub fn execute_wdr_tokn_amt_in_get_lp_tokns_out(
         token_amount_out
             <= out_record
                 .balance
-                .fixed_mul_ceil(MAX_OUT_RATIO, STROOP)
+                .fixed_mul_floor(MAX_OUT_RATIO, STROOP)
                 .unwrap_optimized(),
-        Error::ErrMaxInRatio
+        Error::ErrMaxOutRatio
     );
     assert_with_error!(
         &e,
@@ -495,7 +495,7 @@ pub fn execute_wdr_tokn_amt_out_get_lp_tokns_in(
         token_amount_out
             <= out_record
                 .balance
-                .fixed_mul_ceil(MAX_OUT_RATIO, STROOP)
+                .fixed_mul_floor(MAX_OUT_RATIO, STROOP)
                 .unwrap_optimized(),
         Error::ErrMaxOutRatio
     );
