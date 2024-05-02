@@ -9,7 +9,6 @@ jobs:
     with:
       release_name: ${{ github.ref_name }}
       release_description: 'Comet Factory Release'
-      relative_path: '["factory"]'
       package: 'factory'
     secrets:
       release_token: ${{ secrets.GITHUB_TOKEN }}
@@ -19,7 +18,6 @@ jobs:
     with:
       release_name: ${{ github.ref_name }}
       release_description: 'Comet Pool Release'
-      relative_path: '["contracts"]'
       package: 'contracts'
     secrets:
       release_token: ${{ secrets.GITHUB_TOKEN }}
