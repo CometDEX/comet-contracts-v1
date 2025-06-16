@@ -17,7 +17,7 @@ fn create_and_init_token_contract<'a>(
     name: &'a str,
     symbol: &'a str,
 ) -> MockTokenClient<'a> {
-    let token_id = env.register_contract_wasm(None, MockTokenWASM);
+    let token_id = env.register(MockTokenWASM, ());
     let client = MockTokenClient::new(&env, &token_id);
     client.initialize(
         &admin_id,
@@ -35,7 +35,7 @@ fn to_stroop<T: Into<f64>>(a: T) -> i128 {
 #[test]
 fn test_pool_functions() {
     let env: Env = Env::default();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
     env.mock_all_auths();
     let admin = soroban_sdk::Address::generate(&env);
     // Create Admin

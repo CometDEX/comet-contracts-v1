@@ -14,7 +14,7 @@ Smart Contracts explicitly written for Soroban.
 
 ## Create a WASM Release Build
 
-```cargo build --target wasm32-unknown-unknown --release```
+```cargo build --target wasm32v1-none --release```
 
 ## Best Practices Used
 

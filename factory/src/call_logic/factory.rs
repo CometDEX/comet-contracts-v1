@@ -46,7 +46,7 @@ pub fn execute_new_c_pool(
     let id = e
         .deployer()
         .with_current_contract(new_salt)
-        .deploy(wasm_hash);
+        .deploy_v2(wasm_hash, ());
 
     let init_args: Vec<Val> = vec![
         &e,

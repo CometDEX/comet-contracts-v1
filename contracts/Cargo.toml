@@ -4,6 +4,10 @@ description = "Comet Contracts"
 version = "1.0.0"
 edition = "2021"
 
+[features]
+testutils = []
+used_linker = []
+
 [lib]
 crate-type = ["cdylib"]
 

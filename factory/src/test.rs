@@ -7,29 +7,29 @@ use soroban_sdk::{testutils::Address as _, token::StellarAssetClient, vec, Addre
 
 // The contract that will be deployed by the deployer contract.
 mod contract {
-    soroban_sdk::contractimport!(file = "../target/wasm32-unknown-unknown/optimized/comet.wasm");
+    soroban_sdk::contractimport!(file = "../target/wasm32v1-none/optimized/comet.wasm");
 }
 
 #[test]
 fn test_factory() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let wasm_hash = env.deployer().upload_contract_wasm(contract::WASM);
 
-    let client = FactoryClient::new(&env, &env.register_contract(None, Factory));
+    let client = FactoryClient::new(&env, &env.register(Factory, ()));
     client.init(&wasm_hash);
 
     let controller = Address::generate(&env);
-    let token_1 = env.register_stellar_asset_contract(controller.clone());
-    let token_1_client = StellarAssetClient::new(&env, &token_1);
-    let token_2 = env.register_stellar_asset_contract(controller.clone());
-    let token_2_client = StellarAssetClient::new(&env, &token_2);
+    let token_1 = env.register_stellar_asset_contract_v2(controller.clone());
+    let token_1_client = StellarAssetClient::new(&env, &token_1.address());
+    let token_2 = env.register_stellar_asset_contract_v2(controller.clone());
+    let token_2_client = StellarAssetClient::new(&env, &token_2.address());
     token_1_client.mint(&controller, &1_0000000);
     token_2_client.mint(&controller, &1_0000000);
 
-    let tokens = vec![&env, token_1.clone(), token_2.clone()];
+    let tokens = vec![&env, token_1.address(), token_2.address()];
     let weights = vec![&env, 0_5000000, 0_5000000];
     let balances = vec![&env, 1_0000000, 1_0000000];
     let swap_fee = 0_0030000;

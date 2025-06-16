@@ -16,7 +16,7 @@ fn create_and_init_token_contract<'a>(
     name: &'a str,
     symbol: &'a str,
 ) -> MockTokenClient<'a> {
-    let token_id = env.register_contract_wasm(None, MockTokenWASM);
+    let token_id = env.register(MockTokenWASM, ());
     let client = MockTokenClient::new(&env, &token_id);
     client.initialize(
         &admin_id,
@@ -40,7 +40,7 @@ fn test_pool_functions_different_decimals() {
     env.mock_all_auths();
     let admin = soroban_sdk::Address::generate(&env);
 
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     // Create Admin
     let admin1 = soroban_sdk::Address::generate(&env);
@@ -87,7 +87,7 @@ fn test_pool_functions_different_decimals() {
 
     println!("Token Balance of User1 before = {}", token1.balance(&user2));
 
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     client.join_pool(&to_stroop(10), &vec![&env, i128::MAX, i128::MAX], &user2);
 
@@ -95,14 +95,14 @@ fn test_pool_functions_different_decimals() {
 
     client.exit_pool(&to_stroop(10), &vec![&env, 0, 0], &user1);
 
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     client.join_pool(&to_stroop(10), &vec![&env, i128::MAX, i128::MAX], &user1);
     client.exit_pool(&to_stroop(10), &vec![&env, 0, 0], &user1);
 
     client.join_pool(&to_stroop(10), &vec![&env, i128::MAX, i128::MAX], &user1);
     client.exit_pool(&to_stroop(10), &vec![&env, 0, 0], &user1);
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     client.join_pool(&to_stroop(10), &vec![&env, i128::MAX, i128::MAX], &user1);
 
@@ -117,7 +117,7 @@ fn test_pool_functions_different_decimals() {
 
     client.exit_pool(&to_stroop(10), &vec![&env, 0, 0], &user2);
 
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     client.join_pool(&to_stroop(10), &vec![&env, i128::MAX, i128::MAX], &user2);
 
