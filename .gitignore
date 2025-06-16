@@ -2,5 +2,6 @@
 /target
 diagrams
 .soroban
+.stellar
 script_output.log
 test_snapshots/

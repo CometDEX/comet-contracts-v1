@@ -12,26 +12,36 @@ fi
 
 IDENTITY_STRING=$1
 
-# # Build and optimize the contracts
+# Build and optimize the contracts
 make build > /dev/null
 
-# echo "Contracts optimized..."
+echo "Contracts optimized..."
 
-# # Fetch the admin's address
-ADMIN_ADDRESS=$(soroban config identity address $IDENTITY_STRING)
+# Fetch the admin's address
+ADMIN_ADDRESS=$(stellar keys address $IDENTITY_STRING)
 
 # Deploy the soroban_token_contract and capture its contract ID hash
-TOKEN_ADDR1=$(soroban contract deploy \
-    --wasm target/wasm32v1-none/release/soroban_token_contract.wasm \
+TOKEN_ADDR1=$(stellar contract deploy \
+    --wasm ext/soroban_token_contract.wasm \
     --source $IDENTITY_STRING \
-    --network futurenet)
+    --network futurenet \
+    -- \
+    --admin $ADMIN_ADDRESS \
+    --decimal 7 \
+    --name US_DOLLAR \
+    --symbol USDC)
 
-TOKEN_ADDR2=$(soroban contract deploy \
-    --wasm target/wasm32v1-none/release/soroban_token_contract.wasm \
+TOKEN_ADDR2=$(stellar contract deploy \
+    --wasm ext/soroban_token_contract.wasm \
     --source $IDENTITY_STRING \
-    --network futurenet)
+    --network futurenet \
+    -- \
+    --admin $ADMIN_ADDRESS \
+    --decimal 7 \
+    --name COMET \
+    --symbol COM)
 
-# echo "Tokens deployed..."
+echo "Tokens deployed..."
 
 # Sort the token addresses alphabetically
 if [[ "$TOKEN_ADDR1" < "$TOKEN_ADDR2" ]]; then
@@ -42,80 +52,55 @@ else
     TOKEN_ID2=$TOKEN_ADDR1
 fi
 
-# Initialize the contracts
-soroban contract invoke \
-    --id $TOKEN_ID1 \
-    --source $IDENTITY_STRING \
-    --network futurenet\
-    -- \
-    initialize \
-    --admin $ADMIN_ADDRESS \
-    --decimal 7 \
-    --name US_DOLLAR \
-    --symbol USDC
+echo "Tokens initialized..."
 
-soroban contract invoke \
-    --id $TOKEN_ID2 \
-    --source $IDENTITY_STRING \
-    --network futurenet \
-    -- \
-    initialize \
-    --admin $ADMIN_ADDRESS \
-    --decimal 7 \
-    --name COMET \
-    --symbol COM
-
-# echo "Tokens initialized..."
-
-# Install the soroban_token_contract and capture its hash
-CONTRACT_WASM_HASH=$(soroban contract install \
+# Upload the soroban_token_contract and capture its hash
+CONTRACT_WASM_HASH=$(stellar contract upload \
     --wasm target/wasm32v1-none/optimized/comet.wasm \
     --source $IDENTITY_STRING \
     --network futurenet)
 
-# echo "Upload wasm code..."
+echo "Upload wasm code..."
 
 # Deploy the Factory Contract
-FACTORY_CONTRACT=$(soroban contract deploy \
+FACTORY_CONTRACT=$(stellar contract deploy \
     --wasm target/wasm32v1-none/optimized/comet_factory.wasm \
     --source $IDENTITY_STRING \
     --network futurenet)
 
-# echo "Deployed Factory Contract..."
-
-
+echo "Deployed Factory Contract..."
 
 # Initialize the factory contract
-soroban contract invoke \
+stellar contract invoke \
     --id $FACTORY_CONTRACT \
     --source $IDENTITY_STRING \
     --network futurenet \
     -- \
     init \
-    --user $ADMIN_ADDRESS \
     --pool_wasm_hash $CONTRACT_WASM_HASH
 
-# echo "Factory Contract initialized..."
-# echo $FACTORY_CONTRACT
+echo "Factory Contract initialized..."
+echo $FACTORY_CONTRACT
+
 # Mint both tokens to the admin
-soroban contract invoke \
+stellar contract invoke \
     --id $TOKEN_ID1 \
     --source $IDENTITY_STRING \
     --network futurenet \
     -- \
     mint --to $ADMIN_ADDRESS --amount 100000000000
 
-soroban contract invoke \
+stellar contract invoke \
     --id $TOKEN_ID2 \
     --source $IDENTITY_STRING \
     --network futurenet \
     -- \
     mint --to $ADMIN_ADDRESS --amount 100000000000
 
-# echo "Minted tokens to the admin..."
+echo "Minted tokens to the admin..."
 
 SALT=$(openssl rand -hex 32)
-# echo "Generated Salt (Hex): $SALT"
+echo "Generated Salt (Hex): $SALT"
 echo "-----------CREATE POOL------------------"
 echo "-----------CREATE POOL------------------"
 echo "-----------CREATE POOL------------------"
@@ -125,56 +110,29 @@ echo "-----------CREATE POOL------------------"
 echo "-----------------------------"
 echo "-----------------------------"
 
+# build JSON vectors
+TOKENS_JSON="[\"$TOKEN_ID1\",\"$TOKEN_ID2\"]"
+WEIGHTS_JSON="[\"8000000\",\"2000000\"]"
+BALANCES_JSON="[\"500000000\",\"500000000\"]"
+
 # Create Pool
-CONTRACT_ID=$(soroban --very-verbose contract invoke \
+CONTRACT_ID=$(stellar --very-verbose contract invoke \
     --id $FACTORY_CONTRACT \
     --source $IDENTITY_STRING \
     --network futurenet --fee 10000000 \
     -- \
     new_c_pool \
     --salt $SALT \
-    --user $ADMIN_ADDRESS)
+    --controller $ADMIN_ADDRESS \
+    --tokens "$TOKENS_JSON" \
+    --weights "$WEIGHTS_JSON" \
+    --balances "$BALANCES_JSON" \
+    --swap_fee 30000)
 
-# echo "Deployed Contract... $CONTRACT_ID"
-# string='$CONTRACT_ID"'
-# no_quotes=${string//\"/}
-CONTRACT_ID_VAL=${CONTRACT_ID//\"/}
+# the CLI prints the returned value quoted – strip quotes
+CONTRACT_ID_VAL=$(echo "$CONTRACT_ID" | tr -d '"')
 
-soroban contract invoke \
-    --id $CONTRACT_ID_VAL \
-    --source $IDENTITY_STRING \
-    --network futurenet --fee 1000000000 \
-    -- \
-    bind \
-    --token $TOKEN_ID1 \
-    --balance 500000000 \
-    --denorm 80000000 \
-    --admin $ADMIN_ADDRESS
-
-# echo "Attached first token"
-
-soroban contract invoke \
-    --id $CONTRACT_ID_VAL \
-    --source $IDENTITY_STRING \
-    --network futurenet --fee 1000000000 \
-    -- \
-    bind \
-    --token $TOKEN_ID2 \
-    --balance 500000000 \
-    --denorm 20000000 \
-    --admin $ADMIN_ADDRESS
-
-# echo "Attached second token"
-
-soroban contract invoke \
-    --id $CONTRACT_ID_VAL \
-    --source $IDENTITY_STRING \
-    --network futurenet --fee 1000000000 \
-    -- \
-    finalize
-
-
-# echo "Finalized the Pool i.e made it available for the public to use "
+echo "Created new pool: $CONTRACT_ID_VAL"
 
 echo "-----------SWAP POOL------------------"
 echo "-----------SWAP POOL------------------"
@@ -191,8 +149,9 @@ echo "-----------------------------"
 echo "-----------------------------"
 echo "-----------------------------"
 echo "-----------------------------"
+
 # Swap Function
-soroban --very-verbose contract invoke \
+stellar --very-verbose contract invoke \
     --id $CONTRACT_ID_VAL \
     --source $IDENTITY_STRING \
     --network futurenet --fee 1000000000 \
@@ -205,15 +164,14 @@ soroban --very-verbose contract invoke \
     --max_price 10000000000000 \
     --user $ADMIN_ADDRESS
 
- 
-# # echo "Swapped token 1 for token 2"
+echo "Swapped token 1 for token 2"
 
-# TOKEN_ID1_BALANCE=$(soroban contract invoke \
-#     --id $TOKEN_ID1 \
-#     --source $IDENTITY_STRING \
-#     --network futurenet \
-#     -- \
-#     balance \
-#     --id $ADMIN_ADDRESS)
+TOKEN_ID1_BALANCE=$(stellar contract invoke \
+    --id $TOKEN_ID1 \
+    --source $IDENTITY_STRING \
+    --network futurenet \
+    -- \
+    balance \
+    --id $ADMIN_ADDRESS)
 
-# echo "Balance $TOKEN_ID1_BALANCE"
+echo "Balance $TOKEN_ID1_BALANCE"
