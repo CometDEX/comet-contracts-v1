@@ -64,6 +64,8 @@ pub fn execute_new_c_pool(
         .persistent()
         .extend_ttl(&key, LARGE_LIFETIME_THRESHOLD, LARGE_BUMP_AMOUNT);
     NewPoolEvent {
+        tag: symbol_short!("LOG"),
+        event: symbol_short!("NEW_POOL"),
         caller: controller,
         pool: id.clone(),
     }
