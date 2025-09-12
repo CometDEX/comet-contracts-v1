@@ -20,10 +20,10 @@ use crate::c_pool::{
     token_utility::check_nonnegative_amount,
 };
 use soroban_sdk::{
-    contract, contractimpl, token::TokenInterface, unwrap::UnwrapOptimized, Address, Env, MuxedAddress, String,
-    Vec,
+    contract, contractimpl, token::TokenInterface, unwrap::UnwrapOptimized, Address, Env,
+    MuxedAddress, String, Vec,
 };
-use soroban_token_sdk::events::{Approve, Transfer, Burn};
+use soroban_token_sdk::events::{Approve, Burn, Transfer};
 
 use super::metadata::{put_total_shares, write_controller, write_freeze};
 
@@ -294,7 +294,8 @@ impl TokenInterface for CometPoolContract {
             spender,
             amount,
             expiration_ledger,
-        }.publish(&e);
+        }
+        .publish(&e);
     }
 
     fn balance(e: Env, id: Address) -> i128 {
@@ -320,7 +321,8 @@ impl TokenInterface for CometPoolContract {
             to: to.address(),
             amount,
             to_muxed_id: None,
-        }.publish(&e);
+        }
+        .publish(&e);
     }
 
     fn transfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128) {
@@ -340,7 +342,8 @@ impl TokenInterface for CometPoolContract {
             to,
             amount,
             to_muxed_id: None,
-        }.publish(&e)
+        }
+        .publish(&e)
     }
 
     fn burn(e: Env, from: Address, amount: i128) {
@@ -353,10 +356,7 @@ impl TokenInterface for CometPoolContract {
             .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
         spend_balance(&e, from.clone(), amount);
-        Burn {
-            from,
-            amount,
-        }.publish(&e);
+        Burn { from, amount }.publish(&e);
         put_total_shares(&e, total - amount);
     }
 
@@ -371,10 +371,7 @@ impl TokenInterface for CometPoolContract {
 
         spend_allowance(&e, from.clone(), spender, amount);
         spend_balance(&e, from.clone(), amount);
-        Burn {
-            from,
-            amount,
-        }.publish(&e);
+        Burn { from, amount }.publish(&e);
         put_total_shares(&e, total - amount);
     }
 

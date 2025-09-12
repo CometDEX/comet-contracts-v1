@@ -1,6 +1,6 @@
 //! Utilities for the LP Token
 use soroban_sdk::{Address, Env};
-use soroban_token_sdk::events::{Transfer, Burn};
+use soroban_token_sdk::events::{Burn, Transfer};
 
 use super::{
     balance::{receive_balance, spend_balance},
@@ -46,7 +46,8 @@ pub fn pull_shares(e: &Env, from: &Address, amount: i128) {
         to: contract_address,
         amount,
         to_muxed_id: None,
-    }.publish(e);
+    }
+    .publish(e);
 }
 
 // Burn the LP Tokens
@@ -58,7 +59,8 @@ pub fn burn_shares(e: &Env, amount: i128) {
     Burn {
         from: contract_address,
         amount,
-    }.publish(e);
+    }
+    .publish(e);
     put_total_shares(e, total - amount);
 }
 

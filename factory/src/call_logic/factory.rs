@@ -66,7 +66,8 @@ pub fn execute_new_c_pool(
     NewPoolEvent {
         caller: controller,
         pool: id.clone(),
-    }.publish(&e);
+    }
+    .publish(&e);
     id
 }
 

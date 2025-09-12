@@ -1,8 +1,7 @@
 use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::I256;
 use soroban_sdk::{
-    assert_with_error, panic_with_error, token, unwrap::UnwrapOptimized, Address,
-    Env, Vec,
+    assert_with_error, panic_with_error, token, unwrap::UnwrapOptimized, Address, Env, Vec,
 };
 
 use crate::c_consts::STROOP;
@@ -57,7 +56,8 @@ pub fn execute_join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128
             caller: user.clone(),
             token_in: t.clone(),
             token_amount_in,
-        }.publish(&e);
+        }
+        .publish(&e);
         pull_underlying(&e, &t, &user, token_amount_in, max_amount_in);
     }
 
@@ -97,7 +97,8 @@ pub fn execute_exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128
             caller: user.clone(),
             token_out: t.clone(),
             token_amount_out,
-        }.publish(&e);
+        }
+        .publish(&e);
         push_underlying(&e, &t, &user, token_amount_out)
     }
 
@@ -182,7 +183,8 @@ pub fn execute_swap_exact_amount_in(
         token_out: token_out.clone(),
         token_amount_in,
         token_amount_out,
-    }.publish(&e);
+    }
+    .publish(&e);
 
     pull_underlying(
         &e,
@@ -280,7 +282,8 @@ pub fn execute_swap_exact_amount_out(
         token_out: token_out.clone(),
         token_amount_in,
         token_amount_out,
-    }.publish(&e);
+    }
+    .publish(&e);
     pull_underlying(&e, &token_in, &user, token_amount_in, max_amount_in);
     push_underlying(&e, &token_out, &user, token_amount_out);
 
@@ -345,7 +348,8 @@ pub fn execute_dep_tokn_amt_in_get_lp_tokns_out(
         caller: user.clone(),
         token_in: token_in.clone(),
         token_amount_in,
-    }.publish(&e);
+    }
+    .publish(&e);
     pull_underlying(&e, &token_in, &user, token_amount_in, token_amount_in);
     mint_shares(&e, &user, pool_amount_out);
 
@@ -400,7 +404,8 @@ pub fn execute_dep_lp_tokn_amt_out_get_tokn_in(
         caller: user.clone(),
         token_in: token_in.clone(),
         token_amount_in,
-    }.publish(&e);
+    }
+    .publish(&e);
     pull_underlying(&e, &token_in, &user, token_amount_in, max_amount_in);
     mint_shares(&e, &user, pool_amount_out);
 
@@ -454,7 +459,8 @@ pub fn execute_wdr_tokn_amt_in_get_lp_tokns_out(
         token_out: token_out.clone(),
         token_amount_out,
         pool_amount_in,
-    }.publish(&e);
+    }
+    .publish(&e);
 
     pull_shares(&e, &user, pool_amount_in);
     burn_shares(&e, pool_amount_in);
@@ -513,7 +519,8 @@ pub fn execute_wdr_tokn_amt_out_get_lp_tokns_in(
         token_out: token_out.clone(),
         token_amount_out,
         pool_amount_in,
-    }.publish(&e);
+    }
+    .publish(&e);
 
     pull_shares(&e, &user, pool_amount_in);
     burn_shares(&e, pool_amount_in);
