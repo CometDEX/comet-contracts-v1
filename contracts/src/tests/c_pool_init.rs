@@ -30,7 +30,7 @@ fn test_init() {
     token_1_client.mint(&controller, &STROOP);
     token_2_client.mint(&controller, &STROOP);
 
-    let tokens = vec![&env, token_1.address().clone(), token_2.address().clone()];
+    let tokens = vec![&env, token_1.address(), token_2.address()];
     let weights = vec![&env, 0_4000000, 0_6000000];
     let balances = vec![&env, STROOP, STROOP];
     let swap_fee = 0_0030000;

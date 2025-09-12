@@ -29,7 +29,7 @@ fn test_factory() {
     token_1_client.mint(&controller, &1_0000000);
     token_2_client.mint(&controller, &1_0000000);
 
-    let tokens = vec![&env, token_1.address().clone(), token_2.address().clone()];
+    let tokens = vec![&env, token_1.address(), token_2.address()];
     let weights = vec![&env, 0_5000000, 0_5000000];
     let balances = vec![&env, 1_0000000, 1_0000000];
     let swap_fee = 0_0030000;

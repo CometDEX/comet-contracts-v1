@@ -31,8 +31,8 @@ pub fn create_comet_pool(
 }
 
 pub fn create_stellar_token(env: &Env, admin: &Address) -> Address {
-    let contract = env.register_stellar_asset_contract_v2(admin.clone());
-    contract.address()
+    let contract_id = env.register_stellar_asset_contract_v2(admin.clone());
+    contract_id.address()
 }
 
 pub fn create_soroban_token(env: &Env, admin: &Address, decimal: u32) -> Address {
