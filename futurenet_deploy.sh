@@ -52,23 +52,8 @@ else
     TOKEN_ID2=$TOKEN_ADDR1
 fi
 
-echo "Tokens initialized..."
-
-stellar contract invoke \
-    --id $TOKEN_ID2 \
-    --source $IDENTITY_STRING \
-    --network futurenet \
-    -- \
-    initialize \
-    --admin $ADMIN_ADDRESS \
-    --decimal 7 \
-    --name COMET \
-    --symbol COM
-
-# echo "Tokens initialized..."
-
 # Install the soroban_token_contract and capture its hash
-CONTRACT_WASM_HASH=$(stellar contract install \
+CONTRACT_WASM_HASH=$(stellar contract upload \
     --wasm target/wasm32v1-none/optimized/comet.wasm \
     --source $IDENTITY_STRING \
     --network futurenet)
@@ -114,11 +99,8 @@ echo "Minted tokens to the admin..."
 
 SALT=$(openssl rand -hex 32)
 echo "Generated Salt (Hex): $SALT"
-echo "-----------CREATE POOL------------------"
-echo "-----------CREATE POOL------------------"
-echo "-----------CREATE POOL------------------"
-echo "-----------CREATE POOL------------------"
-echo "-----------CREATE POOL------------------"
+echo "-----------------------------"
+echo "-----------------------------"
 echo "-----------CREATE POOL------------------"
 echo "-----------------------------"
 echo "-----------------------------"
@@ -129,7 +111,7 @@ WEIGHTS_JSON="[\"8000000\",\"2000000\"]"
 BALANCES_JSON="[\"500000000\",\"500000000\"]"
 
 # Create Pool
-CONTRACT_ID=$(stellar --very-verbose contract invoke \
+CONTRACT_ID=$(stellar contract invoke \
     --id $FACTORY_CONTRACT \
     --source $IDENTITY_STRING \
     --network futurenet --fee 10000000 \
@@ -147,24 +129,14 @@ CONTRACT_ID_VAL=$(echo "$CONTRACT_ID" | tr -d '"')
 
 echo "Created new pool: $CONTRACT_ID_VAL"
 
-echo "-----------SWAP POOL------------------"
-echo "-----------SWAP POOL------------------"
-echo "-----------SWAP POOL------------------"
-echo "-----------SWAP POOL------------------"
-echo "-----------SWAP POOL------------------"
-echo "-----------SWAP POOL------------------"
-echo "-----------SWAP POOL------------------"
-echo "-----------SWAP POOL------------------"
-echo "-----------SWAP POOL------------------"
 echo "-----------------------------"
 echo "-----------------------------"
-echo "-----------------------------"
-echo "-----------------------------"
+echo "-----------SWAP POOL------------------"
 echo "-----------------------------"
 echo "-----------------------------"
 
 # Swap Function
-stellar --very-verbose contract invoke \
+stellar contract invoke \
     --id $CONTRACT_ID_VAL \
     --source $IDENTITY_STRING \
     --network futurenet --fee 1000000000 \
