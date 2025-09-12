@@ -18,7 +18,13 @@ codegen-units = 1
 lto = true
 
 [workspace.dependencies.soroban-sdk]
-version = "20.5.0"
+version = "23.0.2"
 
 [workspace.dependencies.soroban-token-sdk]
-version = "20.5.0"
+version = "23.0.2"
+
+[workspace.dependencies.sep-41-token]
+git = "https://github.com/kalepail/sep-41-token"
+
+[workspace.dependencies.soroban-fixed-point-math]
+git = "https://github.com/kalepail/soroban-fixed-point-math"

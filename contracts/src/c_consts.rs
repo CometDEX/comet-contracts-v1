@@ -1,5 +1,9 @@
 //! Comet Pool Constants
 
+use soroban_sdk::{symbol_short, Symbol};
+
+pub const POOL: Symbol = symbol_short!("POOL");
+
 /// c_math 256 bit constants
 /// kept as i128 to avoid requiring `env` to define constants
 pub const BONE: i128 = 10i128.pow(18);
