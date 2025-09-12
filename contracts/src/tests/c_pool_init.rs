@@ -19,18 +19,18 @@ fn test_init() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let contract_id = env.register_contract(None, CometPoolContract);
+    let contract_id = env.register(CometPoolContract, ());
     let comet = CometPoolContractClient::new(&env, &contract_id);
 
     let controller = Address::generate(&env);
-    let token_1 = env.register_stellar_asset_contract(controller.clone());
-    let token_1_client = MockTokenClient::new(&env, &token_1);
-    let token_2 = env.register_stellar_asset_contract(controller.clone());
-    let token_2_client = MockTokenClient::new(&env, &token_2);
+    let token_1 = env.register_stellar_asset_contract_v2(controller.clone());
+    let token_1_client = MockTokenClient::new(&env, &token_1.address());
+    let token_2 = env.register_stellar_asset_contract_v2(controller.clone());
+    let token_2_client = MockTokenClient::new(&env, &token_2.address());
     token_1_client.mint(&controller, &STROOP);
     token_2_client.mint(&controller, &STROOP);
 
-    let tokens = vec![&env, token_1.clone(), token_2.clone()];
+    let tokens = vec![&env, token_1.address().clone(), token_2.address().clone()];
     let weights = vec![&env, 0_4000000, 0_6000000];
     let balances = vec![&env, STROOP, STROOP];
     let swap_fee = 0_0030000;
@@ -38,7 +38,7 @@ fn test_init() {
     // validates not enough tokens
     let result = comet.try_init(
         &controller,
-        &vec![&env, token_1.clone()],
+        &vec![&env, token_1.address()],
         &vec![&env, 0_5000000],
         &vec![&env, STROOP],
         &swap_fee,
@@ -170,7 +170,7 @@ fn test_init() {
                 ],
                 sub_invokes: &[
                     MockAuthInvoke {
-                        contract: &token_1,
+                        contract: &token_1.address(),
                         fn_name: &"transfer",
                         args: vec![
                             &env,
@@ -181,7 +181,7 @@ fn test_init() {
                         sub_invokes: &[],
                     },
                     MockAuthInvoke {
-                        contract: &token_2,
+                        contract: &token_2.address(),
                         fn_name: &"transfer",
                         args: vec![
                             &env,
@@ -199,10 +199,10 @@ fn test_init() {
     assert_eq!(comet.get_swap_fee(), swap_fee);
     assert_eq!(comet.get_controller(), controller);
     assert_eq!(comet.get_tokens(), tokens);
-    assert_eq!(comet.get_normalized_weight(&token_1), 0_4000000);
-    assert_eq!(comet.get_normalized_weight(&token_2), 0_6000000);
-    assert_eq!(comet.get_balance(&token_1), STROOP);
-    assert_eq!(comet.get_balance(&token_2), STROOP);
+    assert_eq!(comet.get_normalized_weight(&token_1.address()), 0_4000000);
+    assert_eq!(comet.get_normalized_weight(&token_2.address()), 0_6000000);
+    assert_eq!(comet.get_balance(&token_1.address()), STROOP);
+    assert_eq!(comet.get_balance(&token_2.address()), STROOP);
     assert_eq!(comet.get_total_supply(), 100 * STROOP);
     assert_eq!(comet.balance(&controller), 100 * STROOP);
     assert_eq!(token_1_client.balance(&controller), 0);

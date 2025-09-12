@@ -2,7 +2,7 @@
 
 use call_logic::factory::{execute_is_c_pool, execute_new_c_pool};
 use soroban_sdk::{
-    assert_with_error, contract, contractimpl, contracttype, Address, BytesN, Env, Vec,
+    assert_with_error, contract, contractevent, contractimpl, contracttype, Address, BytesN, Env, Vec,
 };
 
 // Errors Listed
@@ -19,7 +19,7 @@ pub enum DataKeyFactory {
 }
 
 // Event to signal a new pool has been created
-#[contracttype]
+#[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NewPoolEvent {
     pub caller: Address,

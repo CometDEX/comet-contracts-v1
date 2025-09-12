@@ -1,6 +1,6 @@
 //! Utilities for the LP Token
 use soroban_sdk::{Address, Env};
-use soroban_token_sdk::TokenUtils;
+use soroban_token_sdk::events::{Transfer, Burn};
 
 use super::{
     balance::{receive_balance, spend_balance},
@@ -24,7 +24,7 @@ pub fn pull_underlying(e: &Env, token: &Address, from: &Address, amount: i128, m
 
 // Transfers the Specific Token from the Contract’s Address to the given 'to' Address
 pub fn push_underlying(e: &Env, token: &Address, to: &Address, amount: i128) {
-    Client::new(e, token).transfer(&e.current_contract_address(), &to, &amount);
+    Client::new(e, token).transfer(&e.current_contract_address(), &*to, &amount);
 }
 
 // Mint the given amount of LP Tokens
@@ -41,9 +41,12 @@ pub fn pull_shares(e: &Env, from: &Address, amount: i128) {
     check_nonnegative_amount(amount);
     spend_balance(e, from.clone(), amount);
     receive_balance(e, contract_address.clone(), amount);
-    TokenUtils::new(e)
-        .events()
-        .transfer(from.clone(), contract_address, amount);
+    Transfer {
+        from: from.clone(),
+        to: contract_address,
+        amount,
+        to_muxed_id: None,
+    }.publish(e);
 }
 
 // Burn the LP Tokens
@@ -52,7 +55,10 @@ pub fn burn_shares(e: &Env, amount: i128) {
     let contract_address = e.current_contract_address();
     check_nonnegative_amount(amount);
     spend_balance(e, contract_address.clone(), amount);
-    TokenUtils::new(e).events().burn(contract_address, amount);
+    Burn {
+        from: contract_address,
+        amount,
+    }.publish(e);
     put_total_shares(e, total - amount);
 }
 

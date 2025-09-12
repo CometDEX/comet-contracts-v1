@@ -1,8 +1,8 @@
 //! Definition of the Events used in the contract
-use soroban_sdk::{contracttype, Address};
+use soroban_sdk::{contractevent, Address};
 
 // Swap Token Event, emitted when tokens are swapped
-#[contracttype]
+#[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SwapEvent {
     pub caller: Address,
@@ -13,7 +13,7 @@ pub struct SwapEvent {
 }
 
 // Join Pool Event, emitted a when a user joins the pool
-#[contracttype]
+#[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct JoinEvent {
     pub caller: Address,
@@ -22,7 +22,7 @@ pub struct JoinEvent {
 }
 
 // Exit Pool Event, emitted a when a user exits the pool
-#[contracttype]
+#[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExitEvent {
     pub caller: Address,
@@ -31,7 +31,7 @@ pub struct ExitEvent {
 }
 
 // Join Pool Event, emitted a when a user joins the pool
-#[contracttype]
+#[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DepositEvent {
     pub caller: Address,
@@ -40,7 +40,7 @@ pub struct DepositEvent {
 }
 
 // Exit Pool Event, emitted a when a user exits the pool
-#[contracttype]
+#[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WithdrawEvent {
     pub caller: Address,

@@ -46,11 +46,11 @@ pub fn execute_new_c_pool(
     let id = e
         .deployer()
         .with_current_contract(new_salt)
-        .deploy(wasm_hash);
+        .deploy_v2(wasm_hash, ());
 
     let init_args: Vec<Val> = vec![
         &e,
-        controller.into_val(&e),
+        controller.clone().into_val(&e),
         tokens.into_val(&e),
         weights.into_val(&e),
         balances.into_val(&e),
@@ -63,12 +63,10 @@ pub fn execute_new_c_pool(
     e.storage()
         .persistent()
         .extend_ttl(&key, LARGE_LIFETIME_THRESHOLD, LARGE_BUMP_AMOUNT);
-    let event: NewPoolEvent = NewPoolEvent {
+    NewPoolEvent {
         caller: controller,
         pool: id.clone(),
-    };
-    e.events()
-        .publish((symbol_short!("LOG"), symbol_short!("NEW_POOL")), event);
+    }.publish(&e);
     id
 }
 

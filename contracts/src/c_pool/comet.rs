@@ -20,10 +20,10 @@ use crate::c_pool::{
     token_utility::check_nonnegative_amount,
 };
 use soroban_sdk::{
-    contract, contractimpl, token::TokenInterface, unwrap::UnwrapOptimized, Address, Env, String,
+    contract, contractimpl, token::TokenInterface, unwrap::UnwrapOptimized, Address, Env, MuxedAddress, String,
     Vec,
 };
-use soroban_token_sdk::TokenUtils;
+use soroban_token_sdk::events::{Approve, Transfer, Burn};
 
 use super::metadata::{put_total_shares, write_controller, write_freeze};
 
@@ -289,9 +289,12 @@ impl TokenInterface for CometPoolContract {
 
         write_allowance(&e, from.clone(), spender.clone(), amount, expiration_ledger);
 
-        TokenUtils::new(&e)
-            .events()
-            .approve(from, spender, amount, expiration_ledger);
+        Approve {
+            from,
+            spender,
+            amount,
+            expiration_ledger,
+        }.publish(&e);
     }
 
     fn balance(e: Env, id: Address) -> i128 {
@@ -301,7 +304,7 @@ impl TokenInterface for CometPoolContract {
         read_balance(&e, id)
     }
 
-    fn transfer(e: Env, from: Address, to: Address, amount: i128) {
+    fn transfer(e: Env, from: Address, to: MuxedAddress, amount: i128) {
         from.require_auth();
 
         check_nonnegative_amount(amount);
@@ -311,8 +314,13 @@ impl TokenInterface for CometPoolContract {
             .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
         spend_balance(&e, from.clone(), amount);
-        receive_balance(&e, to.clone(), amount);
-        TokenUtils::new(&e).events().transfer(from, to, amount);
+        receive_balance(&e, to.address(), amount);
+        Transfer {
+            from,
+            to: to.address(),
+            amount,
+            to_muxed_id: None,
+        }.publish(&e);
     }
 
     fn transfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128) {
@@ -327,7 +335,12 @@ impl TokenInterface for CometPoolContract {
         spend_allowance(&e, from.clone(), spender, amount);
         spend_balance(&e, from.clone(), amount);
         receive_balance(&e, to.clone(), amount);
-        TokenUtils::new(&e).events().transfer(from, to, amount)
+        Transfer {
+            from,
+            to,
+            amount,
+            to_muxed_id: None,
+        }.publish(&e)
     }
 
     fn burn(e: Env, from: Address, amount: i128) {
@@ -340,7 +353,10 @@ impl TokenInterface for CometPoolContract {
             .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
         spend_balance(&e, from.clone(), amount);
-        TokenUtils::new(&e).events().burn(from, amount);
+        Burn {
+            from,
+            amount,
+        }.publish(&e);
         put_total_shares(&e, total - amount);
     }
 
@@ -355,7 +371,10 @@ impl TokenInterface for CometPoolContract {
 
         spend_allowance(&e, from.clone(), spender, amount);
         spend_balance(&e, from.clone(), amount);
-        TokenUtils::new(&e).events().burn(from, amount);
+        Burn {
+            from,
+            amount,
+        }.publish(&e);
         put_total_shares(&e, total - amount);
     }
 

@@ -22,12 +22,12 @@ ADMIN_ADDRESS=$(soroban config identity address $IDENTITY_STRING)
 
 # Deploy the soroban_token_contract and capture its contract ID hash
 TOKEN_ADDR1=$(soroban contract deploy \
-    --wasm target/wasm32-unknown-unknown/release/soroban_token_contract.wasm \
+    --wasm target/wasm32v1-none/release/soroban_token_contract.wasm \
     --source $IDENTITY_STRING \
     --network futurenet)
 
 TOKEN_ADDR2=$(soroban contract deploy \
-    --wasm target/wasm32-unknown-unknown/release/soroban_token_contract.wasm \
+    --wasm target/wasm32v1-none/release/soroban_token_contract.wasm \
     --source $IDENTITY_STRING \
     --network futurenet)
 
@@ -69,7 +69,7 @@ soroban contract invoke \
 
 # Install the soroban_token_contract and capture its hash
 CONTRACT_WASM_HASH=$(soroban contract install \
-    --wasm target/wasm32-unknown-unknown/optimized/comet.wasm \
+    --wasm target/wasm32v1-none/optimized/comet.wasm \
     --source $IDENTITY_STRING \
     --network futurenet)
 
@@ -77,7 +77,7 @@ CONTRACT_WASM_HASH=$(soroban contract install \
 
 # Deploy the Factory Contract
 FACTORY_CONTRACT=$(soroban contract deploy \
-    --wasm target/wasm32-unknown-unknown/optimized/comet_factory.wasm \
+    --wasm target/wasm32v1-none/optimized/comet_factory.wasm \
     --source $IDENTITY_STRING \
     --network futurenet)
 
