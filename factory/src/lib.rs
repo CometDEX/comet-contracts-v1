@@ -2,8 +2,7 @@
 
 use call_logic::factory::{execute_is_c_pool, execute_new_c_pool};
 use soroban_sdk::{
-    assert_with_error, contract, contractevent, contractimpl, contracttype, Address, BytesN, Env,
-    Vec,
+    assert_with_error, contract, contractevent, contractimpl, contracttype, Address, BytesN, Env, Vec,
 };
 
 // Errors Listed
@@ -50,10 +49,26 @@ impl Factory {
         tokens: Vec<Address>,
         weights: Vec<i128>,
         balances: Vec<i128>,
-        swap_fee: i128,
+        min_fee: i128,
+        max_fee: i128,
+        tracked_token: Address,
+        low_util_balance: i128,
+        high_util_balance: i128,
     ) -> Address {
         controller.require_auth();
-        execute_new_c_pool(e, salt, controller, tokens, weights, balances, swap_fee)
+        execute_new_c_pool(
+            e,
+            salt,
+            controller,
+            tokens,
+            weights,
+            balances,
+            min_fee,
+            max_fee,
+            tracked_token,
+            low_util_balance,
+            high_util_balance,
+        )
     }
 
     // Returns true if the passed Address is a valid Pool

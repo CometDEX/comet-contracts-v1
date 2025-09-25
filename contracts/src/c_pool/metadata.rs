@@ -1,10 +1,11 @@
 //! Utilities to read and write contract's storage
 
-use crate::c_pool::storage_types::DataKey;
+use crate::{c_consts::STROOP, c_pool::storage_types::DataKey};
+use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{unwrap::UnwrapOptimized, Address, Env, Map, String, Vec};
 use soroban_token_sdk::{metadata::TokenMetadata, TokenUtils};
 
-use super::storage_types::{Record, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD};
+use super::storage_types::{Record, SwapFeeConfig, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD};
 
 // Read all Token Addresses in the pool
 pub fn read_tokens(e: &Env) -> Vec<Address> {
@@ -78,19 +79,54 @@ pub fn write_controller(e: &Env, d: Address) {
     e.storage().instance().set(&key, &d);
 }
 
-// Read Swap Fee
-pub fn read_swap_fee(e: &Env) -> i128 {
-    let key = DataKey::SwapFee;
+// Read Swap Fee Config
+pub fn read_swap_fee_config(e: &Env) -> SwapFeeConfig {
+    let key = DataKey::SwapFeeConfig;
     e.storage()
         .instance()
-        .get::<DataKey, i128>(&key)
-        .unwrap_or(0)
+        .get::<DataKey, SwapFeeConfig>(&key)
+        .unwrap_optimized()
 }
 
-// Write Swap Fee
-pub fn write_swap_fee(e: &Env, d: i128) {
-    let key = DataKey::SwapFee;
-    e.storage().instance().set(&key, &d)
+// Write Swap Fee Config
+pub fn write_swap_fee_config(e: &Env, config: &SwapFeeConfig) {
+    let key = DataKey::SwapFeeConfig;
+    e.storage().instance().set(&key, config)
+}
+
+// Calculates the dynamic swap fee based on the current utilization of the tracked token.
+pub fn read_swap_fee(e: &Env) -> i128 {
+    let config = read_swap_fee_config(e);
+    // Fallback to max_fee if configuration is degenerate.
+    if config.max_fee <= config.min_fee || config.high_util_balance <= config.low_util_balance {
+        return config.max_fee;
+    }
+
+    let records = read_record(e);
+    let tracked = records.get(config.tracked_token.clone()).unwrap_optimized();
+
+    // Convert balances to 18-decimal fixed precision using the stored scalar.
+    let scalar = tracked.scalar;
+    let current_balance = tracked.balance * scalar;
+    let low_balance = config.low_util_balance * scalar;
+    let high_balance = config.high_util_balance * scalar;
+
+    let clamped = current_balance.max(low_balance).min(high_balance);
+
+    let span = high_balance - low_balance;
+    if span <= 0 {
+        return config.max_fee;
+    }
+
+    let utilization = (clamped - low_balance)
+        .fixed_div_floor(span, STROOP)
+        .unwrap_optimized();
+
+    let fee_delta = (config.max_fee - config.min_fee)
+        .fixed_mul_floor(utilization, STROOP)
+        .unwrap_optimized();
+
+    config.max_fee - fee_delta
 }
 
 // Read Total Shares

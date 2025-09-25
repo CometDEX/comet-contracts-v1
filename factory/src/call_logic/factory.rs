@@ -25,7 +25,11 @@ pub fn execute_new_c_pool(
     tokens: Vec<Address>,
     weights: Vec<i128>,
     balances: Vec<i128>,
-    swap_fee: i128,
+    min_fee: i128,
+    max_fee: i128,
+    tracked_token: Address,
+    low_util_balance: i128,
+    high_util_balance: i128,
 ) -> Address {
     e.storage()
         .instance()
@@ -54,7 +58,11 @@ pub fn execute_new_c_pool(
         tokens.into_val(&e),
         weights.into_val(&e),
         balances.into_val(&e),
-        swap_fee.into_val(&e),
+        min_fee.into_val(&e),
+        max_fee.into_val(&e),
+        tracked_token.clone().into_val(&e),
+        low_util_balance.into_val(&e),
+        high_util_balance.into_val(&e),
     ];
     e.invoke_contract::<()>(&id, &symbol_short!("init"), init_args);
 

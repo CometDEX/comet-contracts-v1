@@ -14,7 +14,7 @@ use crate::c_pool::{
     },
     metadata::{
         get_total_shares, read_controller, read_decimal, read_name, read_record, read_swap_fee,
-        read_symbol, read_tokens,
+        read_swap_fee_config, read_symbol, read_tokens,
     },
     storage_types::{SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
     token_utility::check_nonnegative_amount,
@@ -39,13 +39,28 @@ impl CometPoolContract {
         tokens: Vec<Address>,
         weights: Vec<i128>,
         balances: Vec<i128>,
-        swap_fee: i128,
+        min_fee: i128,
+        max_fee: i128,
+        tracked_token: Address,
+        low_util_balance: i128,
+        high_util_balance: i128,
     ) {
         controller.require_auth();
         e.storage()
             .instance()
             .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
-        execute_init(&e, controller, tokens, weights, balances, swap_fee);
+        execute_init(
+            &e,
+            controller,
+            tokens,
+            weights,
+            balances,
+            min_fee,
+            max_fee,
+            tracked_token,
+            low_util_balance,
+            high_util_balance,
+        );
     }
 
     // Absorbing tokens into the pool directly sent to the current contract
@@ -260,6 +275,11 @@ impl CometPoolContract {
     // Get the Swap Fee of the Contract
     pub fn get_swap_fee(e: Env) -> i128 {
         read_swap_fee(&e)
+    }
+
+    // Get the Swap Fee configuration
+    pub fn get_swap_fee_config(e: Env) -> crate::c_pool::storage_types::SwapFeeConfig {
+        read_swap_fee_config(&e)
     }
 
     // Get the spot price without considering the swap fee

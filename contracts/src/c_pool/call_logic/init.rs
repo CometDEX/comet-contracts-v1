@@ -7,8 +7,10 @@ use crate::{
     c_consts::{INIT_POOL_SUPPLY, MAX_FEE, MAX_WEIGHT, MIN_BALANCE, MIN_FEE, MIN_WEIGHT, STROOP},
     c_pool::{
         error::Error,
-        metadata::{write_controller, write_metadata, write_record, write_swap_fee, write_tokens},
-        storage_types::{DataKey, Record},
+        metadata::{
+            write_controller, write_metadata, write_record, write_swap_fee_config, write_tokens,
+        },
+        storage_types::{DataKey, Record, SwapFeeConfig},
         token_utility::mint_shares,
     },
 };
@@ -19,7 +21,11 @@ pub fn execute_init(
     tokens: Vec<Address>,
     weights: Vec<i128>,
     balances: Vec<i128>,
-    swap_fee: i128,
+    min_fee: i128,
+    max_fee: i128,
+    tracked_token: Address,
+    low_util_balance: i128,
+    high_util_balance: i128,
 ) {
     assert_with_error!(
         &e,
@@ -35,14 +41,14 @@ pub fn execute_init(
         weights.len() == tokens.len() && tokens.len() == balances.len(),
         Error::ErrInvalidVectorLen
     );
-    assert_with_error!(
-        &e,
-        swap_fee >= MIN_FEE && swap_fee <= MAX_FEE,
-        Error::ErrSwapFee
-    );
+    assert_with_error!(&e, max_fee >= min_fee, Error::ErrSwapFee);
+    assert_with_error!(&e, min_fee >= MIN_FEE, Error::ErrSwapFee);
+    assert_with_error!(&e, max_fee <= MAX_FEE, Error::ErrSwapFee);
+    assert_with_error!(&e, high_util_balance > low_util_balance, Error::ErrSwapFee);
 
     let mut records = Map::<Address, Record>::new(&e);
     let mut total_weight: i128 = 0;
+    let mut tracked_found = false;
     for i in 0..tokens.len() {
         let token = tokens.get(i).unwrap_optimized();
         let weight = weights.get(i).unwrap_optimized();
@@ -71,10 +77,37 @@ pub fn execute_init(
             index: i,
         };
         records.set(token.clone(), record);
+
+        if token == tracked_token {
+            tracked_found = true;
+        }
     }
     assert_with_error!(&e, total_weight == STROOP, Error::ErrTotalWeight);
+    assert_with_error!(&e, tracked_found, Error::ErrNotBound);
+
+    let tracked_record = records.get(tracked_token.clone()).unwrap_optimized();
+    assert_with_error!(
+        &e,
+        low_util_balance <= tracked_record.balance,
+        Error::ErrSwapFee
+    );
+    assert_with_error!(
+        &e,
+        high_util_balance >= tracked_record.balance,
+        Error::ErrSwapFee
+    );
+
     mint_shares(&e, &controller, INIT_POOL_SUPPLY);
-    write_swap_fee(&e, swap_fee);
+    write_swap_fee_config(
+        &e,
+        &SwapFeeConfig {
+            min_fee,
+            max_fee,
+            tracked_token,
+            low_util_balance,
+            high_util_balance,
+        },
+    );
 
     write_record(e, records);
     write_tokens(e, tokens);

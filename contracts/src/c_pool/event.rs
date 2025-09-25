@@ -16,6 +16,11 @@ pub struct SwapEvent {
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct JoinEvent {
+    #[topic]
+    pub tag: Symbol,
+    #[topic]
+    pub event: Symbol,
+
     pub caller: Address,
     pub token_in: Address,
     pub token_amount_in: i128,

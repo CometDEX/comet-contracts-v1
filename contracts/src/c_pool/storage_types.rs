@@ -19,13 +19,23 @@ pub struct Record {
     pub index: u32,
 }
 
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SwapFeeConfig {
+    pub min_fee: i128,
+    pub max_fee: i128,
+    pub tracked_token: Address,
+    pub low_util_balance: i128,
+    pub high_util_balance: i128,
+}
+
 // Data Keys for Pool' Storage Data
 #[derive(Clone)]
 #[contracttype]
 pub enum DataKey {
     Factory,       // Address of the Factory Contract
     Controller,    // Address of the Controller Account
-    SwapFee,       // i128
+    SwapFeeConfig, // SwapFeeConfig
     AllTokenVec,   // Vec<Address>
     AllRecordData, // Map<Address, Record>
     TokenShare,    // Address

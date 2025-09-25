@@ -1,8 +1,8 @@
 use soroban_fixed_point_math::FixedPoint;
-use soroban_sdk::I256;
 use soroban_sdk::{
     assert_with_error, panic_with_error, token, unwrap::UnwrapOptimized, Address, Env, Vec,
 };
+use soroban_sdk::I256;
 
 use crate::c_consts::STROOP;
 use crate::{
@@ -120,6 +120,7 @@ pub fn execute_swap_exact_amount_in(
     assert_with_error!(&e, max_price >= 0, Error::ErrNegative);
 
     let swap_fee = read_swap_fee(&e);
+
     let mut record_map = read_record(&e);
     let mut in_record = record_map
         .get(token_in.clone())

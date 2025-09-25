@@ -32,16 +32,29 @@ fn test_factory() {
     let tokens = vec![&env, token_1.address(), token_2.address()];
     let weights = vec![&env, 0_5000000, 0_5000000];
     let balances = vec![&env, 1_0000000, 1_0000000];
-    let swap_fee = 0_0030000;
+    let min_fee = 0_0010000;
+    let max_fee = 0_0030000;
+    let low_util_balance = 1_0000000;
+    let high_util_balance = 1_1000000;
 
     let salt = BytesN::from_array(&env, &[0; 32]);
-    let contract_id =
-        client.new_c_pool(&salt, &controller, &tokens, &weights, &balances, &swap_fee);
+    let contract_id = client.new_c_pool(
+        &salt,
+        &controller,
+        &tokens,
+        &weights,
+        &balances,
+        &min_fee,
+        &max_fee,
+        &token_2.address(),
+        &low_util_balance,
+        &high_util_balance,
+    );
 
     let pool_client = contract::Client::new(&env, &contract_id);
     assert_eq!(client.is_c_pool(&contract_id.clone()), true);
     assert_eq!(pool_client.get_controller(), controller);
     assert_eq!(pool_client.get_tokens(), tokens);
-    assert_eq!(pool_client.get_swap_fee(), swap_fee);
+    assert_eq!(pool_client.get_swap_fee(), max_fee);
     assert_eq!(pool_client.get_total_supply(), 100 * 1_0000000);
 }

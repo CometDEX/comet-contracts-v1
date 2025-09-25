@@ -109,6 +109,10 @@ echo "-----------------------------"
 TOKENS_JSON="[\"$TOKEN_ID1\",\"$TOKEN_ID2\"]"
 WEIGHTS_JSON="[\"8000000\",\"2000000\"]"
 BALANCES_JSON="[\"500000000\",\"500000000\"]"
+MIN_FEE=30000
+MAX_FEE=30000
+LOW_UTIL_BALANCE=500000000
+HIGH_UTIL_BALANCE=600000000
 
 # Create Pool
 CONTRACT_ID=$(stellar contract invoke \
@@ -122,7 +126,11 @@ CONTRACT_ID=$(stellar contract invoke \
     --tokens "$TOKENS_JSON" \
     --weights "$WEIGHTS_JSON" \
     --balances "$BALANCES_JSON" \
-    --swap_fee 30000)
+    --min_fee $MIN_FEE \
+    --max_fee $MAX_FEE \
+    --tracked_token $TOKEN_ID2 \
+    --low_util_balance $LOW_UTIL_BALANCE \
+    --high_util_balance $HIGH_UTIL_BALANCE)
 
 # the CLI prints the returned value quoted – strip quotes
 CONTRACT_ID_VAL=$(echo "$CONTRACT_ID" | tr -d '"')

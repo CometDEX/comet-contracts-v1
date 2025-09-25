@@ -24,24 +24,33 @@ fn test_init() {
 
     let controller = Address::generate(&env);
     let token_1 = env.register_stellar_asset_contract_v2(controller.clone());
-    let token_1_client = MockTokenClient::new(&env, &token_1.address());
+    let token_1_address = token_1.address();
+    let token_1_client = MockTokenClient::new(&env, &token_1_address);
     let token_2 = env.register_stellar_asset_contract_v2(controller.clone());
-    let token_2_client = MockTokenClient::new(&env, &token_2.address());
+    let token_2_address = token_2.address();
+    let token_2_client = MockTokenClient::new(&env, &token_2_address);
     token_1_client.mint(&controller, &STROOP);
     token_2_client.mint(&controller, &STROOP);
 
-    let tokens = vec![&env, token_1.address(), token_2.address()];
+    let tokens = vec![&env, token_1_address.clone(), token_2_address.clone()];
     let weights = vec![&env, 0_4000000, 0_6000000];
     let balances = vec![&env, STROOP, STROOP];
-    let swap_fee = 0_0030000;
+    let min_fee = 0_0010000;
+    let max_fee = 0_0030000;
+    let low_util_balance = STROOP;
+    let high_util_balance = STROOP + 1000;
 
     // validates not enough tokens
     let result = comet.try_init(
         &controller,
-        &vec![&env, token_1.address()],
+        &vec![&env, token_1_address.clone()],
         &vec![&env, 0_5000000],
         &vec![&env, STROOP],
-        &swap_fee,
+        &min_fee,
+        &max_fee,
+        &token_2_address,
+        &low_util_balance,
+        &high_util_balance,
     );
     assert_eq!(
         result.err(),
@@ -56,7 +65,11 @@ fn test_init() {
         &tokens,
         &vec![&env, 0_5000000],
         &balances,
-        &swap_fee,
+        &min_fee,
+        &max_fee,
+        &token_2_address,
+        &low_util_balance,
+        &high_util_balance,
     );
     assert_eq!(
         result.err(),
@@ -69,7 +82,11 @@ fn test_init() {
         &tokens,
         &weights,
         &vec![&env, STROOP],
-        &swap_fee,
+        &min_fee,
+        &max_fee,
+        &token_2_address,
+        &low_util_balance,
+        &high_util_balance,
     );
     assert_eq!(
         result.err(),
@@ -84,7 +101,11 @@ fn test_init() {
         &tokens,
         &vec![&env, 0_5000000, 0_5000001],
         &balances,
-        &swap_fee,
+        &min_fee,
+        &max_fee,
+        &token_2_address,
+        &low_util_balance,
+        &high_util_balance,
     );
     assert_eq!(
         result.err(),
@@ -99,7 +120,11 @@ fn test_init() {
         &tokens,
         &vec![&env, 0_9100000, 0_1000000],
         &balances,
-        &swap_fee,
+        &min_fee,
+        &max_fee,
+        &token_2_address,
+        &low_util_balance,
+        &high_util_balance,
     );
     assert_eq!(
         result.err(),
@@ -112,7 +137,11 @@ fn test_init() {
         &tokens,
         &vec![&env, 0_0900000, 0_9100000],
         &balances,
-        &swap_fee,
+        &min_fee,
+        &max_fee,
+        &token_2_address,
+        &low_util_balance,
+        &high_util_balance,
     );
     assert_eq!(
         result.err(),
@@ -127,7 +156,11 @@ fn test_init() {
         &tokens,
         &weights,
         &vec![&env, STROOP, 99],
-        &swap_fee,
+        &min_fee,
+        &max_fee,
+        &token_2_address,
+        &low_util_balance,
+        &high_util_balance,
     );
     assert_eq!(
         result.err(),
@@ -136,15 +169,120 @@ fn test_init() {
         )))
     );
 
-    // validates swap fee
-    let result = comet.try_init(&controller, &tokens, &weights, &balances, &0_1000001);
+    // validates swap fee bounds and configuration
+    let result = comet.try_init(
+        &controller,
+        &tokens,
+        &weights,
+        &balances,
+        &min_fee,
+        &0_9999991,
+        &token_2_address,
+        &low_util_balance,
+        &high_util_balance,
+    );
     assert_eq!(
         result.err(),
         Some(Ok(Error::from_contract_error(
             CometError::ErrSwapFee as u32
         )))
     );
-    let result = comet.try_init(&controller, &tokens, &weights, &balances, &0_0000009);
+    let result = comet.try_init(
+        &controller,
+        &tokens,
+        &weights,
+        &balances,
+        &0_0000009,
+        &max_fee,
+        &token_2_address,
+        &low_util_balance,
+        &high_util_balance,
+    );
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrSwapFee as u32
+        )))
+    );
+    let result = comet.try_init(
+        &controller,
+        &tokens,
+        &weights,
+        &balances,
+        &max_fee,
+        &min_fee,
+        &token_2_address,
+        &low_util_balance,
+        &high_util_balance,
+    );
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrSwapFee as u32
+        )))
+    );
+    let result = comet.try_init(
+        &controller,
+        &tokens,
+        &weights,
+        &balances,
+        &min_fee,
+        &max_fee,
+        &Address::generate(&env),
+        &low_util_balance,
+        &high_util_balance,
+    );
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrNotBound as u32
+        )))
+    );
+    let result = comet.try_init(
+        &controller,
+        &tokens,
+        &weights,
+        &balances,
+        &min_fee,
+        &max_fee,
+        &token_2_address,
+        &high_util_balance,
+        &low_util_balance,
+    );
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrSwapFee as u32
+        )))
+    );
+    let result = comet.try_init(
+        &controller,
+        &tokens,
+        &weights,
+        &balances,
+        &min_fee,
+        &max_fee,
+        &token_2_address,
+        &(low_util_balance + 1),
+        &high_util_balance,
+    );
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrSwapFee as u32
+        )))
+    );
+    let result = comet.try_init(
+        &controller,
+        &tokens,
+        &weights,
+        &balances,
+        &min_fee,
+        &max_fee,
+        &token_2_address,
+        &(low_util_balance - 10),
+        &(low_util_balance - 1),
+    );
     assert_eq!(
         result.err(),
         Some(Ok(Error::from_contract_error(
@@ -163,14 +301,18 @@ fn test_init() {
                 args: vec![
                     &env,
                     controller.into_val(&env),
-                    tokens.into_val(&env),
-                    weights.into_val(&env),
-                    balances.into_val(&env),
-                    swap_fee.into_val(&env),
+                    tokens.clone().into_val(&env),
+                    weights.clone().into_val(&env),
+                    balances.clone().into_val(&env),
+                    min_fee.into_val(&env),
+                    max_fee.into_val(&env),
+                    token_2_address.clone().into_val(&env),
+                    low_util_balance.into_val(&env),
+                    high_util_balance.into_val(&env),
                 ],
                 sub_invokes: &[
                     MockAuthInvoke {
-                        contract: &token_1.address(),
+                        contract: &token_1_address,
                         fn_name: &"transfer",
                         args: vec![
                             &env,
@@ -181,7 +323,7 @@ fn test_init() {
                         sub_invokes: &[],
                     },
                     MockAuthInvoke {
-                        contract: &token_2.address(),
+                        contract: &token_2_address,
                         fn_name: &"transfer",
                         args: vec![
                             &env,
@@ -194,15 +336,25 @@ fn test_init() {
                 ],
             },
         }])
-        .init(&controller, &tokens, &weights, &balances, &swap_fee);
+        .init(
+            &controller,
+            &tokens,
+            &weights,
+            &balances,
+            &min_fee,
+            &max_fee,
+            &token_2_address,
+            &low_util_balance,
+            &high_util_balance,
+        );
 
-    assert_eq!(comet.get_swap_fee(), swap_fee);
+    assert_eq!(comet.get_swap_fee(), max_fee);
     assert_eq!(comet.get_controller(), controller);
     assert_eq!(comet.get_tokens(), tokens);
-    assert_eq!(comet.get_normalized_weight(&token_1.address()), 0_4000000);
-    assert_eq!(comet.get_normalized_weight(&token_2.address()), 0_6000000);
-    assert_eq!(comet.get_balance(&token_1.address()), STROOP);
-    assert_eq!(comet.get_balance(&token_2.address()), STROOP);
+    assert_eq!(comet.get_normalized_weight(&token_1_address), 0_4000000);
+    assert_eq!(comet.get_normalized_weight(&token_2_address), 0_6000000);
+    assert_eq!(comet.get_balance(&token_1_address), STROOP);
+    assert_eq!(comet.get_balance(&token_2_address), STROOP);
     assert_eq!(comet.get_total_supply(), 100 * STROOP);
     assert_eq!(comet.balance(&controller), 100 * STROOP);
     assert_eq!(token_1_client.balance(&controller), 0);
@@ -212,7 +364,17 @@ fn test_init() {
 
     // verify init cannot be called again
     env.mock_all_auths();
-    let result = comet.try_init(&controller, &tokens, &weights, &balances, &swap_fee);
+    let result = comet.try_init(
+        &controller,
+        &tokens,
+        &weights,
+        &balances,
+        &min_fee,
+        &max_fee,
+        &token_2_address,
+        &low_util_balance,
+        &high_util_balance,
+    );
     assert_eq!(
         result.err(),
         Some(Ok(Error::from_contract_error(
