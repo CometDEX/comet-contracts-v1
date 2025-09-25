@@ -339,8 +339,8 @@ impl TokenInterface for CometPoolContract {
         Transfer {
             from,
             to: to.address(),
-            amount,
             to_muxed_id: None,
+            amount,
         }
         .publish(&e);
     }
@@ -360,8 +360,8 @@ impl TokenInterface for CometPoolContract {
         Transfer {
             from,
             to,
-            amount,
             to_muxed_id: None,
+            amount,
         }
         .publish(&e)
     }

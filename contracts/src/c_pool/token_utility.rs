@@ -44,8 +44,8 @@ pub fn pull_shares(e: &Env, from: &Address, amount: i128) {
     Transfer {
         from: from.clone(),
         to: contract_address,
-        amount,
         to_muxed_id: None,
+        amount,
     }
     .publish(e);
 }
