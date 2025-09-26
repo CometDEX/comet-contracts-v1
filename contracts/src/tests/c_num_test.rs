@@ -7,7 +7,7 @@ use crate::c_consts::BONE;
 use crate::c_num::c_pow;
 
 #[test]
-#[should_panic = "Error(Contract, #34)"]
+#[should_panic = "Error(Contract, #33)"]
 fn test_c_pow_low() {
     let env: Env = Env::default();
     c_pow(
@@ -19,7 +19,7 @@ fn test_c_pow_low() {
 }
 
 #[test]
-#[should_panic = "Error(Contract, #35)"]
+#[should_panic = "Error(Contract, #34)"]
 fn test_c_pow_high() {
     let env: Env = Env::default();
     c_pow(

@@ -54,16 +54,6 @@ fn test_swap_out_given_in() {
     let comet = CometPoolContractClient::new(&env, &comet_id);
     let mut balancer = BalancerPool::new(std_vec![100.0, 75.0], std_vec![0.50, 0.50], 0.003);
 
-    // verify MAX_IN_RATIO
-    let result =
-        comet.try_swap_exact_amount_in(&token_1, &35_0000000, &token_2, &0, &i128::MAX, &user);
-    assert_eq!(
-        result.err(),
-        Some(Ok(Error::from_contract_error(
-            CometError::ErrMaxInRatio as u32
-        )))
-    );
-
     // verify negative input
     let result = comet.try_swap_exact_amount_in(&token_1, &-1, &token_2, &0, &i128::MAX, &user);
     assert_eq!(
