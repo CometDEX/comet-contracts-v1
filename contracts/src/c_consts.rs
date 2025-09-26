@@ -14,6 +14,7 @@ pub const CPOW_PRECISION: i128 = 10i128.pow(8);
 /// constants
 pub const STROOP: i128 = 10i128.pow(7);
 pub const STROOP_SCALAR: i128 = 10i128.pow(11);
+pub const MAX_IN_RATIO: i128 = (STROOP / 3) + 1;
 pub const MAX_OUT_RATIO: i128 = (STROOP / 3) + 1;
 pub const INIT_POOL_SUPPLY: i128 = STROOP * 100;
 pub const MIN_FEE: i128 = 00_00010; // 0.0001%

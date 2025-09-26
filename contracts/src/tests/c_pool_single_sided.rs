@@ -63,6 +63,15 @@ fn test_single_sided_dep() {
     let bal_pool_mint = balancer.single_sided_dep_given_in(0, dep_amount);
     let bal_pool_mint_fixed = bal_pool_mint.to_i128(&7);
 
+    // verify MAX_IN_RATIO
+    let result = comet.try_dep_tokn_amt_in_get_lp_tokns_out(&token_1, &350_0000000, &0, &user);
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrMaxInRatio as u32
+        )))
+    );
+
     // verify invalid input
     let result = comet.try_dep_tokn_amt_in_get_lp_tokns_out(&token_1, &0, &0, &user);
     assert_eq!(
@@ -141,6 +150,16 @@ fn test_single_sided_dep() {
     let bal_token_in = balancer.single_sided_dep_given_out(1, mint_amount);
     let bal_token_in_fixed = bal_token_in.to_i128(&7);
     let over_token_in = bal_token_in_fixed + 1000;
+
+    // verify MAX_IN_RATIO
+    let result =
+        comet.try_dep_lp_tokn_amt_out_get_tokn_in(&token_2, &35_0000000, &i128::MAX, &user);
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrMaxInRatio as u32
+        )))
+    );
 
     // verify invalid input
     let result = comet.try_dep_lp_tokn_amt_out_get_tokn_in(&token_2, &0, &over_token_in, &user);

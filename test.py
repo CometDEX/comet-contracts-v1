@@ -9,12 +9,14 @@ from typing import Tuple
 BONE = 10**18
 STROOP = 10**7
 STROOP_SCALAR = 10**11
+MAX_IN_RATIO = (STROOP // 3) + 1  # 33.33%
+MAX_OUT_RATIO = (STROOP // 3) + 1  # 33.33%
 
 # Pool configuration matching your Rust setup
-MIN_FEE = 0o_00010
-MAX_FEE = 99_90000
+MIN_FEE = 10
+MAX_FEE = 98_00000
 LOW_UTIL = 100 * STROOP
-HIGH_UTIL = 50_000 * STROOP
+HIGH_UTIL = 100_000 * STROOP
 
 @dataclass
 class Record:
@@ -161,12 +163,20 @@ def main():
         # Read current fee
         swap_fee = read_swap_fee(kale_record.balance)
         
-        amount_in = TARGET_AMOUNT
+        # Apply MAX_IN_RATIO constraint (can't trade more than 33.33% of pool balance)
+        max_allowed_in = fixed_mul_floor(kale_record.balance, MAX_IN_RATIO, STROOP)
+        amount_in = min(TARGET_AMOUNT, max_allowed_in)
         
         # Calculate output
         test_out = calc_token_out_given_token_in(
             kale_record, test_record, amount_in, swap_fee
         )
+        
+        # Apply MAX_OUT_RATIO constraint (can't take out more than 33.33% of pool balance)
+        max_allowed_out = fixed_mul_floor(test_record.balance, MAX_OUT_RATIO, STROOP)
+        if test_out > max_allowed_out:
+            print(f"  Trade {trader_num}: Output would exceed MAX_OUT_RATIO, skipping")
+            continue
         
         # Update pool state
         kale_record.balance += amount_in
@@ -193,14 +203,22 @@ def main():
     for trader_num in [1, 50]:
         data = trader_results[trader_num]
         
-        # Simulate selling all TEST back for KALE
+        # Apply MAX_IN_RATIO constraint when selling TEST
+        max_allowed_test_in = fixed_mul_floor(test_record.balance, MAX_IN_RATIO, STROOP)
+        test_to_sell = min(data['test_received'], max_allowed_test_in)
+        
+        # Simulate selling TEST back for KALE
         # Note: We're not updating pool state between these sells,
         # just calculating what each would get at current state
         kale_out = calc_token_out_given_token_in(
             test_record, kale_record,
-            data['test_received'],
+            test_to_sell,
             sell_fee
         )
+        
+        # Apply MAX_OUT_RATIO constraint to KALE output
+        max_allowed_kale_out = fixed_mul_floor(kale_record.balance, MAX_OUT_RATIO, STROOP)
+        kale_out = min(kale_out, max_allowed_kale_out)
         
         # Calculate PnL
         kale_spent = data['kale_spent'] / STROOP
@@ -217,6 +235,8 @@ def main():
         print(f"  Buy fee: {data['fee'] / 1e5:.5f}%")
         print(f"  KALE spent: {kale_spent:.2f}")
         print(f"  TEST received: {data['test_received'] / STROOP:,.2f}")
+        if test_to_sell < data['test_received']:
+            print(f"  TEST to sell: {test_to_sell / STROOP:,.2f} (limited by MAX_IN_RATIO)")
         print(f"  KALE received on sell: {kale_received:.2f}")
         print(f"  Net KALE: {net_kale:.2f}")
         print(f"  PnL: ${total_spent:.2f} spent, ${total_received:.2f} received, ${pnl_dollars:.2f} net")

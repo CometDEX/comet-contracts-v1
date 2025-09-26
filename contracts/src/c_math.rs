@@ -335,7 +335,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #17)")]
+    #[should_panic(expected = "Error(Contract, #18)")]
     fn test_downscale_floor_too_large_panics() {
         let env = Env::default();
         let x = I256::from_i128(&env, i128::MAX);
@@ -344,7 +344,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Error(Contract, #17)")]
+    #[should_panic(expected = "Error(Contract, #18)")]
     fn test_downscale_ceil_too_large_panics() {
         let env = Env::default();
         let x = I256::from_i128(&env, i128::MAX);

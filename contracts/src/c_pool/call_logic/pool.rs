@@ -6,7 +6,7 @@ use soroban_sdk::{symbol_short, I256};
 
 use crate::c_consts::{POOL, STROOP};
 use crate::{
-    c_consts::MAX_OUT_RATIO,
+    c_consts::{MAX_IN_RATIO, MAX_OUT_RATIO},
     c_math,
     c_pool::{
         error::Error,
@@ -132,6 +132,15 @@ pub fn execute_swap_exact_amount_in(
     let mut out_record = record_map
         .get(token_out.clone())
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
+    assert_with_error!(
+        &e,
+        token_amount_in
+            <= in_record
+                .balance
+                .fixed_mul_floor(MAX_IN_RATIO, STROOP)
+                .unwrap_optimized(),
+        Error::ErrMaxInRatio
+    );
 
     let spot_price_before = c_math::calc_spot_price(&in_record, &out_record, swap_fee);
 
@@ -312,6 +321,15 @@ pub fn execute_dep_tokn_amt_in_get_lp_tokns_out(
     let mut in_record = record_map
         .get(token_in.clone())
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
+    assert_with_error!(
+        &e,
+        token_amount_in
+            <= in_record
+                .balance
+                .fixed_mul_floor(MAX_IN_RATIO, STROOP)
+                .unwrap_optimized(),
+        Error::ErrMaxInRatio
+    );
 
     let total_shares = get_total_shares(&e);
     let pool_amount_out = c_math::calc_lp_token_amount_given_token_deposits_in(
@@ -376,6 +394,15 @@ pub fn execute_dep_lp_tokn_amt_out_get_tokn_in(
     );
     assert_with_error!(&e, token_amount_in != 0, Error::ErrMathApprox);
     assert_with_error!(&e, token_amount_in <= max_amount_in, Error::ErrLimitIn);
+    assert_with_error!(
+        &e,
+        token_amount_in
+            <= in_record
+                .balance
+                .fixed_mul_floor(MAX_IN_RATIO, STROOP)
+                .unwrap_optimized(),
+        Error::ErrMaxInRatio
+    );
     in_record.balance = in_record
         .balance
         .checked_add(token_amount_in)
