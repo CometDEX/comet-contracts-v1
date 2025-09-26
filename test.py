@@ -11,10 +11,10 @@ STROOP = 10**7
 STROOP_SCALAR = 10**11
 
 # Pool configuration matching your Rust setup
-MIN_FEE = 10          # 0.0001%
-MAX_FEE = 99_00000    # 98%
-LOW_UTIL = 100 * STROOP       # 100 KALE
-HIGH_UTIL = 100_000 * STROOP  # 100,000 KALE
+MIN_FEE = 0o_00010
+MAX_FEE = 99_90000
+LOW_UTIL = 100 * STROOP
+HIGH_UTIL = 50_000 * STROOP
 
 @dataclass
 class Record:
