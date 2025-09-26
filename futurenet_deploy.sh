@@ -60,26 +60,6 @@ CONTRACT_WASM_HASH=$(stellar contract upload \
 
 echo "Upload wasm code..."
 
-# Deploy the Factory Contract
-FACTORY_CONTRACT=$(stellar contract deploy \
-    --wasm target/wasm32v1-none/optimized/comet_factory.wasm \
-    --source $IDENTITY_STRING \
-    --network futurenet)
-
-echo "Deployed Factory Contract..."
-
-# Initialize the factory contract
-stellar contract invoke \
-    --id $FACTORY_CONTRACT \
-    --source $IDENTITY_STRING \
-    --network futurenet \
-    -- \
-    init \
-    --pool_wasm_hash $CONTRACT_WASM_HASH
-
-echo "Factory Contract initialized..."
-echo $FACTORY_CONTRACT
-
 # Mint both tokens to the admin
 stellar contract invoke \
     --id $TOKEN_ID1 \
@@ -115,12 +95,11 @@ LOW_UTIL_BALANCE=500000000
 HIGH_UTIL_BALANCE=600000000
 
 # Create Pool
-CONTRACT_ID=$(stellar contract invoke \
-    --id $FACTORY_CONTRACT \
+CONTRACT_ID=$(stellar contract deploy \
+    --wasm target/wasm32v1-none/optimized/comet.wasm \
     --source $IDENTITY_STRING \
     --network futurenet --fee 10000000 \
     -- \
-    new_c_pool \
     --salt $SALT \
     --controller $ADMIN_ADDRESS \
     --tokens "$TOKENS_JSON" \

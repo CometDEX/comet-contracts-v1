@@ -3,6 +3,7 @@ Rust-accurate simulation of Comet pool trades
 Calculates PnL for 1st and 50th trader after 100 trades of 1250 KALE each
 """
 from dataclasses import dataclass
+from decimal import Decimal, ROUND_DOWN, getcontext
 from typing import Tuple
 
 # Constants matching Rust c_consts.rs
@@ -14,9 +15,12 @@ MAX_OUT_RATIO = (STROOP // 3) + 1  # 33.33%
 
 # Pool configuration matching your Rust setup
 MIN_FEE = 10
-MAX_FEE = 98_00000
+MAX_FEE = 95_00000
 LOW_UTIL = 100 * STROOP
-HIGH_UTIL = 100_000 * STROOP
+HIGH_UTIL = 70_000 * STROOP
+
+# Increase default precision so downstream Decimal math is exact
+getcontext().prec = 28
 
 @dataclass
 class Record:
@@ -39,6 +43,22 @@ def upscale(amount: int, scalar: int) -> int:
 def downscale_floor(amount: int, scalar: int) -> int:
     """Downscale from 18 decimals to 7 decimals with floor rounding"""
     return amount // scalar
+
+
+def to_decimal(amount: int, scale: int = STROOP) -> Decimal:
+    """Convert a scaled integer amount into a Decimal without introducing rounding"""
+    return Decimal(amount) / Decimal(scale)
+
+
+def format_decimal(value: Decimal, decimals: int, *, use_grouping: bool = False) -> str:
+    """Format Decimal value by truncating toward zero and stripping trailing zeros"""
+    quantizer = Decimal("1").scaleb(-decimals)
+    truncated = value.quantize(quantizer, rounding=ROUND_DOWN)
+    fmt = f",.{decimals}f" if use_grouping else f".{decimals}f"
+    rendered = format(truncated, fmt)
+    if "." in rendered:
+        rendered = rendered.rstrip("0").rstrip(".")
+    return rendered
 
 def sub_no_negative(a: int, b: int) -> int:
     """Subtract with no negative result"""
@@ -153,9 +173,14 @@ def main():
     TARGET_AMOUNT = 1250 * STROOP  # 1250 KALE target per trade
     
     print(f"Initial pool state:")
-    print(f"  TEST: {test_record.balance / STROOP:,.2f}")
-    print(f"  KALE: {kale_record.balance / STROOP:,.2f}")
-    print(f"  Initial fee: {read_swap_fee(kale_record.balance) / 1e5:.5f}%")
+    print(
+        f"  TEST: {format_decimal(to_decimal(test_record.balance), 4, use_grouping=True)}"
+    )
+    print(
+        f"  KALE: {format_decimal(to_decimal(kale_record.balance), 4, use_grouping=True)}"
+    )
+    initial_fee = Decimal(read_swap_fee(kale_record.balance)) / Decimal(1e5)
+    print(f"  Initial fee: {format_decimal(initial_fee, 4)}%")
     print()
     
     # Execute 100 trades
@@ -192,9 +217,14 @@ def main():
             }
     
     print(f"After 100 trades:")
-    print(f"  TEST: {test_record.balance / STROOP:,.2f}")
-    print(f"  KALE: {kale_record.balance / STROOP:,.2f}")
-    print(f"  Final fee: {read_swap_fee(kale_record.balance) / 1e5:.5f}%")
+    print(
+        f"  TEST: {format_decimal(to_decimal(test_record.balance), 4, use_grouping=True)}"
+    )
+    print(
+        f"  KALE: {format_decimal(to_decimal(kale_record.balance), 4, use_grouping=True)}"
+    )
+    final_fee = Decimal(read_swap_fee(kale_record.balance)) / Decimal(1e5)
+    print(f"  Final fee: {format_decimal(final_fee, 4)}%")
     print()
     
     # Now calculate what each trader gets if they sell all their TEST back
@@ -221,25 +251,37 @@ def main():
         kale_out = min(kale_out, max_allowed_kale_out)
         
         # Calculate PnL
-        kale_spent = data['kale_spent'] / STROOP
-        kale_received = kale_out / STROOP
+        kale_spent = to_decimal(data['kale_spent'])
+        kale_received = to_decimal(kale_out)
         net_kale = kale_received - kale_spent
-        
+
         # Assuming KALE = $0.0004 for PnL calculation
-        kale_price = 0.0004
+        kale_price = Decimal("0.0004")
         total_spent = kale_spent * kale_price
         total_received = kale_received * kale_price
         pnl_dollars = total_received - total_spent
-        
+
         print(f"Trader {trader_num}:")
-        print(f"  Buy fee: {data['fee'] / 1e5:.5f}%")
-        print(f"  KALE spent: {kale_spent:.2f}")
-        print(f"  TEST received: {data['test_received'] / STROOP:,.2f}")
+        buy_fee = Decimal(data['fee']) / Decimal(1e5)
+        print(f"  Buy fee: {format_decimal(buy_fee, 4)}%")
+        print(f"  KALE spent: {format_decimal(kale_spent, 4)}")
+        print(
+            f"  TEST received: {format_decimal(to_decimal(data['test_received']), 4, use_grouping=True)}"
+        )
         if test_to_sell < data['test_received']:
-            print(f"  TEST to sell: {test_to_sell / STROOP:,.2f} (limited by MAX_IN_RATIO)")
-        print(f"  KALE received on sell: {kale_received:.2f}")
-        print(f"  Net KALE: {net_kale:.2f}")
-        print(f"  PnL: ${total_spent:.2f} spent, ${total_received:.2f} received, ${pnl_dollars:.2f} net")
+            print(
+                "  TEST to sell: "
+                f"{format_decimal(to_decimal(test_to_sell), 4, use_grouping=True)} "
+                "(limited by MAX_IN_RATIO)"
+            )
+        print(f"  KALE received on sell: {format_decimal(kale_received, 4)}")
+        print(f"  Net KALE: {format_decimal(net_kale, 4)}")
+        print(
+            "  PnL: $"
+            f"{format_decimal(total_spent, 4)} spent, $"
+            f"{format_decimal(total_received, 4)} received, $"
+            f"{format_decimal(pnl_dollars, 4)} net"
+        )
         print()
 
 if __name__ == "__main__":

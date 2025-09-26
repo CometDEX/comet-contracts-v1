@@ -7,6 +7,7 @@ use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
 use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{token::TokenClient, unwrap::UnwrapOptimized, Address, Env, String, Vec};
 
+use crate::c_pool::comet::CometPoolContractArgs;
 use crate::{
     c_consts::STROOP,
     c_pool::comet::{CometPoolContract, CometPoolContractClient},
@@ -23,14 +24,11 @@ pub fn create_comet_pool(
     balances: &Vec<i128>,
     swap_fee: i128,
 ) -> Address {
-    let contract_id = env.register(CometPoolContract, ());
-    let client = CometPoolContractClient::new(&env, &contract_id);
-
     let tracked_token = tokens.get(0).unwrap_optimized();
     let tracked_balance = balances.get(0).unwrap_optimized();
     let high_util_balance = tracked_balance + 1;
 
-    client.init(
+    let contract_id = env.register(CometPoolContract, CometPoolContractArgs::__constructor(
         &controller,
         &tokens,
         &weights,
@@ -40,7 +38,9 @@ pub fn create_comet_pool(
         &tracked_token,
         &tracked_balance,
         &high_util_balance,
-    );
+    ));
+    let client = CometPoolContractClient::new(&env, &contract_id);
+
     contract_id
 }
 

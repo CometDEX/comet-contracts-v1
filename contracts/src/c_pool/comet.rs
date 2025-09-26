@@ -33,7 +33,7 @@ pub struct CometPoolContract;
 #[contractimpl]
 impl CometPoolContract {
     // Initialize the Pool and the LP Token
-    pub fn init(
+    pub fn __constructor(
         e: Env,
         controller: Address,
         tokens: Vec<Address>,

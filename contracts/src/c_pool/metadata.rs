@@ -49,21 +49,6 @@ pub fn write_record(e: &Env, new_map: Map<Address, Record>) {
         .extend_ttl(&key_rec, SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 }
 
-// Read Factory
-pub fn read_factory(e: &Env) -> Address {
-    let key = DataKey::Factory;
-    e.storage()
-        .instance()
-        .get::<DataKey, Address>(&key)
-        .unwrap_optimized()
-}
-
-// Write Factory
-pub fn write_factory(e: &Env, d: Address) {
-    let key = DataKey::Factory;
-    e.storage().instance().set(&key, &d)
-}
-
 // Read Controller
 pub fn read_controller(e: &Env) -> Address {
     let key = DataKey::Controller;

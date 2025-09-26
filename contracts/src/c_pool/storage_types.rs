@@ -33,7 +33,6 @@ pub struct SwapFeeConfig {
 #[derive(Clone)]
 #[contracttype]
 pub enum DataKey {
-    Factory,       // Address of the Factory Contract
     Controller,    // Address of the Controller Account
     SwapFeeConfig, // SwapFeeConfig
     AllTokenVec,   // Vec<Address>
