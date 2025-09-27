@@ -100,7 +100,6 @@ CONTRACT_ID=$(stellar contract deploy \
     --source $IDENTITY_STRING \
     --network futurenet --fee 10000000 \
     -- \
-    --salt $SALT \
     --controller $ADMIN_ADDRESS \
     --tokens "$TOKENS_JSON" \
     --weights "$WEIGHTS_JSON" \

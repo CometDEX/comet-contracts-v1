@@ -251,6 +251,7 @@ name = "contracts"
 version = "1.0.0"
 dependencies = [
  "sep-41-token",
+ "sha2",
  "soroban-fixed-point-math",
  "soroban-sdk",
  "soroban-token-sdk",

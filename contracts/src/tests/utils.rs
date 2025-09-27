@@ -1,16 +1,22 @@
+use std::format;
 use std::println;
 
+use std::string::ToString;
 use std::vec as std_vec;
 use std::vec::Vec as std_Vec;
 
 use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
 use soroban_fixed_point_math::FixedPoint;
+use soroban_sdk::testutils::Logs as _;
 use soroban_sdk::{token::TokenClient, unwrap::UnwrapOptimized, Address, Env, String, Vec};
 
 use crate::c_pool::comet::CometPoolContractArgs;
 use crate::{
     c_consts::STROOP,
-    c_pool::comet::{CometPoolContract, CometPoolContractClient},
+    c_pool::{
+        comet::{CometPoolContract, CometPoolContractClient},
+        error::Error as CometError,
+    },
     tests::balancer::F64Utils,
 };
 
@@ -28,17 +34,20 @@ pub fn create_comet_pool(
     let tracked_balance = balances.get(0).unwrap_optimized();
     let high_util_balance = tracked_balance + 1;
 
-    let contract_id = env.register(CometPoolContract, CometPoolContractArgs::__constructor(
-        &controller,
-        &tokens,
-        &weights,
-        &balances,
-        &swap_fee,
-        &swap_fee,
-        &tracked_token,
-        &tracked_balance,
-        &high_util_balance,
-    ));
+    let contract_id = env.register(
+        CometPoolContract,
+        CometPoolContractArgs::__constructor(
+            &controller,
+            &tokens,
+            &weights,
+            &balances,
+            &swap_fee,
+            &swap_fee,
+            &tracked_token,
+            &tracked_balance,
+            &high_util_balance,
+        ),
+    );
     let client = CometPoolContractClient::new(&env, &contract_id);
 
     contract_id
@@ -59,6 +68,23 @@ pub fn create_soroban_token(env: &Env, admin: &Address, decimal: u32) -> Address
         &String::from_str(env, "SYMBOL"),
     );
     contract_id
+}
+
+pub fn assert_logs_contain_error(env: &Env, expected_error: CometError) {
+    let expected_code = expected_error as u32;
+    let expected_fragment = format!("Error(Contract, #{})]", expected_code);
+    let logs = env.logs().all();
+
+    for log in logs.iter() {
+        if log.to_string().contains(&expected_fragment) {
+            return;
+        }
+    }
+
+    panic!(
+        "expected error code #{} but was not found. logs: {:?}",
+        expected_code, logs
+    );
 }
 
 /// Asset that `b` is within `percentage` of `a` where `percentage`

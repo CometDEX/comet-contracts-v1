@@ -28,3 +28,6 @@ git = "https://github.com/kalepail/sep-41-token"
 
 [workspace.dependencies.soroban-fixed-point-math]
 git = "https://github.com/kalepail/soroban-fixed-point-math"
+
+[workspace.dependencies.sha2]
+version = "0.10.9"
