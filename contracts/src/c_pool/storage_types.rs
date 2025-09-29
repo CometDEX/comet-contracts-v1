@@ -1,5 +1,5 @@
 //! Declaration of the Storage Keys
-use soroban_sdk::{contracttype, Address};
+use soroban_sdk::{contracttype, Address, Vec};
 
 pub(crate) const DAY_IN_LEDGERS: u32 = 17280;
 
@@ -29,6 +29,20 @@ pub struct SwapFeeConfig {
     pub high_util_balance: i128,
 }
 
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FeeRecipient {
+    pub recipient: Address,
+    pub percent: i128,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FeeRule {
+    pub fee_asset: Address,
+    pub recipients: Vec<FeeRecipient>,
+}
+
 // Data Keys for Pool' Storage Data
 #[derive(Clone)]
 #[contracttype]
@@ -42,6 +56,7 @@ pub enum DataKey {
     PublicSwap,    // bool
     Finalize,      // bool
     Freeze,        // bool
+    FeeRule,       // Option<FeeRule>
 }
 
 // Data Keys for the LP Token

@@ -3,6 +3,7 @@ use crate::c_pool::{
     allowance::{read_allowance, spend_allowance, write_allowance},
     balance::{read_balance, receive_balance, spend_balance},
     call_logic::{
+        fee::{execute_clear_fee_rule, execute_get_fee_rule, execute_replace_fee_rule},
         getter::{execute_get_spot_price, execute_get_spot_price_sans_fee},
         init::execute_init,
         pool::{
@@ -16,7 +17,7 @@ use crate::c_pool::{
         get_total_shares, read_controller, read_decimal, read_name, read_record, read_swap_fee,
         read_swap_fee_config, read_symbol, read_tokens,
     },
-    storage_types::{SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
+    storage_types::{FeeRecipient, FeeRule, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
     token_utility::check_nonnegative_amount,
 };
 use soroban_sdk::{
@@ -44,6 +45,7 @@ impl CometPoolContract {
         tracked_token: Address,
         low_util_balance: i128,
         high_util_balance: i128,
+        initial_fee_rule: Option<FeeRule>,
     ) {
         controller.require_auth();
         e.storage()
@@ -60,6 +62,7 @@ impl CometPoolContract {
             tracked_token,
             low_util_balance,
             high_util_balance,
+            initial_fee_rule,
         );
     }
 
@@ -100,6 +103,7 @@ impl CometPoolContract {
         min_amount_out: i128,
         max_price: i128,
         user: Address,
+        trade_recipients: Option<Vec<FeeRecipient>>,
     ) -> (i128, i128) {
         user.require_auth();
         e.storage()
@@ -113,6 +117,7 @@ impl CometPoolContract {
             min_amount_out,
             max_price,
             user,
+            trade_recipients.as_ref(),
         )
     }
 
@@ -126,6 +131,7 @@ impl CometPoolContract {
         token_amount_out: i128,
         max_price: i128,
         user: Address,
+        trade_recipients: Option<Vec<FeeRecipient>>,
     ) -> (i128, i128) {
         user.require_auth();
         e.storage()
@@ -139,6 +145,7 @@ impl CometPoolContract {
             token_amount_out,
             max_price,
             user,
+            trade_recipients.as_ref(),
         )
     }
 
@@ -238,6 +245,22 @@ impl CometPoolContract {
         write_freeze(&e, val);
     }
 
+    pub fn replace_fee_rule(e: Env, rule: FeeRule) {
+        read_controller(&e).require_auth();
+        e.storage()
+            .instance()
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        execute_replace_fee_rule(&e, rule);
+    }
+
+    pub fn clear_fee_rule(e: Env) {
+        read_controller(&e).require_auth();
+        e.storage()
+            .instance()
+            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        execute_clear_fee_rule(&e);
+    }
+
     // GETTER FUNCTIONS
 
     // Get the Controller Address
@@ -280,6 +303,10 @@ impl CometPoolContract {
     // Get the Swap Fee configuration
     pub fn get_swap_fee_config(e: Env) -> crate::c_pool::storage_types::SwapFeeConfig {
         read_swap_fee_config(&e)
+    }
+
+    pub fn get_fee_rule(e: Env) -> Option<FeeRule> {
+        execute_get_fee_rule(&e)
     }
 
     // Get the spot price without considering the swap fee

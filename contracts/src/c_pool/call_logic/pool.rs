@@ -9,11 +9,14 @@ use crate::{
     c_consts::{MAX_IN_RATIO, MAX_OUT_RATIO},
     c_math,
     c_pool::{
+        call_logic::fee::{apply_fee_distribution, validate_fee_recipients, SwapLeg},
         error::Error,
         event::{DepositEvent, ExitEvent, JoinEvent, SwapEvent, WithdrawEvent},
         metadata::{
-            get_total_shares, read_freeze, read_record, read_swap_fee, read_tokens, write_record,
+            get_total_shares, read_fee_rule, read_freeze, read_record, read_swap_fee, read_tokens,
+            write_record,
         },
+        storage_types::FeeRecipient,
         token_utility::{burn_shares, mint_shares, pull_shares, pull_underlying, push_underlying},
     },
 };
@@ -117,11 +120,16 @@ pub fn execute_swap_exact_amount_in(
     min_amount_out: i128,
     max_price: i128,
     user: Address,
+    trade_recipients: Option<&Vec<FeeRecipient>>,
 ) -> (i128, i128) {
     assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
     assert_with_error!(&e, token_amount_in > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, min_amount_out >= 0, Error::ErrNegative);
     assert_with_error!(&e, max_price >= 0, Error::ErrNegative);
+
+    if let Some(recipients) = trade_recipients {
+        validate_fee_recipients(&e, recipients);
+    }
 
     let swap_fee = read_swap_fee(&e);
 
@@ -202,8 +210,30 @@ pub fn execute_swap_exact_amount_in(
     );
     push_underlying(&e, &token_out, &user, token_amount_out);
 
-    record_map.set(token_in, in_record);
-    record_map.set(token_out, out_record);
+    record_map.set(token_in.clone(), in_record);
+    record_map.set(token_out.clone(), out_record);
+
+    if let Some(rule) = read_fee_rule(&e) {
+        if rule.fee_asset == token_in {
+            apply_fee_distribution(
+                &e,
+                &mut record_map,
+                SwapLeg::In,
+                token_amount_in,
+                &rule,
+                trade_recipients,
+            );
+        } else if rule.fee_asset == token_out {
+            apply_fee_distribution(
+                &e,
+                &mut record_map,
+                SwapLeg::Out,
+                token_amount_out,
+                &rule,
+                trade_recipients,
+            );
+        }
+    }
 
     write_record(&e, record_map);
 
@@ -218,14 +248,19 @@ pub fn execute_swap_exact_amount_out(
     token_amount_out: i128,
     max_price: i128,
     user: Address,
+    trade_recipients: Option<&Vec<FeeRecipient>>,
 ) -> (i128, i128) {
     assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
     assert_with_error!(&e, token_amount_out > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, max_amount_in > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, max_price >= 0, Error::ErrNegative);
 
+    if let Some(recipients) = trade_recipients {
+        validate_fee_recipients(&e, recipients);
+    }
+
     let swap_fee = read_swap_fee(&e);
-    let record_map = read_record(&e);
+    let mut record_map = read_record(&e);
     let mut in_record = record_map
         .get(token_in.clone())
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
@@ -296,9 +331,30 @@ pub fn execute_swap_exact_amount_out(
     pull_underlying(&e, &token_in, &user, token_amount_in, max_amount_in);
     push_underlying(&e, &token_out, &user, token_amount_out);
 
-    let mut record_map = read_record(&e);
-    record_map.set(token_in, in_record);
-    record_map.set(token_out, out_record);
+    record_map.set(token_in.clone(), in_record);
+    record_map.set(token_out.clone(), out_record);
+
+    if let Some(rule) = read_fee_rule(&e) {
+        if rule.fee_asset == token_in {
+            apply_fee_distribution(
+                &e,
+                &mut record_map,
+                SwapLeg::In,
+                token_amount_in,
+                &rule,
+                trade_recipients,
+            );
+        } else if rule.fee_asset == token_out {
+            apply_fee_distribution(
+                &e,
+                &mut record_map,
+                SwapLeg::Out,
+                token_amount_out,
+                &rule,
+                trade_recipients,
+            );
+        }
+    }
 
     write_record(&e, record_map);
 

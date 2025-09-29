@@ -5,7 +5,9 @@ use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{unwrap::UnwrapOptimized, Address, Env, Map, String, Vec};
 use soroban_token_sdk::{metadata::TokenMetadata, TokenUtils};
 
-use super::storage_types::{Record, SwapFeeConfig, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD};
+use super::storage_types::{
+    FeeRule, Record, SwapFeeConfig, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD,
+};
 
 // Read all Token Addresses in the pool
 pub fn read_tokens(e: &Env) -> Vec<Address> {
@@ -77,6 +79,21 @@ pub fn read_swap_fee_config(e: &Env) -> SwapFeeConfig {
 pub fn write_swap_fee_config(e: &Env, config: &SwapFeeConfig) {
     let key = DataKey::SwapFeeConfig;
     e.storage().instance().set(&key, config)
+}
+
+pub fn read_fee_rule(e: &Env) -> Option<FeeRule> {
+    let key = DataKey::FeeRule;
+    e.storage().instance().get::<DataKey, FeeRule>(&key)
+}
+
+pub fn write_fee_rule(e: &Env, rule: &FeeRule) {
+    let key = DataKey::FeeRule;
+    e.storage().instance().set(&key, rule);
+}
+
+pub fn clear_fee_rule(e: &Env) {
+    let key = DataKey::FeeRule;
+    e.storage().instance().remove(&key);
 }
 
 // Calculates the dynamic swap fee based on the current utilization of the tracked token.

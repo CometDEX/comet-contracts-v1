@@ -46,10 +46,9 @@ pub fn create_comet_pool(
             &tracked_token,
             &tracked_balance,
             &high_util_balance,
+            &None,
         ),
     );
-    let client = CometPoolContractClient::new(&env, &contract_id);
-
     contract_id
 }
 

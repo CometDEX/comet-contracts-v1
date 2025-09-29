@@ -6,11 +6,13 @@ use soroban_token_sdk::metadata::TokenMetadata;
 use crate::{
     c_consts::{INIT_POOL_SUPPLY, MAX_FEE, MAX_WEIGHT, MIN_BALANCE, MIN_FEE, MIN_WEIGHT, STROOP},
     c_pool::{
+        call_logic::fee::validate_fee_rule,
         error::Error,
         metadata::{
-            write_controller, write_metadata, write_record, write_swap_fee_config, write_tokens,
+            clear_fee_rule, write_controller, write_fee_rule, write_metadata, write_record,
+            write_swap_fee_config, write_tokens,
         },
-        storage_types::{DataKey, Record, SwapFeeConfig},
+        storage_types::{DataKey, FeeRule, Record, SwapFeeConfig},
         token_utility::mint_shares,
     },
 };
@@ -26,6 +28,7 @@ pub fn execute_init(
     tracked_token: Address,
     low_util_balance: i128,
     high_util_balance: i128,
+    initial_fee_rule: Option<FeeRule>,
 ) {
     assert_with_error!(
         &e,
@@ -110,7 +113,14 @@ pub fn execute_init(
     );
 
     write_record(e, records);
-    write_tokens(e, tokens);
+    write_tokens(e, tokens.clone());
+
+    if let Some(rule) = initial_fee_rule {
+        validate_fee_rule(e, &rule, &tokens);
+        write_fee_rule(e, &rule);
+    } else {
+        clear_fee_rule(e);
+    }
 
     // Name of the LP Token
     let name = String::from_str(&e, "Comet Pool Token");

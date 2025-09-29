@@ -14,7 +14,7 @@ use crate::{
     c_consts::STROOP,
     c_pool::{
         comet::{CometPoolContract, CometPoolContractArgs, CometPoolContractClient},
-        error::Error as CometError,
+        error::Error as CometError, storage_types::FeeRule,
     },
     tests::utils::assert_logs_contain_error,
 };
@@ -84,6 +84,7 @@ fn test_init() {
             &token_2_address,
             &low_util_balance,
             &high_util_balance,
+            &None,
         )
         .into_val(&env),
     );
@@ -103,6 +104,7 @@ fn test_init() {
             &token_2_address,
             &low_util_balance,
             &high_util_balance,
+            &None,
         )
         .into_val(&env),
     );
@@ -121,6 +123,7 @@ fn test_init() {
             &token_2_address,
             &low_util_balance,
             &high_util_balance,
+            &None,
         )
         .into_val(&env),
     );
@@ -140,6 +143,7 @@ fn test_init() {
             &token_2_address,
             &low_util_balance,
             &high_util_balance,
+            &None,
         )
         .into_val(&env),
     );
@@ -159,6 +163,7 @@ fn test_init() {
             &token_2_address,
             &low_util_balance,
             &high_util_balance,
+            &None,
         )
         .into_val(&env),
     );
@@ -177,6 +182,7 @@ fn test_init() {
             &token_2_address,
             &low_util_balance,
             &high_util_balance,
+            &None,
         )
         .into_val(&env),
     );
@@ -196,6 +202,7 @@ fn test_init() {
             &token_2_address,
             &low_util_balance,
             &high_util_balance,
+            &None,
         )
         .into_val(&env),
     );
@@ -215,6 +222,7 @@ fn test_init() {
             &token_2_address,
             &low_util_balance,
             &high_util_balance,
+            &None,
         )
         .into_val(&env),
     );
@@ -233,6 +241,7 @@ fn test_init() {
             &token_2_address,
             &low_util_balance,
             &high_util_balance,
+            &None,
         )
         .into_val(&env),
     );
@@ -251,6 +260,7 @@ fn test_init() {
             &token_2_address,
             &low_util_balance,
             &high_util_balance,
+            &None,
         )
         .into_val(&env),
     );
@@ -269,6 +279,7 @@ fn test_init() {
             &Address::generate(&env),
             &low_util_balance,
             &high_util_balance,
+            &None,
         )
         .into_val(&env),
     );
@@ -287,6 +298,7 @@ fn test_init() {
             &token_2_address,
             &high_util_balance,
             &low_util_balance,
+            &None,
         )
         .into_val(&env),
     );
@@ -305,6 +317,7 @@ fn test_init() {
             &token_2_address,
             &(low_util_balance + 1),
             &high_util_balance,
+            &None,
         )
         .into_val(&env),
     );
@@ -323,6 +336,7 @@ fn test_init() {
             &token_2_address,
             &(low_util_balance - 10),
             &(low_util_balance - 1),
+            &None,
         )
         .into_val(&env),
     );
@@ -349,6 +363,7 @@ fn test_init() {
                 token_2_address.clone().into_val(&env),
                 low_util_balance.into_val(&env),
                 high_util_balance.into_val(&env),
+                None::<FeeRule>.into_val(&env),
             ],
             sub_invokes: &[
                 MockAuthInvoke {
@@ -390,6 +405,7 @@ fn test_init() {
             &token_2_address,
             &low_util_balance,
             &high_util_balance,
+            &None,
         ),
     );
 

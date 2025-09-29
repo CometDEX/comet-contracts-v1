@@ -31,7 +31,8 @@ stellar contract invoke \
 --token_out CAJ4DUCGWWCMZ55G6GOAY6KYUEOVUGC5O3HCLKK7TCNZ7VVACXU5ZN6T \
 --max_price 170141183460469231731687303715884105727 \
 --min_amount_out 0 \
---user default
+--user default \
+--trade_recipients null
 
 ---
 

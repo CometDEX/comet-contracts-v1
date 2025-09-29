@@ -133,7 +133,8 @@ stellar contract invoke \
     --token_out $TOKEN_ID2 \
     --min_amount_out 0 \
     --max_price 10000000000000 \
-    --user $ADMIN_ADDRESS
+    --user $ADMIN_ADDRESS \
+    --trade_recipients null
 
 echo "Swapped token 1 for token 2"
 

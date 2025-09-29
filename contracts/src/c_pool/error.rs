@@ -42,4 +42,13 @@ pub enum Error {
     ErrInvalidExpirationLedger = 36,
     ErrNegativeOrZero = 37,
     ErrTokenInvalid = 38,
+    ErrInvalidFeeRecipient = 39,
+    ErrFeeRecipientCapExceeded = 40,
+    ErrFeeRecipientDuplicate = 41,
+    ErrFeeRecipientPercent = 42,
+    ErrFeeRecipientSum = 43,
+    ErrFeeAssetNotBound = 44,
+    ErrFeeRuleNotConfigured = 45,
+    ErrFeeRuleUnsupportedToken = 46,
+    ErrFeeDistribution = 47,
 }

@@ -22,3 +22,4 @@ pub const MAX_FEE: i128 = 99_99990; // 99.9999%
 pub const MIN_WEIGHT: i128 = STROOP / 10; // 10%
 pub const MAX_WEIGHT: i128 = MIN_WEIGHT * 9; // 90%
 pub const MIN_BALANCE: i128 = 100;
+pub const MAX_FEE_RECIPIENTS: u32 = 5;

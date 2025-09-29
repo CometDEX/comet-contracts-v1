@@ -124,6 +124,7 @@ fn test_pool_functions() {
         &to_stroop(475),
         &to_stroop(200),
         &user2,
+        &None,
     );
 
     let val = client.get_spot_price(&token3.address, &token1.address);
@@ -137,6 +138,7 @@ fn test_pool_functions() {
         &to_stroop(1.0),
         &to_stroop(500),
         &user2,
+        &None,
     );
 
     // Using Floats
