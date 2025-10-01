@@ -5,3 +5,4 @@ diagrams
 .stellar
 script_output.log
 test_snapshots/
+bindings/

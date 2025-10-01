@@ -96,7 +96,8 @@ pub fn execute_exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128
             token_amount_out <= rec.balance,
             Error::ErrInsufficientBalance
         );
-        rec.balance = rec.balance - token_amount_out;
+        rec.balance = rec.balance.checked_sub(token_amount_out)
+            .unwrap_or_else(|| panic_with_error!(&e, Error::ErrMathApprox));
         records.set(t.clone(), rec);
         ExitEvent {
             tag: POOL,
@@ -171,7 +172,8 @@ pub fn execute_swap_exact_amount_in(
         out_record.balance >= token_amount_out,
         Error::ErrInsufficientBalance
     );
-    out_record.balance = out_record.balance - token_amount_out;
+    out_record.balance = out_record.balance.checked_sub(token_amount_out)
+        .unwrap_or_else(|| panic_with_error!(&e, Error::ErrMathApprox));
 
     let spot_price_after = c_math::calc_spot_price(&in_record, &out_record, swap_fee);
 
@@ -299,7 +301,8 @@ pub fn execute_swap_exact_amount_out(
         out_record.balance >= token_amount_out,
         Error::ErrInsufficientBalance
     );
-    out_record.balance = out_record.balance - token_amount_out;
+    out_record.balance = out_record.balance.checked_sub(token_amount_out)
+        .unwrap_or_else(|| panic_with_error!(&e, Error::ErrMathApprox));
 
     let spot_price_after = c_math::calc_spot_price(&in_record, &out_record, swap_fee);
 
@@ -521,7 +524,8 @@ pub fn execute_wdr_tokn_amt_in_get_lp_tokns_out(
         token_amount_out <= out_record.balance,
         Error::ErrInsufficientBalance
     );
-    out_record.balance = out_record.balance - token_amount_out;
+    out_record.balance = out_record.balance.checked_sub(token_amount_out)
+        .unwrap_or_else(|| panic_with_error!(&e, Error::ErrMathApprox));
 
     WithdrawEvent {
         tag: POOL,
@@ -584,7 +588,8 @@ pub fn execute_wdr_tokn_amt_out_get_lp_tokns_in(
         token_amount_out <= out_record.balance,
         Error::ErrInsufficientBalance
     );
-    out_record.balance = out_record.balance - token_amount_out;
+    out_record.balance = out_record.balance.checked_sub(token_amount_out)
+        .unwrap_or_else(|| panic_with_error!(&e, Error::ErrMathApprox));
     WithdrawEvent {
         tag: POOL,
         event: symbol_short!("withdraw"),

@@ -62,7 +62,8 @@ pub fn spend_allowance(e: &Env, from: Address, spender: Address, amount: i128) {
             e,
             from,
             spender,
-            allowance.amount - amount,
+            allowance.amount.checked_sub(amount)
+                .unwrap_or_else(|| panic_with_error!(&e, Error::ErrMathApprox)),
             allowance.expiration_ledger,
         );
     }

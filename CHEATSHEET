@@ -45,3 +45,7 @@ stellar contract invoke \
 --min_pool_amount_out 1 \
 --token_amount_in 30000000000 \
 --token_in CAAVU2UQJLMZ3GUZFM56KVNHLPA3ZSSNR4VP2U53YBXFD2GI3QLIVHZZ
+
+---
+
+stellar contract bindings typescript --wasm target/wasm32v1-none/optimized/comet.wasm --output-dir bindings/comet-sdk

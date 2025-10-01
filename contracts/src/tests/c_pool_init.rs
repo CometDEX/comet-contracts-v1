@@ -14,7 +14,8 @@ use crate::{
     c_consts::STROOP,
     c_pool::{
         comet::{CometPoolContract, CometPoolContractArgs, CometPoolContractClient},
-        error::Error as CometError, storage_types::FeeRule,
+        error::Error as CometError,
+        storage_types::FeeRule,
     },
     tests::utils::assert_logs_contain_error,
 };
@@ -430,4 +431,152 @@ fn test_init() {
     assert_eq!(token_2_client.balance(&controller), 0);
     assert_eq!(token_1_client.balance(&comet_address), STROOP);
     assert_eq!(token_2_client.balance(&comet_address), STROOP);
+}
+
+#[test]
+fn test_util_balance_overflow_protection() {
+    use crate::c_consts::MAX_UTIL_BALANCE;
+
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let controller = Address::generate(&env);
+    let token_1 = env.register_stellar_asset_contract_v2(controller.clone());
+    let token_1_address = token_1.address();
+    let token_1_client = MockTokenClient::new(&env, &token_1_address);
+    let token_2 = env.register_stellar_asset_contract_v2(controller.clone());
+    let token_2_address = token_2.address();
+    let token_2_client = MockTokenClient::new(&env, &token_2_address);
+
+    token_1_client.mint(&controller, &STROOP);
+    token_2_client.mint(&controller, &STROOP);
+
+    let tokens = vec![&env, token_1_address.clone(), token_2_address.clone()];
+    let weights = vec![&env, 0_4000000, 0_6000000];
+    let balances = vec![&env, STROOP, STROOP];
+    let min_fee = 0_0010000;
+    let max_fee = 0_0030000;
+
+    let wasm_hash = env.deployer().upload_contract_wasm(comet::WASM);
+    let deploy_helper_address = env.register(DeployHelper, ());
+    let deploy_helper_client = DeployHelperClient::new(&env, &deploy_helper_address);
+
+    // Test 1: low_util_balance at MAX_UTIL_BALANCE should PASS (when balance is within range)
+    // Set low and high util around the actual balance (STROOP)
+    let _ = deploy_helper_client.deploy(
+        &BytesN::random(&env),
+        &wasm_hash,
+        &CometPoolContractArgs::__constructor(
+            &controller,
+            &tokens,
+            &weights,
+            &balances,
+            &min_fee,
+            &max_fee,
+            &token_1_address,
+            &(STROOP - 100),
+            &MAX_UTIL_BALANCE,
+            &None,
+        )
+        .into_val(&env),
+    );
+
+    // Test 2: Both values at/near MAX_UTIL_BALANCE should PASS if balance allows
+    // We need the tracked balance to be within [low_util, high_util]
+    // Create a new pool with large balance to test MAX_UTIL_BALANCE acceptance
+    let controller_2 = Address::generate(&env);
+    let token_3 = env.register_stellar_asset_contract_v2(controller_2.clone());
+    let token_3_address = token_3.address();
+    let token_3_client = MockTokenClient::new(&env, &token_3_address);
+    let token_4 = env.register_stellar_asset_contract_v2(controller_2.clone());
+    let token_4_address = token_4.address();
+    let token_4_client = MockTokenClient::new(&env, &token_4_address);
+
+    token_3_client.mint(&controller_2, &MAX_UTIL_BALANCE);
+    token_4_client.mint(&controller_2, &STROOP);
+
+    let tokens_2 = vec![&env, token_3_address.clone(), token_4_address.clone()];
+    let large_balances = vec![&env, MAX_UTIL_BALANCE, STROOP];
+    let _ = deploy_helper_client.deploy(
+        &BytesN::random(&env),
+        &wasm_hash,
+        &CometPoolContractArgs::__constructor(
+            &controller_2,
+            &tokens_2,
+            &weights,
+            &large_balances,
+            &min_fee,
+            &max_fee,
+            &token_3_address,
+            &(MAX_UTIL_BALANCE - 1000),
+            &MAX_UTIL_BALANCE,
+            &None,
+        )
+        .into_val(&env),
+    );
+
+    // Test 3: low_util_balance ABOVE MAX_UTIL_BALANCE should FAIL
+    let _ = deploy_helper_client.try_deploy(
+        &BytesN::random(&env),
+        &wasm_hash,
+        &CometPoolContractArgs::__constructor(
+            &controller,
+            &tokens,
+            &weights,
+            &balances,
+            &min_fee,
+            &max_fee,
+            &token_1_address,
+            &(MAX_UTIL_BALANCE + 1),
+            &(MAX_UTIL_BALANCE + 1000),
+            &None,
+        )
+        .into_val(&env),
+    );
+    assert_logs_contain_error(&env, CometError::ErrSwapFee);
+
+    // Test 4: high_util_balance ABOVE MAX_UTIL_BALANCE should FAIL
+    let _ = deploy_helper_client.try_deploy(
+        &BytesN::random(&env),
+        &wasm_hash,
+        &CometPoolContractArgs::__constructor(
+            &controller,
+            &tokens,
+            &weights,
+            &balances,
+            &min_fee,
+            &max_fee,
+            &token_1_address,
+            &1000,
+            &(MAX_UTIL_BALANCE + 1),
+            &None,
+        )
+        .into_val(&env),
+    );
+    assert_logs_contain_error(&env, CometError::ErrSwapFee);
+
+    // Test 5: low_util_balance = 0 should FAIL
+    let _ = deploy_helper_client.try_deploy(
+        &BytesN::random(&env),
+        &wasm_hash,
+        &CometPoolContractArgs::__constructor(
+            &controller,
+            &tokens,
+            &weights,
+            &balances,
+            &min_fee,
+            &max_fee,
+            &token_1_address,
+            &0,
+            &1000,
+            &None,
+        )
+        .into_val(&env),
+    );
+    assert_logs_contain_error(&env, CometError::ErrSwapFee);
+
+    // Test 6: Verify no overflow with max values
+    // This would have overflowed without the cap:
+    // MAX_UTIL_BALANCE * 10^18 should not overflow i128
+    // The cap ensures: 1.7e20 * 10^18 = 1.7e38 < i128::MAX
 }

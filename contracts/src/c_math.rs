@@ -1,6 +1,6 @@
 //! Comet Pool Math Utilities
 use soroban_fixed_point_math::{FixedPoint, SorobanFixedPoint};
-use soroban_sdk::{assert_with_error, unwrap::UnwrapOptimized, Env, I256};
+use soroban_sdk::{assert_with_error, panic_with_error, unwrap::UnwrapOptimized, Env, I256};
 
 use crate::{
     c_consts::{BONE, STROOP, STROOP_SCALAR},
@@ -22,8 +22,9 @@ pub fn calc_spot_price(in_record: &Record, out_record: &Record, swap_fee: i128) 
         .fixed_div_floor(out_record.weight, STROOP)
         .unwrap_optimized();
     let ratio = numer.fixed_div_floor(denom, STROOP).unwrap_optimized();
+    let fee_adjusted = STROOP.checked_sub(swap_fee).unwrap_optimized();
     ratio
-        .fixed_div_floor(STROOP - swap_fee, STROOP)
+        .fixed_div_floor(fee_adjusted, STROOP)
         .unwrap_optimized()
 }
 
@@ -286,7 +287,9 @@ pub fn calc_exit_withdrawal_amount(e: &Env, out_record: &Record, exit_ratio: &I2
 ///
 /// Will fail if `amount` is greater than 1e18 * scalar
 fn upscale(e: &Env, amount: i128, scalar: i128) -> I256 {
-    I256::from_i128(e, amount * scalar)
+    let scaled = amount.checked_mul(scalar)
+        .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox));
+    I256::from_i128(e, scaled)
 }
 
 /// Downscale a number from 18 decimals and 256 bits to i128 to represent a token amount.

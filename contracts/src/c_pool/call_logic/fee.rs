@@ -145,13 +145,20 @@ fn compute_payouts(
         let payout = desired.min(remaining);
         if payout > 0 {
             payouts.push_back((recipient.recipient.clone(), payout));
-            remaining -= payout;
+            remaining = remaining.checked_sub(payout)
+                .unwrap_or_else(|| panic_with_error!(e, Error::ErrFeeDistribution));
         }
     }
 
     payouts
 }
 
+/// Reduces the pool balance for the fee asset by the specified amount.
+/// This is used to deduct fees from the pool before attempting distribution.
+///
+/// # Safety
+/// - Validates that the pool has sufficient balance before deduction
+/// - Uses checked arithmetic to prevent underflow
 fn adjust_pool_balance(
     e: &Env,
     record_map: &mut Map<Address, Record>,
@@ -166,10 +173,17 @@ fn adjust_pool_balance(
         .get(fee_asset.clone())
         .unwrap_or_else(|| panic_with_error!(e, Error::ErrFeeRuleUnsupportedToken));
     assert_with_error!(e, record.balance >= amount, Error::ErrFeeDistribution);
-    record.balance -= amount;
+    record.balance = record.balance.checked_sub(amount)
+        .unwrap_or_else(|| panic_with_error!(e, Error::ErrFeeDistribution));
     record_map.set(fee_asset.clone(), record);
 }
 
+/// Restores pool balance when fee distribution transfers fail.
+/// This ensures that any fees not successfully distributed remain in the pool.
+///
+/// # Safety
+/// - Uses checked arithmetic to prevent overflow
+/// - Called after adjust_pool_balance when transfers fail, maintaining balance consistency
 fn refund_pool_balance(record_map: &mut Map<Address, Record>, fee_asset: &Address, amount: i128) {
     if amount <= 0 {
         return;
@@ -190,6 +204,37 @@ fn sum_payouts(e: &Env, payouts: &Vec<(Address, i128)>) -> i128 {
     total
 }
 
+/// Applies fee distribution from pool balances to recipients.
+///
+/// This function handles micro-fee distribution during swaps by:
+/// 1. Computing the fee amount based on the swap leg amount
+/// 2. Reducing the pool balance by the total allocated fee amount
+/// 3. Attempting to transfer fees to each recipient using try_transfer
+/// 4. Refunding any failed transfers back to the pool balance
+///
+/// # Failed Transfer Handling
+/// Individual recipient transfers may fail (e.g., invalid recipient address, token contract issues).
+/// This is acceptable behavior - failed transfers are not retried, and the corresponding funds
+/// remain in the pool via the refund mechanism. This ensures:
+/// - Pool balance always reflects actual token holdings
+/// - No funds are lost if recipients cannot receive payments
+/// - The pool remains in a consistent state
+///
+/// # Safety and Atomicity
+/// - All state mutations are in-memory until the caller persists via write_record()
+/// - Soroban provides protocol-level reentrancy protection through atomic execution
+/// - If the transaction reverts after this function, ALL changes (including transfers) revert
+/// - Uses checked arithmetic throughout to prevent overflow/underflow
+///
+/// # Arguments
+/// * `record_map` - Mutable in-memory pool records (not yet persisted)
+/// * `leg_amount` - The swap amount on which to calculate fees
+/// * `rule` - Fee distribution rule defining the fee asset and pool recipients
+/// * `trade_recipients` - Optional additional recipients for this specific trade
+///
+/// # Returns
+/// * `Some(Vec)` - List of successful (recipient, amount) transfers
+/// * `None` - If no fees were distributed (no recipients, zero amounts, or all transfers failed)
 pub fn apply_fee_distribution(
     e: &Env,
     record_map: &mut Map<Address, Record>,
@@ -227,8 +272,10 @@ pub fn apply_fee_distribution(
         return None;
     }
 
+    // Step 1: Deduct the full allocated amount from pool balance
     adjust_pool_balance(e, record_map, &rule.fee_asset, allocated);
 
+    // Step 2: Attempt to transfer to each recipient, tracking successful transfers
     let token_client = TokenClient::new(e, &rule.fee_asset);
     let mut executed = Vec::new(e);
     let mut sent_total: i128 = 0;
@@ -246,6 +293,7 @@ pub fn apply_fee_distribution(
         }
     }
 
+    // Step 3: Refund any failed transfers back to the pool
     if sent_total < allocated {
         refund_pool_balance(record_map, &rule.fee_asset, allocated - sent_total);
     }

@@ -1,8 +1,8 @@
 //! Utilities to read and write contract's storage
 
-use crate::{c_consts::STROOP, c_pool::storage_types::DataKey};
+use crate::{c_consts::STROOP, c_pool::{error::Error, storage_types::DataKey}};
 use soroban_fixed_point_math::FixedPoint;
-use soroban_sdk::{unwrap::UnwrapOptimized, Address, Env, Map, String, Vec};
+use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Address, Env, Map, String, Vec};
 use soroban_token_sdk::{metadata::TokenMetadata, TokenUtils};
 
 use super::storage_types::{
@@ -96,7 +96,25 @@ pub fn clear_fee_rule(e: &Env) {
     e.storage().instance().remove(&key);
 }
 
-// Calculates the dynamic swap fee based on the current utilization of the tracked token.
+/// Calculates the dynamic swap fee based on tracked token utilization.
+///
+/// The fee varies linearly between min_fee and max_fee based on the current balance
+/// of the tracked token relative to configured low and high utilization thresholds.
+///
+/// # Fee Calculation
+/// - Below low_util_balance: max_fee (incentivize adding this token)
+/// - Above high_util_balance: min_fee (incentivize removing this token)
+/// - Between thresholds: Linear interpolation from max_fee to min_fee
+///
+/// # Overflow Protection
+/// The multiplication of balances by scalar is protected by:
+/// 1. checked_mul() operations that panic on overflow
+/// 2. Validation at initialization that low_util_balance and high_util_balance
+///    are capped at MAX_UTIL_BALANCE (i128::MAX / 10^18 ≈ 1.7e20)
+/// 3. This ensures balance * scalar never overflows i128, even for 0-decimal tokens
+///
+/// # Returns
+/// The calculated swap fee in stroop units (1e-7)
 pub fn read_swap_fee(e: &Env) -> i128 {
     let config = read_swap_fee_config(e);
     // Fallback to max_fee if configuration is degenerate.
@@ -108,27 +126,35 @@ pub fn read_swap_fee(e: &Env) -> i128 {
     let tracked = records.get(config.tracked_token.clone()).unwrap_optimized();
 
     // Convert balances to 18-decimal fixed precision using the stored scalar.
+    // These multiplications are safe from overflow due to MAX_UTIL_BALANCE validation at init.
     let scalar = tracked.scalar;
-    let current_balance = tracked.balance * scalar;
-    let low_balance = config.low_util_balance * scalar;
-    let high_balance = config.high_util_balance * scalar;
+    let current_balance = tracked.balance.checked_mul(scalar)
+        .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox));
+    let low_balance = config.low_util_balance.checked_mul(scalar)
+        .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox));
+    let high_balance = config.high_util_balance.checked_mul(scalar)
+        .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox));
 
     let clamped = current_balance.max(low_balance).min(high_balance);
 
-    let span = high_balance - low_balance;
+    let span = high_balance.checked_sub(low_balance)
+        .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox));
     if span <= 0 {
         return config.max_fee;
     }
 
-    let utilization = (clamped - low_balance)
+    let utilization = (clamped.checked_sub(low_balance)
+        .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox)))
         .fixed_div_floor(span, STROOP)
         .unwrap_optimized();
 
-    let fee_delta = (config.max_fee - config.min_fee)
+    let fee_delta = (config.max_fee.checked_sub(config.min_fee)
+        .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox)))
         .fixed_mul_floor(utilization, STROOP)
         .unwrap_optimized();
 
-    config.max_fee - fee_delta
+    config.max_fee.checked_sub(fee_delta)
+        .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox))
 }
 
 // Read Total Shares

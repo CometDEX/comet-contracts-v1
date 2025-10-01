@@ -1,10 +1,10 @@
 use soroban_sdk::{
-    assert_with_error, token::TokenClient, unwrap::UnwrapOptimized, Address, Env, Map, String, Vec,
+    assert_with_error, panic_with_error, token::TokenClient, unwrap::UnwrapOptimized, Address, Env, Map, String, Vec,
 };
 use soroban_token_sdk::metadata::TokenMetadata;
 
 use crate::{
-    c_consts::{INIT_POOL_SUPPLY, MAX_FEE, MAX_WEIGHT, MIN_BALANCE, MIN_FEE, MIN_WEIGHT, STROOP},
+    c_consts::{INIT_POOL_SUPPLY, MAX_FEE, MAX_UTIL_BALANCE, MAX_WEIGHT, MIN_BALANCE, MIN_FEE, MIN_WEIGHT, STROOP},
     c_pool::{
         call_logic::fee::validate_fee_rule,
         error::Error,
@@ -49,6 +49,11 @@ pub fn execute_init(
     assert_with_error!(&e, max_fee <= MAX_FEE, Error::ErrSwapFee);
     assert_with_error!(&e, high_util_balance > low_util_balance, Error::ErrSwapFee);
 
+    // Validate util balances to prevent overflow when multiplied by scalar during fee calculation
+    assert_with_error!(&e, low_util_balance > 0, Error::ErrSwapFee);
+    assert_with_error!(&e, low_util_balance <= MAX_UTIL_BALANCE, Error::ErrSwapFee);
+    assert_with_error!(&e, high_util_balance <= MAX_UTIL_BALANCE, Error::ErrSwapFee);
+
     let mut records = Map::<Address, Record>::new(&e);
     let mut total_weight: i128 = 0;
     let mut tracked_found = false;
@@ -68,7 +73,8 @@ pub fn execute_init(
         assert_with_error!(&e, decimals <= 18, Error::ErrTokenInvalid);
         let scalar = 10i128.pow(18 - decimals);
 
-        total_weight += weight;
+        total_weight = total_weight.checked_add(weight)
+            .unwrap_or_else(|| panic_with_error!(&e, Error::ErrMathApprox));
 
         // transfer starting balance to the pool
         token_client.transfer(&controller, &e.current_contract_address(), &balance);

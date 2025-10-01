@@ -1270,7 +1270,10 @@ fn test_fee_rule_skips_when_asset_not_involved() {
 
     let pool_balance_after = comet.get_balance(&token_3);
     assert_eq!(pool_balance_after, pool_balance_before);
-    assert_eq!(token_3_client.balance(&skip_recipient), recipient_balance_before);
+    assert_eq!(
+        token_3_client.balance(&skip_recipient),
+        recipient_balance_before
+    );
 }
 
 #[test]
@@ -1344,11 +1347,8 @@ fn test_fee_distribution_refunds_failed_transfers() {
     let pool_balance_after = comet.get_balance(&token_1);
     let fee_total = (0_0030000 * token_amount_in) / STROOP;
     let allocations = compute_expected_payouts(&[5_000000, 3_000000], fee_total);
-    let all_success_balance = pool_balance_before + token_amount_in
-        - allocations.iter().copied().sum::<i128>();
+    let all_success_balance =
+        pool_balance_before + token_amount_in - allocations.iter().copied().sum::<i128>();
     assert_eq!(successful_amount, allocations[1]);
-    assert_eq!(
-        pool_balance_after,
-        all_success_balance + allocations[0]
-    );
+    assert_eq!(pool_balance_after, all_success_balance + allocations[0]);
 }

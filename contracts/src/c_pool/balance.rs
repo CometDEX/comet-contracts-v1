@@ -2,7 +2,7 @@ use crate::c_pool::{
     error::Error,
     storage_types::{DataKeyToken, BALANCE_BUMP_AMOUNT},
 };
-use soroban_sdk::{assert_with_error, Address, Env};
+use soroban_sdk::{assert_with_error, panic_with_error, Address, Env};
 
 use super::storage_types::BALANCE_LIFETIME_THRESHOLD;
 
@@ -28,11 +28,13 @@ fn write_balance(e: &Env, addr: Address, amount: i128) {
 
 pub fn receive_balance(e: &Env, addr: Address, amount: i128) {
     let balance = read_balance(e, addr.clone());
-    write_balance(e, addr, balance + amount);
+    write_balance(e, addr, balance.checked_add(amount)
+        .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox)));
 }
 
 pub fn spend_balance(e: &Env, addr: Address, amount: i128) {
     let balance = read_balance(e, addr.clone());
     assert_with_error!(e, balance >= amount, Error::ErrInsufficientBalance);
-    write_balance(e, addr, balance - amount);
+    write_balance(e, addr, balance.checked_sub(amount)
+        .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox)));
 }

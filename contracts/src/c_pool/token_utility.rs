@@ -1,9 +1,10 @@
 //! Utilities for the LP Token
-use soroban_sdk::{Address, Env};
+use soroban_sdk::{panic_with_error, Address, Env};
 use soroban_token_sdk::events::{Burn, Transfer};
 
 use super::{
     balance::{receive_balance, spend_balance},
+    error::Error,
     metadata::{get_total_shares, put_total_shares},
 };
 
@@ -30,7 +31,8 @@ pub fn push_underlying(e: &Env, token: &Address, to: &Address, amount: i128) {
 // Mint the given amount of LP Tokens
 pub fn mint_shares(e: &Env, to: &Address, amount: i128) {
     let total = get_total_shares(e);
-    put_total_shares(e, total + amount);
+    put_total_shares(e, total.checked_add(amount)
+        .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox)));
     check_nonnegative_amount(amount);
     receive_balance(e, to.clone(), amount);
 }
@@ -61,7 +63,8 @@ pub fn burn_shares(e: &Env, amount: i128) {
         amount,
     }
     .publish(e);
-    put_total_shares(e, total - amount);
+    put_total_shares(e, total.checked_sub(amount)
+        .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox)));
 }
 
 // Check if the given amount is negative
