@@ -1,6 +1,8 @@
 //! Liquidity Pool and Token Implementation
 use crate::c_pool::{
-    allowance::{read_allowance, spend_allowance, write_allowance}, balance::{read_balance, receive_balance, spend_balance}, call_logic::{
+    allowance::{read_allowance, spend_allowance, write_allowance},
+    balance::{read_balance, receive_balance, spend_balance},
+    call_logic::{
         fee::{execute_clear_fee_rule, execute_get_fee_rule, execute_replace_fee_rule},
         getter::{execute_get_spot_price, execute_get_spot_price_sans_fee},
         init::execute_init,
@@ -10,13 +12,18 @@ use crate::c_pool::{
             execute_swap_exact_amount_out, execute_wdr_tokn_amt_in_get_lp_tokns_out,
             execute_wdr_tokn_amt_out_get_lp_tokns_in,
         },
-    }, error::Error, metadata::{
+    },
+    error::Error,
+    metadata::{
         get_total_shares, read_controller, read_decimal, read_name, read_record, read_swap_fee,
         read_swap_fee_config, read_symbol, read_tokens,
-    }, storage_types::{FeeRecipient, FeeRule, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD}, token_utility::check_nonnegative_amount
+    },
+    storage_types::{FeeRecipient, FeeRule, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
+    token_utility::check_nonnegative_amount,
 };
 use soroban_sdk::{
-    contract, contractimpl, panic_with_error, token::TokenInterface, unwrap::UnwrapOptimized, Address, Env, MuxedAddress, String, Vec
+    contract, contractimpl, panic_with_error, token::TokenInterface, unwrap::UnwrapOptimized,
+    Address, Env, MuxedAddress, String, Vec,
 };
 use soroban_token_sdk::events::{Approve, Burn, Transfer};
 
@@ -322,7 +329,7 @@ impl TokenInterface for CometPoolContract {
     fn approve(e: Env, from: Address, spender: Address, amount: i128, expiration_ledger: u32) {
         from.require_auth();
 
-        check_nonnegative_amount(amount);
+        check_nonnegative_amount(&e, amount);
 
         e.storage()
             .instance()
@@ -352,10 +359,10 @@ impl TokenInterface for CometPoolContract {
         }
 
         let to = to.address();
-        
+
         from.require_auth();
 
-        check_nonnegative_amount(amount);
+        check_nonnegative_amount(&e, amount);
 
         e.storage()
             .instance()
@@ -375,7 +382,7 @@ impl TokenInterface for CometPoolContract {
     fn transfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128) {
         spender.require_auth();
 
-        check_nonnegative_amount(amount);
+        check_nonnegative_amount(&e, amount);
 
         e.storage()
             .instance()
@@ -396,7 +403,7 @@ impl TokenInterface for CometPoolContract {
     fn burn(e: Env, from: Address, amount: i128) {
         from.require_auth();
         let total = get_total_shares(&e);
-        check_nonnegative_amount(amount);
+        check_nonnegative_amount(&e, amount);
 
         e.storage()
             .instance()
@@ -404,13 +411,18 @@ impl TokenInterface for CometPoolContract {
 
         spend_balance(&e, from.clone(), amount);
         Burn { from, amount }.publish(&e);
-        put_total_shares(&e, total - amount);
+        put_total_shares(
+            &e,
+            total
+                .checked_sub(amount)
+                .unwrap_or_else(|| panic_with_error!(&e, Error::ErrMathApprox)),
+        );
     }
 
     fn burn_from(e: Env, spender: Address, from: Address, amount: i128) {
         spender.require_auth();
         let total = get_total_shares(&e);
-        check_nonnegative_amount(amount);
+        check_nonnegative_amount(&e, amount);
 
         e.storage()
             .instance()
@@ -419,7 +431,12 @@ impl TokenInterface for CometPoolContract {
         spend_allowance(&e, from.clone(), spender, amount);
         spend_balance(&e, from.clone(), amount);
         Burn { from, amount }.publish(&e);
-        put_total_shares(&e, total - amount);
+        put_total_shares(
+            &e,
+            total
+                .checked_sub(amount)
+                .unwrap_or_else(|| panic_with_error!(&e, Error::ErrMathApprox)),
+        );
     }
 
     fn decimals(e: Env) -> u32 {

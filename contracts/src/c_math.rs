@@ -287,7 +287,8 @@ pub fn calc_exit_withdrawal_amount(e: &Env, out_record: &Record, exit_ratio: &I2
 ///
 /// Will fail if `amount` is greater than 1e18 * scalar
 fn upscale(e: &Env, amount: i128, scalar: i128) -> I256 {
-    let scaled = amount.checked_mul(scalar)
+    let scaled = amount
+        .checked_mul(scalar)
         .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox));
     I256::from_i128(e, scaled)
 }

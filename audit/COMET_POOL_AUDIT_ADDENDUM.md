@@ -54,11 +54,12 @@
 
 ### Medium Severity
 
-#### 4. Unchecked Supply Update in `burn` / `burn_from`
+#### 4. Unchecked Supply Update in `burn` / `burn_from` *(Addressed)*
 - **Location:** `contracts/src/c_pool/comet.rs:396-423`
 - **Summary:** Both token burn entry points fetch `total = get_total_shares(&e)` and then write `put_total_shares(&e, total - amount)`. Unlike the rest of the codebase, this subtraction is unchecked, so if `amount > total` the operation will wrap on WASM targets and produce a very large positive supply instead of failing.
 - **Impact:** Under nominal conditions `total >= amount`, but any latent accounting bug or future refactor that violates this invariant turns a single burn into a permanent supply corruption (effectively minting `2^127` shares). Bringing the supply back in sync would require privileged intervention.
 - **Recommendation:** Replace with `total.checked_sub(amount).unwrap_or_else(|| panic_with_error!(...))` to match the arithmetic pattern elsewhere and add a regression test that attempts to burn more shares than exist.
+- **Status:** Fixed in code (`contracts/src/c_pool/comet.rs`), now using `checked_sub` with `ErrMathApprox` fallback. Full test suite passes post-change.
 
 ### Low Severity
 
@@ -105,11 +106,12 @@
 - **Impact:** Users setting "this-ledger" expirations via frontends receive a successful simulation but lose the allowance before submission completes under heavy load.
 - **Recommendation:** Require `expiration_ledger > ledger.sequence()` for any non-zero approval and surface `Error::ErrInvalidExpirationLedger` on equality; alternatively bump by at least one ledger.
 
-#### 9. Negative-Amount Guard Uses Bare `panic!`
+#### 9. Negative-Amount Guard Uses Bare `panic!` *(Addressed)*
 - **Location:** `contracts/src/c_pool/token_utility.rs:66-68`
 - **Summary:** `check_nonnegative_amount` calls `panic!` with a string message instead of `panic_with_error!`. The resulting host error lacks a stable code, making the failure opaque to integrators and harder to map in tests.
 - **Impact:** Low; purely an observability concern, but inconsistent with the rest of the contract’s error handling.
 - **Recommendation:** Replace with `panic_with_error!(e, Error::ErrNegative)` (or similar) so clients receive the documented code path.
+- **Status:** Resolved by passing `&Env` into `check_nonnegative_amount` and using `panic_with_error!(…, Error::ErrNegative)` (`contracts/src/c_pool/token_utility.rs`, `contracts/src/c_pool/comet.rs`).
 
 ---
 

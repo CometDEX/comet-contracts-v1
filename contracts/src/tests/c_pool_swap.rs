@@ -352,14 +352,14 @@ fn test_swap_in_given_out() {
     // - do swap
     env.mock_all_auths();
     let (res_2_in, _) = comet.swap_exact_amount_out(
-            &token_2,
-            &over_in,
-            &token_1,
-            &swap_out_amount_fixed,
-            &i128::MAX,
-            &user,
-            &None,
-        );
+        &token_2,
+        &over_in,
+        &token_1,
+        &swap_out_amount_fixed,
+        &i128::MAX,
+        &user,
+        &None,
+    );
 
     assert!(res_2_in >= float_in_fixed); // rounds up
     assert_approx_eq_rel(res_2_in, float_in_fixed, 0_0001000);

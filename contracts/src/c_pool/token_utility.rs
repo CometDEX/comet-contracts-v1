@@ -25,16 +25,20 @@ pub fn push_underlying(e: &Env, token: &Address, to: &Address, amount: i128) {
 // Mint the given amount of LP Tokens
 pub fn mint_shares(e: &Env, to: &Address, amount: i128) {
     let total = get_total_shares(e);
-    put_total_shares(e, total.checked_add(amount)
-        .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox)));
-    check_nonnegative_amount(amount);
+    put_total_shares(
+        e,
+        total
+            .checked_add(amount)
+            .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox)),
+    );
+    check_nonnegative_amount(e, amount);
     receive_balance(e, to.clone(), amount);
 }
 
 // Transfer the LP Tokens from the given 'from' Address to the contract Address
 pub fn pull_shares(e: &Env, from: &Address, amount: i128) {
     let contract_address = e.current_contract_address();
-    check_nonnegative_amount(amount);
+    check_nonnegative_amount(e, amount);
     spend_balance(e, from.clone(), amount);
     receive_balance(e, contract_address.clone(), amount);
     Transfer {
@@ -50,20 +54,24 @@ pub fn pull_shares(e: &Env, from: &Address, amount: i128) {
 pub fn burn_shares(e: &Env, amount: i128) {
     let total = get_total_shares(e);
     let contract_address = e.current_contract_address();
-    check_nonnegative_amount(amount);
+    check_nonnegative_amount(e, amount);
     spend_balance(e, contract_address.clone(), amount);
     Burn {
         from: contract_address,
         amount,
     }
     .publish(e);
-    put_total_shares(e, total.checked_sub(amount)
-        .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox)));
+    put_total_shares(
+        e,
+        total
+            .checked_sub(amount)
+            .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox)),
+    );
 }
 
 // Check if the given amount is negative
-pub fn check_nonnegative_amount(amount: i128) {
+pub fn check_nonnegative_amount(e: &Env, amount: i128) {
     if amount < 0 {
-        panic!("negative amount is not allowed: {}", amount)
+        panic_with_error!(e, Error::ErrNegative);
     }
 }

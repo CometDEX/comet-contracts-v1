@@ -147,7 +147,8 @@ fn compute_payouts(
         let payout = desired.min(remaining);
         if payout > 0 {
             payouts.push_back((recipient.recipient.clone(), payout));
-            remaining = remaining.checked_sub(payout)
+            remaining = remaining
+                .checked_sub(payout)
                 .unwrap_or_else(|| panic_with_error!(e, Error::ErrFeeDistribution));
         }
     }
@@ -175,7 +176,9 @@ fn adjust_pool_balance(
         .get(fee_asset.clone())
         .unwrap_or_else(|| panic_with_error!(e, Error::ErrFeeRuleUnsupportedToken));
     assert_with_error!(e, record.balance >= amount, Error::ErrFeeDistribution);
-    record.balance = record.balance.checked_sub(amount)
+    record.balance = record
+        .balance
+        .checked_sub(amount)
         .unwrap_or_else(|| panic_with_error!(e, Error::ErrFeeDistribution));
     record_map.set(fee_asset.clone(), record);
 }

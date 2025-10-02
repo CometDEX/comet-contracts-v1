@@ -1,6 +1,9 @@
 //! Utilities to read and write contract's storage
 
-use crate::{c_consts::STROOP, c_pool::{error::Error, storage_types::DataKey}};
+use crate::{
+    c_consts::STROOP,
+    c_pool::{error::Error, storage_types::DataKey},
+};
 use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{panic_with_error, unwrap::UnwrapOptimized, Address, Env, Map, String, Vec};
 use soroban_token_sdk::{metadata::TokenMetadata, TokenUtils};
@@ -128,32 +131,44 @@ pub fn read_swap_fee(e: &Env) -> i128 {
     // Convert balances to 18-decimal fixed precision using the stored scalar.
     // These multiplications are safe from overflow due to MAX_UTIL_BALANCE validation at init.
     let scalar = tracked.scalar;
-    let current_balance = tracked.balance.checked_mul(scalar)
+    let current_balance = tracked
+        .balance
+        .checked_mul(scalar)
         .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox));
-    let low_balance = config.low_util_balance.checked_mul(scalar)
+    let low_balance = config
+        .low_util_balance
+        .checked_mul(scalar)
         .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox));
-    let high_balance = config.high_util_balance.checked_mul(scalar)
+    let high_balance = config
+        .high_util_balance
+        .checked_mul(scalar)
         .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox));
 
     let clamped = current_balance.max(low_balance).min(high_balance);
 
-    let span = high_balance.checked_sub(low_balance)
+    let span = high_balance
+        .checked_sub(low_balance)
         .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox));
     if span <= 0 {
         return config.max_fee;
     }
 
-    let utilization = (clamped.checked_sub(low_balance)
+    let utilization = (clamped
+        .checked_sub(low_balance)
         .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox)))
-        .fixed_div_floor(span, STROOP)
-        .unwrap_optimized();
+    .fixed_div_floor(span, STROOP)
+    .unwrap_optimized();
 
-    let fee_delta = (config.max_fee.checked_sub(config.min_fee)
+    let fee_delta = (config
+        .max_fee
+        .checked_sub(config.min_fee)
         .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox)))
-        .fixed_mul_floor(utilization, STROOP)
-        .unwrap_optimized();
+    .fixed_mul_floor(utilization, STROOP)
+    .unwrap_optimized();
 
-    config.max_fee.checked_sub(fee_delta)
+    config
+        .max_fee
+        .checked_sub(fee_delta)
         .unwrap_or_else(|| panic_with_error!(e, Error::ErrMathApprox))
 }
 

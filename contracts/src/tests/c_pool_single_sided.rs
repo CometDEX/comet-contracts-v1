@@ -185,7 +185,8 @@ fn test_single_sided_dep() {
 
     // - do swap
     env.mock_all_auths();
-    let token_in = comet.dep_lp_tokn_amt_out_get_tokn_in(&token_2, &mint_amount_fixed, &over_token_in, &user);
+    let token_in =
+        comet.dep_lp_tokn_amt_out_get_tokn_in(&token_2, &mint_amount_fixed, &over_token_in, &user);
     assert!(token_in >= bal_token_in_fixed); // rounds up
     assert_approx_eq_rel(token_in, bal_token_in_fixed, 0_0001000);
 

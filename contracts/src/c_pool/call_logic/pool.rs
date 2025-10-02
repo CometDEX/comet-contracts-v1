@@ -96,7 +96,9 @@ pub fn execute_exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128
             token_amount_out <= rec.balance,
             Error::ErrInsufficientBalance
         );
-        rec.balance = rec.balance.checked_sub(token_amount_out)
+        rec.balance = rec
+            .balance
+            .checked_sub(token_amount_out)
             .unwrap_or_else(|| panic_with_error!(&e, Error::ErrMathApprox));
         records.set(t.clone(), rec);
         ExitEvent {
@@ -124,6 +126,7 @@ pub fn execute_swap_exact_amount_in(
     trade_recipients: Option<&Vec<FeeRecipient>>,
 ) -> (i128, i128) {
     assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
+    assert_with_error!(&e, token_in != token_out, Error::ErrSameTokenSwap);
     assert_with_error!(&e, token_amount_in > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, min_amount_out >= 0, Error::ErrNegative);
     assert_with_error!(&e, max_price >= 0, Error::ErrNegative);
@@ -172,7 +175,9 @@ pub fn execute_swap_exact_amount_in(
         out_record.balance >= token_amount_out,
         Error::ErrInsufficientBalance
     );
-    out_record.balance = out_record.balance.checked_sub(token_amount_out)
+    out_record.balance = out_record
+        .balance
+        .checked_sub(token_amount_out)
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrMathApprox));
 
     let spot_price_after = c_math::calc_spot_price(&in_record, &out_record, swap_fee);
@@ -247,6 +252,7 @@ pub fn execute_swap_exact_amount_out(
     trade_recipients: Option<&Vec<FeeRecipient>>,
 ) -> (i128, i128) {
     assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
+    assert_with_error!(&e, token_in != token_out, Error::ErrSameTokenSwap);
     assert_with_error!(&e, token_amount_out > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, max_amount_in > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, max_price >= 0, Error::ErrNegative);
@@ -295,7 +301,9 @@ pub fn execute_swap_exact_amount_out(
         out_record.balance >= token_amount_out,
         Error::ErrInsufficientBalance
     );
-    out_record.balance = out_record.balance.checked_sub(token_amount_out)
+    out_record.balance = out_record
+        .balance
+        .checked_sub(token_amount_out)
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrMathApprox));
 
     let spot_price_after = c_math::calc_spot_price(&in_record, &out_record, swap_fee);
@@ -518,7 +526,9 @@ pub fn execute_wdr_tokn_amt_in_get_lp_tokns_out(
         token_amount_out <= out_record.balance,
         Error::ErrInsufficientBalance
     );
-    out_record.balance = out_record.balance.checked_sub(token_amount_out)
+    out_record.balance = out_record
+        .balance
+        .checked_sub(token_amount_out)
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrMathApprox));
 
     WithdrawEvent {
@@ -582,7 +592,9 @@ pub fn execute_wdr_tokn_amt_out_get_lp_tokns_in(
         token_amount_out <= out_record.balance,
         Error::ErrInsufficientBalance
     );
-    out_record.balance = out_record.balance.checked_sub(token_amount_out)
+    out_record.balance = out_record
+        .balance
+        .checked_sub(token_amount_out)
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrMathApprox));
     WithdrawEvent {
         tag: POOL,
