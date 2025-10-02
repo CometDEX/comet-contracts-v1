@@ -95,6 +95,8 @@ pub fn validate_fee_recipients(e: &Env, recipients: &Vec<FeeRecipient>) {
         seen.set(recipient.recipient.clone(), true);
     }
 
+    // Validate sum matches validate_fee_rule for consistency
+    assert_with_error!(&e, sum > 0, Error::ErrFeeRecipientSum);
     assert_with_error!(&e, sum <= STROOP, Error::ErrFeeRecipientSum);
 }
 

@@ -97,7 +97,6 @@ fn test_single_sided_dep() {
     );
 
     // - do swap
-    let approval_ledger = (env.ledger().sequence() / 100000 + 1) * 100000;
     env.set_auths(&[]);
     let pool_mint = comet
         .mock_auths(&[MockAuth {
@@ -114,13 +113,12 @@ fn test_single_sided_dep() {
                 ],
                 sub_invokes: &[MockAuthInvoke {
                     contract: &token_1,
-                    fn_name: &"approve",
+                    fn_name: &"transfer",
                     args: vec![
                         &env,
                         user.into_val(&env),
                         comet_id.into_val(&env),
                         dep_amount_fixed.into_val(&env),
-                        approval_ledger.into_val(&env),
                     ],
                     sub_invokes: &[],
                 }],
@@ -186,36 +184,8 @@ fn test_single_sided_dep() {
     );
 
     // - do swap
-    let approval_ledger = (env.ledger().sequence() / 100000 + 1) * 100000;
-    env.set_auths(&[]);
-    let token_in = comet
-        .mock_auths(&[MockAuth {
-            address: &user,
-            invoke: &MockAuthInvoke {
-                contract: &comet_id,
-                fn_name: &"dep_lp_tokn_amt_out_get_tokn_in",
-                args: vec![
-                    &env,
-                    token_2.into_val(&env),
-                    mint_amount_fixed.into_val(&env),
-                    over_token_in.into_val(&env),
-                    user.into_val(&env),
-                ],
-                sub_invokes: &[MockAuthInvoke {
-                    contract: &token_2,
-                    fn_name: &"approve",
-                    args: vec![
-                        &env,
-                        user.into_val(&env),
-                        comet_id.into_val(&env),
-                        over_token_in.into_val(&env),
-                        approval_ledger.into_val(&env),
-                    ],
-                    sub_invokes: &[],
-                }],
-            },
-        }])
-        .dep_lp_tokn_amt_out_get_tokn_in(&token_2, &mint_amount_fixed, &over_token_in, &user);
+    env.mock_all_auths();
+    let token_in = comet.dep_lp_tokn_amt_out_get_tokn_in(&token_2, &mint_amount_fixed, &over_token_in, &user);
     assert!(token_in >= bal_token_in_fixed); // rounds up
     assert_approx_eq_rel(token_in, bal_token_in_fixed, 0_0001000);
 

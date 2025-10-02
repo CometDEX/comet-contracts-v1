@@ -10,17 +10,11 @@ use super::{
 
 use soroban_sdk::token::Client;
 
-// Transfers the Specific Token from the User’s Address to the Contract’s Address
-pub fn pull_underlying(e: &Env, token: &Address, from: &Address, amount: i128, max_amount: i128) {
-    // @DEV - This rounds the sequence number to the nearest 100000 to avoid simulation -> execution sequence number mismatch
-    let ledger = (e.ledger().sequence() / 100000 + 1) * 100000;
-    Client::new(e, token).approve(&from, &e.current_contract_address(), &max_amount, &ledger);
-    Client::new(e, token).transfer_from(
-        &e.current_contract_address(),
-        &from,
-        &e.current_contract_address(),
-        &amount,
-    );
+// Transfers the Specific Token from the User's Address to the Contract's Address
+pub fn pull_underlying(e: &Env, token: &Address, from: &Address, amount: i128) {
+    // Direct transfer using Soroban's authorization framework
+    // The user's require_auth() at the contract entry point authorizes this sub-contract call
+    Client::new(e, token).transfer(from, &e.current_contract_address(), &amount);
 }
 
 // Transfers the Specific Token from the Contract’s Address to the given 'to' Address

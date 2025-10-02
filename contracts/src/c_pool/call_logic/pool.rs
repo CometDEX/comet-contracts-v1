@@ -63,7 +63,7 @@ pub fn execute_join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128
             token_amount_in,
         }
         .publish(&e);
-        pull_underlying(&e, &t, &user, token_amount_in, max_amount_in);
+        pull_underlying(&e, &t, &user, token_amount_in);
     }
 
     write_record(&e, records);
@@ -203,13 +203,7 @@ pub fn execute_swap_exact_amount_in(
     }
     .publish(&e);
 
-    pull_underlying(
-        &e,
-        &token_in,
-        &user,
-        token_amount_in,
-        token_amount_in.clone(),
-    );
+    pull_underlying(&e, &token_in, &user, token_amount_in);
     push_underlying(&e, &token_out, &user, token_amount_out);
 
     record_map.set(token_in.clone(), in_record);
@@ -331,7 +325,7 @@ pub fn execute_swap_exact_amount_out(
         token_amount_out,
     }
     .publish(&e);
-    pull_underlying(&e, &token_in, &user, token_amount_in, max_amount_in);
+    pull_underlying(&e, &token_in, &user, token_amount_in);
     push_underlying(&e, &token_out, &user, token_amount_out);
 
     record_map.set(token_in.clone(), in_record);
@@ -420,7 +414,7 @@ pub fn execute_dep_tokn_amt_in_get_lp_tokns_out(
         token_amount_in,
     }
     .publish(&e);
-    pull_underlying(&e, &token_in, &user, token_amount_in, token_amount_in);
+    pull_underlying(&e, &token_in, &user, token_amount_in);
     mint_shares(&e, &user, pool_amount_out);
 
     pool_amount_out
@@ -478,7 +472,7 @@ pub fn execute_dep_lp_tokn_amt_out_get_tokn_in(
         token_amount_in,
     }
     .publish(&e);
-    pull_underlying(&e, &token_in, &user, token_amount_in, max_amount_in);
+    pull_underlying(&e, &token_in, &user, token_amount_in);
     mint_shares(&e, &user, pool_amount_out);
 
     token_amount_in

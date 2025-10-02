@@ -155,7 +155,6 @@ fn test_swap_out_given_in() {
     );
 
     // - do swap
-    let approval_ledger = (env.ledger().sequence() / 100000 + 1) * 100000;
     env.set_auths(&[]);
     let (res_2_out, _) = comet
         .mock_auths(&[MockAuth {
@@ -175,13 +174,12 @@ fn test_swap_out_given_in() {
                 ],
                 sub_invokes: &[MockAuthInvoke {
                     contract: &token_1,
-                    fn_name: &"approve",
+                    fn_name: &"transfer",
                     args: vec![
                         &env,
                         user.into_val(&env),
                         comet_id.into_val(&env),
                         swap_in_amount_fixed.into_val(&env),
-                        approval_ledger.into_val(&env),
                     ],
                     sub_invokes: &[],
                 }],
@@ -352,39 +350,8 @@ fn test_swap_in_given_out() {
     );
 
     // - do swap
-    let approval_ledger = (env.ledger().sequence() / 100000 + 1) * 100000;
-    env.set_auths(&[]);
-    let (res_2_in, _) = comet
-        .mock_auths(&[MockAuth {
-            address: &user,
-            invoke: &MockAuthInvoke {
-                contract: &comet_id,
-                fn_name: &"swap_exact_amount_out",
-                args: vec![
-                    &env,
-                    token_2.into_val(&env),
-                    over_in.into_val(&env),
-                    token_1.into_val(&env),
-                    swap_out_amount_fixed.into_val(&env),
-                    i128::MAX.into_val(&env),
-                    user.into_val(&env),
-                    Option::<Vec<FeeRecipient>>::None.into_val(&env),
-                ],
-                sub_invokes: &[MockAuthInvoke {
-                    contract: &token_2,
-                    fn_name: &"approve",
-                    args: vec![
-                        &env,
-                        user.into_val(&env),
-                        comet_id.into_val(&env),
-                        over_in.into_val(&env),
-                        approval_ledger.into_val(&env),
-                    ],
-                    sub_invokes: &[],
-                }],
-            },
-        }])
-        .swap_exact_amount_out(
+    env.mock_all_auths();
+    let (res_2_in, _) = comet.swap_exact_amount_out(
             &token_2,
             &over_in,
             &token_1,

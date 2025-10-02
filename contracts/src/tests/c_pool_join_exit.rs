@@ -104,7 +104,6 @@ fn test_join_exit() {
     );
 
     // -> do join
-    let approval_ledger = (env.ledger().sequence() / 100000 + 1) * 100000;
     env.set_auths(&[]);
     comet
         .mock_auths(&[MockAuth {
@@ -121,37 +120,34 @@ fn test_join_exit() {
                 sub_invokes: &[
                     MockAuthInvoke {
                         contract: &token_1,
-                        fn_name: &"approve",
+                        fn_name: &"transfer",
                         args: vec![
                             &env,
                             user.into_val(&env),
                             comet_id.into_val(&env),
-                            above_in_fixed.get_unchecked(0).into_val(&env),
-                            approval_ledger.into_val(&env),
+                            in_float_fixed.get_unchecked(0).into_val(&env),
                         ],
                         sub_invokes: &[],
                     },
                     MockAuthInvoke {
                         contract: &token_2,
-                        fn_name: &"approve",
+                        fn_name: &"transfer",
                         args: vec![
                             &env,
                             user.into_val(&env),
                             comet_id.into_val(&env),
-                            above_in_fixed.get_unchecked(1).into_val(&env),
-                            approval_ledger.into_val(&env),
+                            in_float_fixed.get_unchecked(1).into_val(&env),
                         ],
                         sub_invokes: &[],
                     },
                     MockAuthInvoke {
                         contract: &token_3,
-                        fn_name: &"approve",
+                        fn_name: &"transfer",
                         args: vec![
                             &env,
                             user.into_val(&env),
                             comet_id.into_val(&env),
-                            above_in_fixed.get_unchecked(2).into_val(&env),
-                            approval_ledger.into_val(&env),
+                            in_float_fixed.get_unchecked(2).into_val(&env),
                         ],
                         sub_invokes: &[],
                     },
