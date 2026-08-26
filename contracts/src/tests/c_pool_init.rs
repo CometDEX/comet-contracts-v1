@@ -19,13 +19,17 @@ fn test_init() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let contract_id = env.register_contract(None, CometPoolContract);
+    let contract_id = env.register(CometPoolContract, ());
     let comet = CometPoolContractClient::new(&env, &contract_id);
 
     let controller = Address::generate(&env);
-    let token_1 = env.register_stellar_asset_contract(controller.clone());
+    let token_1 = env
+        .register_stellar_asset_contract_v2(controller.clone())
+        .address();
     let token_1_client = MockTokenClient::new(&env, &token_1);
-    let token_2 = env.register_stellar_asset_contract(controller.clone());
+    let token_2 = env
+        .register_stellar_asset_contract_v2(controller.clone())
+        .address();
     let token_2_client = MockTokenClient::new(&env, &token_2);
     token_1_client.mint(&controller, &STROOP);
     token_2_client.mint(&controller, &STROOP);

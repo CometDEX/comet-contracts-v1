@@ -1,7 +1,15 @@
 [workspace]
 resolver = "2"
 
-members = ["contracts", "factory"]
+members = [
+    "compat/sep-41-token",
+    "compat/soroban-fixed-point-math",
+    "contracts",
+    "factory",
+]
+
+[workspace.package]
+rust-version = "1.91.1"
 
 [profile.release-with-logs]
 inherits = "release"
@@ -18,7 +26,15 @@ codegen-units = 1
 lto = true
 
 [workspace.dependencies.soroban-sdk]
-version = "20.5.0"
+version = "=27.0.3"
 
 [workspace.dependencies.soroban-token-sdk]
-version = "20.5.0"
+version = "=27.0.3"
+
+# SDK 27-compatible source ports for dependencies whose published releases
+# currently target older Soroban SDK versions.
+[workspace.dependencies.sep-41-token]
+path = "compat/sep-41-token"
+
+[workspace.dependencies.soroban-fixed-point-math]
+path = "compat/soroban-fixed-point-math"

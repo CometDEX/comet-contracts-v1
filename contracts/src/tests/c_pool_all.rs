@@ -4,7 +4,7 @@ use std::println;
 extern crate std;
 use crate::c_pool::comet::CometPoolContractClient;
 use crate::tests::utils::create_comet_pool;
-use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
+use sep_41_token::testutils::{MockToken, MockTokenClient};
 use soroban_sdk::String;
 use soroban_sdk::{testutils::Address as _, Address};
 use soroban_sdk::{vec, Env};
@@ -15,7 +15,7 @@ fn create_and_init_token_contract<'a>(
     name: &'a str,
     symbol: &'a str,
 ) -> MockTokenClient<'a> {
-    let token_id = env.register_contract_wasm(None, MockTokenWASM);
+    let token_id = env.register(MockToken, ());
     let client = MockTokenClient::new(&env, &token_id);
     client.initialize(
         &admin_id,
@@ -34,7 +34,7 @@ fn to_stroop<T: Into<f64>>(a: T) -> i128 {
 fn test_pool_functions_dep_wdr() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
     let admin = soroban_sdk::Address::generate(&env);
 
     // Create Admin
