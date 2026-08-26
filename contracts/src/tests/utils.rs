@@ -3,7 +3,7 @@ use std::println;
 use std::vec as std_vec;
 use std::vec::Vec as std_Vec;
 
-use sep_41_token::testutils::{MockToken, MockTokenClient};
+use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
 use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{token::TokenClient, Address, Env, String, Vec};
 
@@ -36,7 +36,7 @@ pub fn create_stellar_token(env: &Env, admin: &Address) -> Address {
 }
 
 pub fn create_soroban_token(env: &Env, admin: &Address, decimal: u32) -> Address {
-    let contract_id = env.register(MockToken, ());
+    let contract_id = env.register(MockTokenWASM, ());
     let client = MockTokenClient::new(&env, &contract_id);
     client.initialize(
         &admin,

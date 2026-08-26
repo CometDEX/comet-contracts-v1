@@ -1367,7 +1367,8 @@ checksum = "92d43fe69e652f3df9bdc2b85b2854a0825b86e4fb76bc44d945137d053639ca"
 
 [[package]]
 name = "sep-41-token"
-version = "1.4.0"
+version = "2.0.0"
+source = "git+https://github.com/levinson/sep-41-token.git?rev=2b9eb2fac1354034b50aa9e6e72c51f85db5d168#2b9eb2fac1354034b50aa9e6e72c51f85db5d168"
 dependencies = [
  "soroban-sdk",
 ]
@@ -1581,7 +1582,8 @@ dependencies = [
 
 [[package]]
 name = "soroban-fixed-point-math"
-version = "1.5.0"
+version = "1.6.0"
+source = "git+https://github.com/levinson/soroban-fixed-point-math.git?rev=417905c4e9c7ddea114455e98bd9e4abe6f9f5e7#417905c4e9c7ddea114455e98bd9e4abe6f9f5e7"
 dependencies = [
  "soroban-sdk",
 ]
