@@ -1,9 +1,8 @@
 //! Definition of the Events used in the contract
-use soroban_sdk::{contracttype, Address};
+use soroban_sdk::{contractevent, Address};
 
 // Swap Token Event, emitted when tokens are swapped
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[contractevent(topics = ["POOL", "swap"], data_format = "map")]
 pub struct SwapEvent {
     pub caller: Address,
     pub token_in: Address,
@@ -13,8 +12,7 @@ pub struct SwapEvent {
 }
 
 // Join Pool Event, emitted a when a user joins the pool
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[contractevent(topics = ["POOL", "join_pool"], data_format = "map")]
 pub struct JoinEvent {
     pub caller: Address,
     pub token_in: Address,
@@ -22,8 +20,7 @@ pub struct JoinEvent {
 }
 
 // Exit Pool Event, emitted a when a user exits the pool
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[contractevent(topics = ["POOL", "exit_pool"], data_format = "map")]
 pub struct ExitEvent {
     pub caller: Address,
     pub token_out: Address,
@@ -31,8 +28,7 @@ pub struct ExitEvent {
 }
 
 // Join Pool Event, emitted a when a user joins the pool
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[contractevent(topics = ["POOL", "deposit"], data_format = "map")]
 pub struct DepositEvent {
     pub caller: Address,
     pub token_in: Address,
@@ -40,8 +36,7 @@ pub struct DepositEvent {
 }
 
 // Exit Pool Event, emitted a when a user exits the pool
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[contractevent(topics = ["POOL", "withdraw"], data_format = "map")]
 pub struct WithdrawEvent {
     pub caller: Address,
     pub token_out: Address,
