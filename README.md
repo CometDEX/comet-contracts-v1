@@ -6,15 +6,38 @@ Smart Contracts explicitly written for Soroban.
 
 ### Without logs
 
-```cargo test```
+```bash
+make test
+```
 
 ### With logs
 
-```cargo test -- --nocapture```
+```bash
+make test COMET_TEST_ARGS='-- --nocapture'
+```
 
 ## Create a WASM Release Build
 
-```cargo build --target wasm32-unknown-unknown --release```
+```bash
+make build
+```
+
+The Makefile uses Rust 1.78.0 and the `stellar` CLI to produce optimized pool
+and factory artifacts under `target/wasm32-unknown-unknown/optimized/`.
+
+## Secure Factory Deployment
+
+Factory initialization requires authorization from the address used to deploy
+the factory and verifies that address and the deployment salt reproduce the
+factory's contract ID. This prevents another account from selecting the pool
+WASM hash between factory deployment and initialization.
+
+After building the optimized contracts, the deployment script creates and
+initializes a factory using the same source identity and salt:
+
+```bash
+./deploy_factory.sh <network> <source-identity> [32-byte-hex-salt]
+```
 
 ## Best Practices Used
 
