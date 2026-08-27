@@ -16,6 +16,12 @@ Smart Contracts explicitly written for Soroban.
 
 ```cargo build --target wasm32-unknown-unknown --release```
 
+## Security Assumptions
+
+Comet pools require trusted SEP-41 token contracts whose transfers debit the sender and credit the recipient by exactly the requested amount. Pool operations verify both observed balance changes and reject transfer fees, in-call rebases, and other mismatches atomically. These checks cannot establish that an actively malicious token contract is trustworthy because the token contract controls its reported balances.
+
+Factory registration identifies a pool created through the factory; it does not endorse the pool's tokens. Integrations must independently allowlist the token contracts and pools they trust.
+
 ## Best Practices Used
 
 1. All Rust code is linted with Clippy with the command `cargo clippy`.

@@ -9,7 +9,7 @@ use crate::{
         error::Error,
         metadata::{write_controller, write_metadata, write_record, write_swap_fee, write_tokens},
         storage_types::{DataKey, Record},
-        token_utility::mint_shares,
+        token_utility::{mint_shares, transfer_underlying},
     },
 };
 
@@ -62,7 +62,13 @@ pub fn execute_init(
         total_weight += weight;
 
         // transfer starting balance to the pool
-        token_client.transfer(&controller, &e.current_contract_address(), &balance);
+        transfer_underlying(
+            e,
+            &token,
+            &controller,
+            &e.current_contract_address(),
+            balance,
+        );
 
         let record = Record {
             balance,
