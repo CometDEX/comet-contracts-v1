@@ -281,12 +281,8 @@ pub fn calc_exit_withdrawal_amount(e: &Env, out_record: &Record, exit_ratio: &I2
 /********** Scaling Utils **********/
 
 /// Upscale a number to 18 decimals and 256 bits for use in pool math
-///
-/// Requires that "amount" is less that 1.7e19 * scalar
-///
-/// Will fail if `amount` is greater than 1e18 * scalar
 fn upscale(e: &Env, amount: i128, scalar: i128) -> I256 {
-    I256::from_i128(e, amount * scalar)
+    I256::from_i128(e, amount).mul(&I256::from_i128(e, scalar))
 }
 
 /// Downscale a number from 18 decimals and 256 bits to i128 to represent a token amount.
@@ -332,6 +328,16 @@ mod tests {
         // takes ceil
         let ceil = downscale_ceil(&env, &scaled, STROOP_SCALAR);
         assert_eq!(x + 1, ceil);
+    }
+
+    #[test]
+    fn test_upscale_beyond_i128_range() {
+        let env = Env::default();
+        let scaled = upscale(&env, i128::MAX, STROOP_SCALAR);
+
+        assert!(scaled > I256::from_i128(&env, i128::MAX));
+        assert_eq!(downscale_floor(&env, &scaled, STROOP_SCALAR), i128::MAX);
+        assert_eq!(downscale_ceil(&env, &scaled, STROOP_SCALAR), i128::MAX);
     }
 
     #[test]
