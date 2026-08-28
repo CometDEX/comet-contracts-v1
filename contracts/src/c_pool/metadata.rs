@@ -4,7 +4,32 @@ use crate::c_pool::storage_types::DataKey;
 use soroban_sdk::{unwrap::UnwrapOptimized, Address, Env, Map, String, Vec};
 use soroban_token_sdk::{metadata::TokenMetadata, TokenUtils};
 
-use super::storage_types::{Record, SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD};
+use super::storage_types::{
+    Record, POOL_BUMP_AMOUNT, POOL_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT,
+    SHARED_LIFETIME_THRESHOLD,
+};
+
+// Keep all state required to account for and redeem LP balances live together.
+// Public entrypoints that access LP balances call this once before doing so.
+pub fn extend_pool_ttl(e: &Env) {
+    e.storage()
+        .instance()
+        .extend_ttl(POOL_LIFETIME_THRESHOLD, POOL_BUMP_AMOUNT);
+
+    let persistent = e.storage().persistent();
+    let token_key = DataKey::AllTokenVec;
+    let record_key = DataKey::AllRecordData;
+    let supply_key = DataKey::TotalShares;
+
+    // Preserve pre-initialization token behavior while avoiding an existence
+    // check for every key. Initialization creates all three entries atomically.
+    if !persistent.has(&token_key) {
+        return;
+    }
+    persistent.extend_ttl(&token_key, POOL_LIFETIME_THRESHOLD, POOL_BUMP_AMOUNT);
+    persistent.extend_ttl(&record_key, POOL_LIFETIME_THRESHOLD, POOL_BUMP_AMOUNT);
+    persistent.extend_ttl(&supply_key, POOL_LIFETIME_THRESHOLD, POOL_BUMP_AMOUNT);
+}
 
 // Read all Token Addresses in the pool
 pub fn read_tokens(e: &Env) -> Vec<Address> {
