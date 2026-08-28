@@ -42,4 +42,5 @@ pub enum Error {
     ErrInvalidExpirationLedger = 36,
     ErrNegativeOrZero = 37,
     ErrTokenInvalid = 38,
+    ErrNoPendingController = 39,
 }

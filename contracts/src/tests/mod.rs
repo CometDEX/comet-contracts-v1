@@ -3,6 +3,7 @@ mod utils;
 
 pub mod c_num_test;
 pub mod c_pool_all;
+pub mod c_pool_controller;
 pub mod c_pool_dif_decimals;
 pub mod c_pool_init;
 pub mod c_pool_join_exit;
