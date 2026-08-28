@@ -36,12 +36,18 @@ pub fn execute_join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128
     assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
     assert_with_error!(&e, pool_amount_out > 0, Error::ErrNegativeOrZero);
 
+    let tokens = read_tokens(&e);
+    assert_with_error!(
+        &e,
+        max_amounts_in.len() == tokens.len(),
+        Error::ErrInvalidVectorLen
+    );
+
     let pool_total = get_total_shares(&e);
     let zero = I256::from_i32(&e, 0);
     let ratio = c_math::calc_join_ratio(&e, pool_total, pool_amount_out);
     assert_with_error!(&e, ratio > zero, Error::ErrMathApprox);
 
-    let tokens = read_tokens(&e);
     let mut records = read_record(&e);
     for i in 0..tokens.len() {
         let t = tokens.get_unchecked(i);
@@ -72,6 +78,13 @@ pub fn execute_join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128
 pub fn execute_exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128>, user: Address) {
     assert_with_error!(&e, pool_amount_in > 0, Error::ErrNegativeOrZero);
 
+    let tokens = read_tokens(&e);
+    assert_with_error!(
+        &e,
+        min_amounts_out.len() == tokens.len(),
+        Error::ErrInvalidVectorLen
+    );
+
     let pool_total = get_total_shares(&e);
     let zero = I256::from_i32(&e, 0);
     let ratio = c_math::calc_exit_ratio(&e, pool_total, pool_amount_in);
@@ -79,7 +92,6 @@ pub fn execute_exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128
     pull_shares(&e, &user, pool_amount_in);
     burn_shares(&e, pool_amount_in);
 
-    let tokens = read_tokens(&e);
     let mut records = read_record(&e);
     for i in 0..tokens.len() {
         let t = tokens.get_unchecked(i);
