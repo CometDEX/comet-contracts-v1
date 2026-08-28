@@ -1,9 +1,12 @@
 //! Utilities for the LP Token
-use soroban_sdk::{Address, Env};
+use soroban_sdk::{assert_with_error, Address, Env};
 use soroban_token_sdk::TokenUtils;
+
+use crate::c_consts::MIN_POOL_SUPPLY;
 
 use super::{
     balance::{receive_balance, spend_balance},
+    error::Error,
     metadata::{get_total_shares, put_total_shares},
 };
 
@@ -48,11 +51,21 @@ pub fn pull_shares(e: &Env, from: &Address, amount: i128) {
 
 // Burn the LP Tokens
 pub fn burn_shares(e: &Env, amount: i128) {
-    let total = get_total_shares(e);
     let contract_address = e.current_contract_address();
+    burn_shares_from(e, &contract_address, amount);
+}
+
+// Burn LP Tokens from an address while preserving the minimum pool supply.
+pub fn burn_shares_from(e: &Env, from: &Address, amount: i128) {
     check_nonnegative_amount(amount);
-    spend_balance(e, contract_address.clone(), amount);
-    TokenUtils::new(e).events().burn(contract_address, amount);
+    let total = get_total_shares(e);
+    assert_with_error!(
+        e,
+        preserves_minimum_supply(total, amount),
+        Error::ErrMinPoolSupply
+    );
+    spend_balance(e, from.clone(), amount);
+    TokenUtils::new(e).events().burn(from.clone(), amount);
     put_total_shares(e, total - amount);
 }
 
@@ -60,5 +73,28 @@ pub fn burn_shares(e: &Env, amount: i128) {
 pub fn check_nonnegative_amount(amount: i128) {
     if amount < 0 {
         panic!("negative amount is not allowed: {}", amount)
+    }
+}
+
+fn preserves_minimum_supply(total: i128, amount: i128) -> bool {
+    amount <= total - MIN_POOL_SUPPLY
+}
+
+#[cfg(test)]
+mod tests {
+    use super::preserves_minimum_supply;
+    use crate::c_consts::{INIT_POOL_SUPPLY, MIN_POOL_SUPPLY};
+
+    #[test]
+    fn test_preserves_minimum_supply() {
+        assert!(preserves_minimum_supply(
+            INIT_POOL_SUPPLY,
+            INIT_POOL_SUPPLY - MIN_POOL_SUPPLY
+        ));
+        assert!(!preserves_minimum_supply(
+            INIT_POOL_SUPPLY,
+            INIT_POOL_SUPPLY
+        ));
+        assert!(!preserves_minimum_supply(MIN_POOL_SUPPLY, 1));
     }
 }

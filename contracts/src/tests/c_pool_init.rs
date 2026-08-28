@@ -7,7 +7,7 @@ use soroban_sdk::{
 };
 
 use crate::{
-    c_consts::STROOP,
+    c_consts::{INIT_POOL_SUPPLY, MIN_POOL_SUPPLY, STROOP},
     c_pool::{
         comet::{CometPoolContract, CometPoolContractClient},
         error::Error as CometError,
@@ -203,8 +203,12 @@ fn test_init() {
     assert_eq!(comet.get_normalized_weight(&token_2), 0_6000000);
     assert_eq!(comet.get_balance(&token_1), STROOP);
     assert_eq!(comet.get_balance(&token_2), STROOP);
-    assert_eq!(comet.get_total_supply(), 100 * STROOP);
-    assert_eq!(comet.balance(&controller), 100 * STROOP);
+    assert_eq!(comet.get_total_supply(), INIT_POOL_SUPPLY);
+    assert_eq!(
+        comet.balance(&controller),
+        INIT_POOL_SUPPLY - MIN_POOL_SUPPLY
+    );
+    assert_eq!(comet.balance(&contract_id), MIN_POOL_SUPPLY);
     assert_eq!(token_1_client.balance(&controller), 0);
     assert_eq!(token_2_client.balance(&controller), 0);
     assert_eq!(token_1_client.balance(&contract_id), STROOP);

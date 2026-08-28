@@ -2,7 +2,7 @@
 
 use std::println;
 extern crate std;
-use crate::c_consts::STROOP;
+use crate::c_consts::{INIT_POOL_SUPPLY, MIN_POOL_SUPPLY};
 use crate::c_pool::comet::CometPoolContractClient;
 use crate::tests::utils::create_comet_pool;
 use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
@@ -91,7 +91,10 @@ fn test_pool_functions() {
     assert!(current_tokens.contains(&token3.address));
     assert_eq!(current_tokens.len(), 3);
     let controller = client.get_controller();
-    assert_eq!(client.balance(&controller), 100 * STROOP);
+    assert_eq!(
+        client.balance(&controller),
+        INIT_POOL_SUPPLY - MIN_POOL_SUPPLY
+    );
 
     token1.approve(&user1, &contract_id, &i128::MAX, &200);
     token2.approve(&user1, &contract_id, &i128::MAX, &200);
