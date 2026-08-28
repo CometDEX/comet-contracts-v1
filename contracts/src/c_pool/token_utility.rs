@@ -33,6 +33,9 @@ pub fn mint_shares(e: &Env, to: &Address, amount: i128) {
     put_total_shares(e, total + amount);
     check_nonnegative_amount(amount);
     receive_balance(e, to.clone(), amount);
+    TokenUtils::new(e)
+        .events()
+        .mint(e.current_contract_address(), to.clone(), amount);
 }
 
 // Transfer the LP Tokens from the given 'from' Address to the contract Address
