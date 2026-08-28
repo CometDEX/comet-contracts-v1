@@ -451,6 +451,50 @@ fn test_swap_large_amounts() {
 }
 
 #[test]
+fn test_swap_above_i128_intermediate_limit() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.budget().reset_unlimited();
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_1 = create_stellar_token(&env, &admin);
+    let token_2 = create_stellar_token(&env, &admin);
+    let token_1_client = MockTokenClient::new(&env, &token_1);
+    let token_2_client = MockTokenClient::new(&env, &token_2);
+
+    // Multiplying this reserve by STROOP overflows i128, while the stored
+    // reserve and the final spot price remain representable as i128 values.
+    let pool_balance = (i128::MAX / STROOP) + 1;
+    let amount_in = pool_balance / 100;
+    let balances: Vec<i128> = vec![&env, pool_balance, pool_balance];
+    let weights: Vec<i128> = vec![&env, STROOP / 2, STROOP / 2];
+    token_1_client.mint(&admin, &pool_balance);
+    token_2_client.mint(&admin, &pool_balance);
+    token_1_client.mint(&user, &amount_in);
+
+    let comet_id = create_comet_pool(
+        &env,
+        &admin,
+        &vec![&env, token_1.clone(), token_2.clone()],
+        &weights,
+        &balances,
+        0_0030000,
+    );
+    let comet = CometPoolContractClient::new(&env, &comet_id);
+
+    let (amount_out, spot_price_after) =
+        comet.swap_exact_amount_in(&token_1, &amount_in, &token_2, &0, &(2 * STROOP), &user);
+
+    assert!(amount_out > 0);
+    assert!(spot_price_after > STROOP);
+    assert_eq!(token_1_client.balance(&user), 0);
+    assert_eq!(token_2_client.balance(&user), amount_out);
+    assert_eq!(comet.get_balance(&token_1), pool_balance + amount_in);
+    assert_eq!(comet.get_balance(&token_2), pool_balance - amount_out);
+}
+
+#[test]
 fn test_swap_large_price() {
     // test only validates recorded pool balances and assumes the above tests ensure that
     // ledger state is correct if the pool tracks internal balances correctly
