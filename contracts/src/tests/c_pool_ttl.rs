@@ -26,7 +26,7 @@ where
     ScVal::try_from_val(e, &key.into_val(e)).unwrap()
 }
 
-fn live_until(e: &Env, contract: &Address, key: ScVal) -> u32 {
+fn live_until(e: &Env, contract: &Address, key: ScVal) -> Option<u32> {
     let contract = ScAddress::try_from(contract).unwrap();
     let snapshot = e.to_ledger_snapshot();
 
@@ -42,22 +42,19 @@ fn live_until(e: &Env, contract: &Address, key: ScVal) -> u32 {
                 *live_until
             }
             _ => None,
-        })
-        .unwrap();
+        });
     live_until
 }
 
-fn pool_ttls(e: &Env, pool: &Address, holder: &Address) -> [u32; 5] {
+fn pool_ttls(e: &Env, pool: &Address, holder: &Address) -> [u32; 2] {
     [
-        live_until(e, pool, ScVal::LedgerKeyContractInstance),
-        live_until(e, pool, contract_key(e, DataKey::AllTokenVec)),
-        live_until(e, pool, contract_key(e, DataKey::AllRecordData)),
-        live_until(e, pool, contract_key(e, DataKey::TotalShares)),
+        live_until(e, pool, ScVal::LedgerKeyContractInstance).unwrap(),
         live_until(
             e,
             pool,
             contract_key(e, DataKeyToken::Balance(holder.clone())),
-        ),
+        )
+        .unwrap(),
     ]
 }
 
@@ -88,6 +85,18 @@ fn test_lp_balance_activity_extends_all_critical_pool_state() {
     let comet = CometPoolContractClient::new(&env, &pool);
     let initial_ttls = pool_ttls(&env, &pool, &admin);
 
+    assert_eq!(
+        live_until(&env, &pool, contract_key(&env, DataKey::AllTokenVec)),
+        None
+    );
+    assert_eq!(
+        live_until(&env, &pool, contract_key(&env, DataKey::AllRecordData)),
+        None
+    );
+    assert_eq!(
+        live_until(&env, &pool, contract_key(&env, DataKey::TotalShares)),
+        None
+    );
     assert!(initial_ttls.iter().all(|ttl| *ttl == initial_ttls[0]));
     assert_eq!(POOL_BUMP_AMOUNT, 120 * DAY_IN_LEDGERS);
     assert_eq!(POOL_LIFETIME_THRESHOLD, 100 * DAY_IN_LEDGERS);
