@@ -17,7 +17,7 @@ use crate::c_pool::{
         read_symbol, read_tokens,
     },
     storage_types::{SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
-    token_utility::check_nonnegative_amount,
+    token_utility::{burn_shares_from, check_nonnegative_amount},
 };
 use soroban_sdk::{
     contract, contractimpl, token::TokenInterface, unwrap::UnwrapOptimized, Address, Env, String,
@@ -25,7 +25,7 @@ use soroban_sdk::{
 };
 use soroban_token_sdk::TokenUtils;
 
-use super::metadata::{put_total_shares, write_controller, write_freeze};
+use super::metadata::{write_controller, write_freeze};
 
 #[contract]
 pub struct CometPoolContract;
@@ -332,21 +332,16 @@ impl TokenInterface for CometPoolContract {
 
     fn burn(e: Env, from: Address, amount: i128) {
         from.require_auth();
-        let total = get_total_shares(&e);
-        check_nonnegative_amount(amount);
 
         e.storage()
             .instance()
             .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
-        spend_balance(&e, from.clone(), amount);
-        TokenUtils::new(&e).events().burn(from, amount);
-        put_total_shares(&e, total - amount);
+        burn_shares_from(&e, &from, amount);
     }
 
     fn burn_from(e: Env, spender: Address, from: Address, amount: i128) {
         spender.require_auth();
-        let total = get_total_shares(&e);
         check_nonnegative_amount(amount);
 
         e.storage()
@@ -354,9 +349,7 @@ impl TokenInterface for CometPoolContract {
             .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
 
         spend_allowance(&e, from.clone(), spender, amount);
-        spend_balance(&e, from.clone(), amount);
-        TokenUtils::new(&e).events().burn(from, amount);
-        put_total_shares(&e, total - amount);
+        burn_shares_from(&e, &from, amount);
     }
 
     fn decimals(e: Env) -> u32 {
