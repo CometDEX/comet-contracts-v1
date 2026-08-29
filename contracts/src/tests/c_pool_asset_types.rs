@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use sep_41_token::testutils::{MockToken, MockTokenClient};
+use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
 use soroban_sdk::{testutils::Address as _, vec, Address, Env, Error, Executable, String};
 
 use crate::{
@@ -26,7 +26,7 @@ fn test_init_rejects_wasm_token_contract() {
     let stellar_asset_client = MockTokenClient::new(&env, &stellar_asset);
     stellar_asset_client.mint(&controller, &STROOP);
 
-    let wasm_token = env.register(MockToken, ());
+    let wasm_token = env.register(MockTokenWASM, ());
     let wasm_token_client = MockTokenClient::new(&env, &wasm_token);
     wasm_token_client.initialize(
         &controller,
