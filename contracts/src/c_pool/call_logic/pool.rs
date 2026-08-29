@@ -1,10 +1,8 @@
-use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::I256;
 use soroban_sdk::{
     assert_with_error, panic_with_error, token, unwrap::UnwrapOptimized, Address, Env, Vec,
 };
 
-use crate::c_consts::STROOP;
 use crate::{
     c_consts::{MAX_IN_RATIO, MAX_OUT_RATIO},
     c_math,
@@ -129,15 +127,11 @@ pub fn execute_swap_exact_amount_in(
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
     assert_with_error!(
         &e,
-        token_amount_in
-            <= in_record
-                .balance
-                .fixed_mul_floor(MAX_IN_RATIO, STROOP)
-                .unwrap_optimized(),
+        c_math::amount_within_max_ratio(&e, token_amount_in, in_record.balance, MAX_IN_RATIO),
         Error::ErrMaxInRatio
     );
 
-    let spot_price_before = c_math::calc_spot_price(&in_record, &out_record, swap_fee);
+    let spot_price_before = c_math::calc_spot_price(&e, &in_record, &out_record, swap_fee);
 
     assert_with_error!(&e, spot_price_before <= max_price, Error::ErrBadLimitPrice);
     let token_amount_out = c_math::calc_token_out_given_token_in(
@@ -160,7 +154,7 @@ pub fn execute_swap_exact_amount_in(
     );
     out_record.balance = out_record.balance - token_amount_out;
 
-    let spot_price_after = c_math::calc_spot_price(&in_record, &out_record, swap_fee);
+    let spot_price_after = c_math::calc_spot_price(&e, &in_record, &out_record, swap_fee);
 
     assert_with_error!(
         &e,
@@ -170,10 +164,7 @@ pub fn execute_swap_exact_amount_in(
     assert_with_error!(&e, spot_price_after <= max_price, Error::ErrLimitPrice);
     assert_with_error!(
         &e,
-        spot_price_before
-            <= token_amount_in
-                .fixed_div_floor(token_amount_out, STROOP)
-                .unwrap_optimized(),
+        c_math::realized_price_meets_spot(&e, spot_price_before, token_amount_in, token_amount_out),
         Error::ErrMathApprox
     );
 
@@ -228,15 +219,11 @@ pub fn execute_swap_exact_amount_out(
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
     assert_with_error!(
         &e,
-        token_amount_out
-            <= out_record
-                .balance
-                .fixed_mul_floor(MAX_OUT_RATIO, STROOP)
-                .unwrap_optimized(),
+        c_math::amount_within_max_ratio(&e, token_amount_out, out_record.balance, MAX_OUT_RATIO),
         Error::ErrMaxOutRatio
     );
 
-    let spot_price_before = c_math::calc_spot_price(&in_record, &out_record, swap_fee);
+    let spot_price_before = c_math::calc_spot_price(&e, &in_record, &out_record, swap_fee);
     assert_with_error!(&e, spot_price_before <= max_price, Error::ErrBadLimitPrice);
     let token_amount_in = c_math::calc_token_in_given_token_out(
         &e,
@@ -260,7 +247,7 @@ pub fn execute_swap_exact_amount_out(
     );
     out_record.balance = out_record.balance - token_amount_out;
 
-    let spot_price_after = c_math::calc_spot_price(&in_record, &out_record, swap_fee);
+    let spot_price_after = c_math::calc_spot_price(&e, &in_record, &out_record, swap_fee);
 
     assert_with_error!(
         &e,
@@ -270,10 +257,7 @@ pub fn execute_swap_exact_amount_out(
     assert_with_error!(&e, spot_price_after <= max_price, Error::ErrLimitPrice);
     assert_with_error!(
         &e,
-        spot_price_before
-            <= token_amount_in
-                .fixed_div_floor(token_amount_out, STROOP)
-                .unwrap_optimized(),
+        c_math::realized_price_meets_spot(&e, spot_price_before, token_amount_in, token_amount_out),
         Error::ErrMathApprox
     );
 
@@ -315,11 +299,7 @@ pub fn execute_dep_tokn_amt_in_get_lp_tokns_out(
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
     assert_with_error!(
         &e,
-        token_amount_in
-            <= in_record
-                .balance
-                .fixed_mul_floor(MAX_IN_RATIO, STROOP)
-                .unwrap_optimized(),
+        c_math::amount_within_max_ratio(&e, token_amount_in, in_record.balance, MAX_IN_RATIO),
         Error::ErrMaxInRatio
     );
 
@@ -387,11 +367,7 @@ pub fn execute_dep_lp_tokn_amt_out_get_tokn_in(
     assert_with_error!(&e, token_amount_in <= max_amount_in, Error::ErrLimitIn);
     assert_with_error!(
         &e,
-        token_amount_in
-            <= in_record
-                .balance
-                .fixed_mul_floor(MAX_IN_RATIO, STROOP)
-                .unwrap_optimized(),
+        c_math::amount_within_max_ratio(&e, token_amount_in, in_record.balance, MAX_IN_RATIO),
         Error::ErrMaxInRatio
     );
     in_record.balance = in_record
@@ -443,11 +419,7 @@ pub fn execute_wdr_tokn_amt_in_get_lp_tokns_out(
     assert_with_error!(&e, token_amount_out >= min_amount_out, Error::ErrLimitOut);
     assert_with_error!(
         &e,
-        token_amount_out
-            <= out_record
-                .balance
-                .fixed_mul_floor(MAX_OUT_RATIO, STROOP)
-                .unwrap_optimized(),
+        c_math::amount_within_max_ratio(&e, token_amount_out, out_record.balance, MAX_OUT_RATIO),
         Error::ErrMaxOutRatio
     );
     assert_with_error!(
@@ -491,11 +463,7 @@ pub fn execute_wdr_tokn_amt_out_get_lp_tokns_in(
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
     assert_with_error!(
         &e,
-        token_amount_out
-            <= out_record
-                .balance
-                .fixed_mul_floor(MAX_OUT_RATIO, STROOP)
-                .unwrap_optimized(),
+        c_math::amount_within_max_ratio(&e, token_amount_out, out_record.balance, MAX_OUT_RATIO),
         Error::ErrMaxOutRatio
     );
 
