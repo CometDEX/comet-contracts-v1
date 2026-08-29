@@ -29,11 +29,6 @@ version = "=27.0.3"
 [workspace.dependencies.soroban-token-sdk]
 version = "=27.0.3"
 
-[workspace.dependencies.sep-41-token]
-version = "=2.0.0"
-git = "https://github.com/levinson/sep-41-token.git"
-rev = "2b9eb2fac1354034b50aa9e6e72c51f85db5d168"
-
 [workspace.dependencies.soroban-fixed-point-math]
 version = "=1.6.0"
 git = "https://github.com/levinson/soroban-fixed-point-math.git"

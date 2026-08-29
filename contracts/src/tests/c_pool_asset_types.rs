@@ -1,7 +1,6 @@
 #![cfg(test)]
 
-use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
-use soroban_sdk::{testutils::Address as _, vec, Address, Env, Error, Executable, String};
+use soroban_sdk::{testutils::Address as _, vec, Address, Env, Error, Executable};
 
 use crate::{
     c_consts::STROOP,
@@ -9,6 +8,7 @@ use crate::{
         comet::{CometPoolContract, CometPoolContractClient},
         error::Error as CometError,
     },
+    tests::utils::MockTokenClient,
 };
 
 #[test]
@@ -26,22 +26,17 @@ fn test_init_rejects_wasm_token_contract() {
     let stellar_asset_client = MockTokenClient::new(&env, &stellar_asset);
     stellar_asset_client.mint(&controller, &STROOP);
 
-    let wasm_token = env.register(MockTokenWASM, ());
-    let wasm_token_client = MockTokenClient::new(&env, &wasm_token);
-    wasm_token_client.initialize(
-        &controller,
-        &7,
-        &String::from_str(&env, "Contract Token"),
-        &String::from_str(&env, "CT"),
-    );
-    wasm_token_client.mint(&controller, &STROOP);
+    let wasm_contract = env.register(CometPoolContract, ());
 
     assert_eq!(stellar_asset.executable(), Some(Executable::StellarAsset));
-    assert!(matches!(wasm_token.executable(), Some(Executable::Wasm(_))));
+    assert!(matches!(
+        wasm_contract.executable(),
+        Some(Executable::Wasm(_))
+    ));
 
     let result = comet.try_init(
         &controller,
-        &vec![&env, stellar_asset.clone(), wasm_token],
+        &vec![&env, stellar_asset.clone(), wasm_contract],
         &vec![&env, 5 * STROOP / 10, 5 * STROOP / 10],
         &vec![&env, STROOP, STROOP],
         &0_0030000,
