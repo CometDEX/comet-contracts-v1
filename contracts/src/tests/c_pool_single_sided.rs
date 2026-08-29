@@ -21,6 +21,17 @@ use super::{
     utils::{create_comet_pool, create_stellar_token},
 };
 
+fn sync_balancer_state(
+    comet: &CometPoolContractClient<'_>,
+    balancer: &mut BalancerPool,
+    token_1: &Address,
+    token_2: &Address,
+) {
+    balancer.balances[0] = comet.get_balance(token_1) as f64 / STROOP as f64;
+    balancer.balances[1] = comet.get_balance(token_2) as f64 / STROOP as f64;
+    balancer.supply = comet.get_total_supply() as f64 / STROOP as f64;
+}
+
 #[test]
 fn test_single_sided_deposit_rejects_zero_lp_output() {
     let env = Env::default();
@@ -238,6 +249,7 @@ fn test_single_sided_dep() {
 
     //***** single sided dep given pool mint ******//
 
+    sync_balancer_state(&comet, &mut balancer, &token_1, &token_2);
     env.mock_all_auths();
     let mint_amount = 1.0;
     let mint_amount_fixed = mint_amount.to_i128(&7);
@@ -457,6 +469,7 @@ fn test_single_sided_wdr() {
 
     //***** single sided wdr given token out ******//
 
+    sync_balancer_state(&comet, &mut balancer, &token_1, &token_2);
     env.mock_all_auths();
     let bal_token_out = 1.0;
     let token_out_fixed = bal_token_out.to_i128(&7);
@@ -592,6 +605,7 @@ fn test_single_sided_deposit_large_price() {
     assert!(res_lp_out_1 <= bal_lp_out_1);
     assert_approx_eq_rel(res_lp_out_1, bal_lp_out_1, 0_0001000);
 
+    sync_balancer_state(&comet, &mut balancer, &token_1, &token_2);
     let lp_out_1 = 5.0;
     let lp_out_1_fixed = lp_out_1.to_i128(&7);
     let bal_token_in_1 = balancer.single_sided_dep_given_out(0, lp_out_1).to_i128(&7);
@@ -601,6 +615,7 @@ fn test_single_sided_deposit_large_price() {
     assert_approx_eq_rel(res_token_in_1, bal_token_in_1, 0_0001000);
 
     // token 2
+    sync_balancer_state(&comet, &mut balancer, &token_1, &token_2);
     let token_in_2 = 30_000_000.2;
     let token_in_2_fixed = token_in_2.to_i128(&7);
     let bal_lp_out_2 = balancer
@@ -611,6 +626,7 @@ fn test_single_sided_deposit_large_price() {
     assert!(res_lp_out_2 <= bal_lp_out_2);
     assert_approx_eq_rel(res_lp_out_2, bal_lp_out_2, 0_0001000);
 
+    sync_balancer_state(&comet, &mut balancer, &token_1, &token_2);
     let lp_out_2 = 0.000042;
     let lp_out_2_fixed = lp_out_2.to_i128(&7);
     let bal_token_in_2 = balancer.single_sided_dep_given_out(1, lp_out_2).to_i128(&7);
@@ -664,6 +680,7 @@ fn test_single_sided_withdraw_large_price() {
     assert!(res_token_out_1 <= bal_token_out_1);
     assert_approx_eq_rel(res_token_out_1, bal_token_out_1, 0_0001000);
 
+    sync_balancer_state(&comet, &mut balancer, &token_1, &token_2);
     let token_out_1 = 30.0;
     let token_out_1_fixed = token_out_1.to_i128(&7);
     let bal_lp_in_1 = balancer
@@ -675,17 +692,16 @@ fn test_single_sided_withdraw_large_price() {
     assert_approx_eq_rel(res_lp_in_1, bal_lp_in_1, 0_0001000);
 
     // token 2
+    sync_balancer_state(&comet, &mut balancer, &token_1, &token_2);
     let lp_in_2 = 25.0;
     let lp_in_2_fixed = lp_in_2.to_i128(&7);
     let bal_token_out_2 = balancer.single_sided_wd_given_in(1, lp_in_2).to_i128(&7);
     let res_token_out_2 =
         comet.wdr_tokn_amt_in_get_lp_tokns_out(&token_2, &lp_in_2_fixed, &1, &admin);
-    // assert!(res_token_out_2 <= bal_token_out_2); -> fails
-    // -> next check ensures result is close to floating point result by a basis point
-    //    while its possible float error is worse than rounding error at these scales, this
-    //    ensures the diff is held within the min fee to avoid abuse
+    assert!(res_token_out_2 <= bal_token_out_2);
     assert_approx_eq_rel(res_token_out_2, bal_token_out_2, 0_0001000);
 
+    sync_balancer_state(&comet, &mut balancer, &token_1, &token_2);
     let token_out_2 = 4.2;
     let token_out_2_fixed = token_out_2.to_i128(&7);
     let bal_lp_in_2 = balancer

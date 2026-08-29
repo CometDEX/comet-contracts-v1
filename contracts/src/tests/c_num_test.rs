@@ -29,3 +29,61 @@ fn test_c_pow_high() {
         false,
     );
 }
+
+#[test]
+fn test_c_pow_integer_rounding_direction() {
+    let env = Env::default();
+    let base = I256::from_i128(&env, BONE + 1);
+    let exp = I256::from_i128(&env, 2 * BONE);
+
+    assert_eq!(c_pow(&env, &base, &exp, false).to_i128().unwrap(), BONE + 2);
+    assert_eq!(c_pow(&env, &base, &exp, true).to_i128().unwrap(), BONE + 3);
+}
+
+#[test]
+fn test_c_pow_fractional_rounding_direction() {
+    let env = Env::default();
+    // Expected bounds were calculated with 100-digit decimal precision.
+    let cases = [
+        (
+            750_000_000_000_000_000,
+            1_250_000_000_000_000_000,
+            697_953_644_326_574_699,
+            697_953_644_326_574_700,
+        ),
+        (
+            1_300_000_000_000_000_000,
+            800_000_000_000_000_000,
+            1_233_544_104_071_173_995,
+            1_233_544_104_071_173_996,
+        ),
+        (
+            999_999_580_000_000_000,
+            1_250_000_000_000_000_000,
+            999_999_475_000_027_562,
+            999_999_475_000_027_563,
+        ),
+        (
+            1_000_000_420_000_000_000,
+            1_250_000_000_000_000_000,
+            1_000_000_525_000_027_562,
+            1_000_000_525_000_027_563,
+        ),
+    ];
+
+    for (base, exp, expected_floor, expected_ceil) in cases {
+        let base_256 = I256::from_i128(&env, base);
+        let exp_256 = I256::from_i128(&env, exp);
+        let rounded_down = c_pow(&env, &base_256, &exp_256, false).to_i128().unwrap();
+        let rounded_up = c_pow(&env, &base_256, &exp_256, true).to_i128().unwrap();
+
+        assert!(
+            rounded_down <= expected_floor,
+            "round down exceeded base={base} exp={exp}: result={rounded_down} floor={expected_floor}"
+        );
+        assert!(
+            rounded_up >= expected_ceil,
+            "round up fell below base={base} exp={exp}: result={rounded_up} ceil={expected_ceil}"
+        );
+    }
+}
