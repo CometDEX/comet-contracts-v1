@@ -311,7 +311,7 @@ checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 
 [[package]]
 name = "contracts"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "sep-41-token",
  "soroban-fixed-point-math",
@@ -754,7 +754,7 @@ checksum = "40404c3f5f511ec4da6fe866ddf6a717c309fdbb69fbbad7b0f3edab8f2e835f"
 
 [[package]]
 name = "factory"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "soroban-sdk",
 ]
