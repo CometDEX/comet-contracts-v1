@@ -32,9 +32,9 @@ pub fn push_underlying(e: &Env, token: &Address, to: &Address, amount: i128) {
 
 // Mint the given amount of LP Tokens
 pub fn mint_shares(e: &Env, to: &Address, amount: i128) {
+    check_nonnegative_amount(e, amount);
     let total = get_total_shares(e);
     put_total_shares(e, total + amount);
-    check_nonnegative_amount(amount);
     receive_balance(e, to.clone(), amount);
     MintWithAmountOnly {
         to: to.clone(),
@@ -46,7 +46,7 @@ pub fn mint_shares(e: &Env, to: &Address, amount: i128) {
 // Transfer the LP Tokens from the given 'from' Address to the contract Address
 pub fn pull_shares(e: &Env, from: &Address, amount: i128) {
     let contract_address = e.current_contract_address();
-    check_nonnegative_amount(amount);
+    check_nonnegative_amount(e, amount);
     spend_balance(e, from.clone(), amount);
     receive_balance(e, contract_address.clone(), amount);
     TransferWithAmountOnly {
@@ -65,7 +65,7 @@ pub fn burn_shares(e: &Env, amount: i128) {
 
 // Burn LP Tokens from an address while preserving the minimum pool supply.
 pub fn burn_shares_from(e: &Env, from: &Address, amount: i128) {
-    check_nonnegative_amount(amount);
+    check_nonnegative_amount(e, amount);
     let total = get_total_shares(e);
     assert_with_error!(
         e,
@@ -82,10 +82,8 @@ pub fn burn_shares_from(e: &Env, from: &Address, amount: i128) {
 }
 
 // Check if the given amount is negative
-pub fn check_nonnegative_amount(amount: i128) {
-    if amount < 0 {
-        panic!("negative amount is not allowed: {}", amount)
-    }
+pub fn check_nonnegative_amount(e: &Env, amount: i128) {
+    assert_with_error!(e, amount >= 0, Error::ErrTokenAmountIsNegative);
 }
 
 fn preserves_minimum_supply(total: i128, amount: i128) -> bool {

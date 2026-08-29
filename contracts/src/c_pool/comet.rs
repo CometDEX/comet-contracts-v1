@@ -308,7 +308,7 @@ impl TokenInterface for CometPoolContract {
     fn approve(e: Env, from: Address, spender: Address, amount: i128, expiration_ledger: u32) {
         from.require_auth();
 
-        check_nonnegative_amount(amount);
+        check_nonnegative_amount(&e, amount);
 
         extend_pool_ttl(&e);
 
@@ -331,7 +331,7 @@ impl TokenInterface for CometPoolContract {
     fn transfer(e: Env, from: Address, to: MuxedAddress, amount: i128) {
         from.require_auth();
 
-        check_nonnegative_amount(amount);
+        check_nonnegative_amount(&e, amount);
 
         extend_pool_ttl(&e);
 
@@ -350,7 +350,7 @@ impl TokenInterface for CometPoolContract {
     fn transfer_from(e: Env, spender: Address, from: Address, to: Address, amount: i128) {
         spender.require_auth();
 
-        check_nonnegative_amount(amount);
+        check_nonnegative_amount(&e, amount);
 
         extend_pool_ttl(&e);
 
@@ -362,6 +362,7 @@ impl TokenInterface for CometPoolContract {
 
     fn burn(e: Env, from: Address, amount: i128) {
         from.require_auth();
+        check_nonnegative_amount(&e, amount);
 
         extend_pool_ttl(&e);
 
@@ -370,7 +371,7 @@ impl TokenInterface for CometPoolContract {
 
     fn burn_from(e: Env, spender: Address, from: Address, amount: i128) {
         spender.require_auth();
-        check_nonnegative_amount(amount);
+        check_nonnegative_amount(&e, amount);
 
         extend_pool_ttl(&e);
 
