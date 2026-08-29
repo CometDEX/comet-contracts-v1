@@ -2,8 +2,32 @@
 
 extern crate std;
 
-use crate::{Factory, FactoryClient};
-use soroban_sdk::{testutils::Address as _, token::StellarAssetClient, vec, Address, BytesN, Env};
+use crate::{
+    call_logic::factory::{DAY_IN_LEDGERS, FACTORY_BUMP_AMOUNT, FACTORY_LIFETIME_THRESHOLD},
+    DataKeyFactory, Factory, FactoryClient,
+};
+use soroban_sdk::{
+    testutils::{Address as _, Ledger},
+    token::StellarAssetClient,
+    vec, xdr, Address, BytesN, Env,
+};
+
+fn instance_live_until(e: &Env, contract_id: &Address) -> u32 {
+    let contract_address: xdr::ScAddress = contract_id.clone().try_into().unwrap();
+    e.to_ledger_snapshot()
+        .ledger_entries
+        .iter()
+        .find_map(|(key, (_, live_until))| match key.as_ref() {
+            xdr::LedgerKey::ContractData(entry)
+                if entry.contract == contract_address
+                    && entry.key == xdr::ScVal::LedgerKeyContractInstance =>
+            {
+                *live_until
+            }
+            _ => None,
+        })
+        .unwrap()
+}
 
 // The contract that will be deployed by the deployer contract.
 mod contract {
@@ -97,4 +121,49 @@ fn test_init_requires_contract_deployer() {
 
     client.init(&deployer, &salt, &pool_wasm_hash);
     assert!(client.try_init(&deployer, &salt, &pool_wasm_hash).is_err());
+}
+
+#[test]
+fn test_is_c_pool_extends_factory_instance_ttl() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let deployer = Address::generate(&env);
+    let salt = BytesN::from_array(&env, &[3; 32]);
+    let factory_id = env
+        .deployer()
+        .with_address(deployer.clone(), salt.clone())
+        .deployed_address();
+    env.register_at(&factory_id, Factory, ());
+    let client = FactoryClient::new(&env, &factory_id);
+    let wasm_hash = BytesN::from_array(&env, &[0; 32]);
+
+    let initial_live_until = instance_live_until(&env, &factory_id);
+    client.init(&deployer, &salt, &wasm_hash);
+    let initialized_live_until = instance_live_until(&env, &factory_id);
+    assert!(initialized_live_until > initial_live_until);
+    assert_eq!(FACTORY_BUMP_AMOUNT, 120 * DAY_IN_LEDGERS);
+    assert_eq!(FACTORY_LIFETIME_THRESHOLD, 100 * DAY_IN_LEDGERS);
+    assert_eq!(
+        initialized_live_until,
+        env.ledger().sequence() + FACTORY_BUMP_AMOUNT
+    );
+
+    env.ledger().with_mut(|ledger| {
+        ledger.sequence_number += FACTORY_BUMP_AMOUNT - FACTORY_LIFETIME_THRESHOLD + 1;
+    });
+
+    let unknown_pool = Address::generate(&env);
+    assert!(!client.is_c_pool(&unknown_pool));
+    assert!(!env.as_contract(&factory_id, || {
+        env.storage()
+            .persistent()
+            .has(&DataKeyFactory::IsCpool(unknown_pool.clone()))
+    }));
+
+    let refreshed_live_until = instance_live_until(&env, &factory_id);
+    assert!(refreshed_live_until > initialized_live_until);
+    assert_eq!(
+        refreshed_live_until,
+        env.ledger().sequence() + FACTORY_BUMP_AMOUNT
+    );
 }
