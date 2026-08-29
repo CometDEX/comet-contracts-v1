@@ -6,16 +6,13 @@ use crate::{DataKeyFactory, NewPoolEvent};
 
 pub(crate) const DAY_IN_LEDGERS: u32 = 17280;
 
-pub(crate) const INSTANCE_BUMP_AMOUNT: u32 = 31 * DAY_IN_LEDGERS;
-pub(crate) const INSTANCE_LIFETIME_THRESHOLD: u32 = INSTANCE_BUMP_AMOUNT - DAY_IN_LEDGERS;
-
-pub(crate) const LARGE_BUMP_AMOUNT: u32 = 120 * DAY_IN_LEDGERS;
-pub(crate) const LARGE_LIFETIME_THRESHOLD: u32 = LARGE_BUMP_AMOUNT - 20 * DAY_IN_LEDGERS;
+pub(crate) const FACTORY_BUMP_AMOUNT: u32 = 120 * DAY_IN_LEDGERS;
+pub(crate) const FACTORY_LIFETIME_THRESHOLD: u32 = FACTORY_BUMP_AMOUNT - 20 * DAY_IN_LEDGERS;
 
 fn extend_instance_ttl(e: &Env) {
     e.storage()
         .instance()
-        .extend_ttl(INSTANCE_LIFETIME_THRESHOLD, INSTANCE_BUMP_AMOUNT);
+        .extend_ttl(FACTORY_LIFETIME_THRESHOLD, FACTORY_BUMP_AMOUNT);
 }
 
 pub fn execute_init(e: Env, pool_wasm_hash: BytesN<32>) {
@@ -67,7 +64,7 @@ pub fn execute_new_c_pool(
     e.storage().persistent().set(&key, &true);
     e.storage()
         .persistent()
-        .extend_ttl(&key, LARGE_LIFETIME_THRESHOLD, LARGE_BUMP_AMOUNT);
+        .extend_ttl(&key, FACTORY_LIFETIME_THRESHOLD, FACTORY_BUMP_AMOUNT);
     let event: NewPoolEvent = NewPoolEvent {
         caller: controller,
         pool: id.clone(),
@@ -84,7 +81,7 @@ pub fn execute_is_c_pool(e: Env, addr: Address) -> bool {
     if let Some(is_cpool) = e.storage().persistent().get::<DataKeyFactory, bool>(&key) {
         e.storage()
             .persistent()
-            .extend_ttl(&key, LARGE_LIFETIME_THRESHOLD, LARGE_BUMP_AMOUNT);
+            .extend_ttl(&key, FACTORY_LIFETIME_THRESHOLD, FACTORY_BUMP_AMOUNT);
         is_cpool
     } else {
         false

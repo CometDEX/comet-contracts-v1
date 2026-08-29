@@ -3,7 +3,7 @@
 extern crate std;
 
 use crate::{
-    call_logic::factory::{DAY_IN_LEDGERS, INSTANCE_BUMP_AMOUNT},
+    call_logic::factory::{DAY_IN_LEDGERS, FACTORY_BUMP_AMOUNT, FACTORY_LIFETIME_THRESHOLD},
     DataKeyFactory, Factory, FactoryClient,
 };
 use soroban_sdk::{
@@ -81,9 +81,15 @@ fn test_is_c_pool_extends_factory_instance_ttl() {
     client.init(&wasm_hash);
     let initialized_live_until = instance_live_until(&env, &factory_id);
     assert!(initialized_live_until > initial_live_until);
+    assert_eq!(FACTORY_BUMP_AMOUNT, 120 * DAY_IN_LEDGERS);
+    assert_eq!(FACTORY_LIFETIME_THRESHOLD, 100 * DAY_IN_LEDGERS);
+    assert_eq!(
+        initialized_live_until,
+        env.ledger().sequence() + FACTORY_BUMP_AMOUNT
+    );
 
     env.ledger().with_mut(|ledger| {
-        ledger.sequence_number += DAY_IN_LEDGERS + 1;
+        ledger.sequence_number += FACTORY_BUMP_AMOUNT - FACTORY_LIFETIME_THRESHOLD + 1;
     });
 
     let unknown_pool = Address::generate(&env);
@@ -98,6 +104,6 @@ fn test_is_c_pool_extends_factory_instance_ttl() {
     assert!(refreshed_live_until > initialized_live_until);
     assert_eq!(
         refreshed_live_until,
-        env.ledger().sequence() + INSTANCE_BUMP_AMOUNT
+        env.ledger().sequence() + FACTORY_BUMP_AMOUNT
     );
 }
