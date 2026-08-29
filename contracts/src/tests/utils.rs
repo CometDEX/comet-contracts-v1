@@ -6,7 +6,7 @@ use std::vec::Vec as std_Vec;
 use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::{
     testutils::Events as _,
-    token::TokenClient,
+    token::{StellarAssetClient, TokenClient},
     xdr::{ContractEventBody, ScAddress, ScVal},
     Address, Env, TryFromVal, Val, Vec,
 };
@@ -18,6 +18,41 @@ use crate::{
 };
 
 use super::balancer::BalancerPool;
+
+/// Test helper exposing both the SAC administrator and standard token interfaces.
+pub struct MockTokenClient<'a> {
+    pub address: Address,
+    admin: StellarAssetClient<'a>,
+    token: TokenClient<'a>,
+}
+
+impl<'a> MockTokenClient<'a> {
+    pub fn new(env: &'a Env, address: &Address) -> Self {
+        Self {
+            address: address.clone(),
+            admin: StellarAssetClient::new(env, address),
+            token: TokenClient::new(env, address),
+        }
+    }
+
+    pub fn mint(&self, to: &Address, amount: &i128) {
+        self.admin.mint(to, amount);
+    }
+
+    pub fn balance(&self, id: &Address) -> i128 {
+        self.token.balance(id)
+    }
+
+    pub fn approve(
+        &self,
+        from: &Address,
+        spender: &Address,
+        amount: &i128,
+        expiration_ledger: &u32,
+    ) {
+        self.token.approve(from, spender, amount, expiration_ledger);
+    }
+}
 
 pub fn create_comet_pool(
     env: &Env,

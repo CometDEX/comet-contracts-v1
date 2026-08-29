@@ -313,7 +313,6 @@ checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 name = "contracts"
 version = "2.0.0"
 dependencies = [
- "sep-41-token",
  "soroban-fixed-point-math",
  "soroban-sdk",
  "soroban-token-sdk",
@@ -1364,14 +1363,6 @@ name = "semver"
 version = "1.0.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92d43fe69e652f3df9bdc2b85b2854a0825b86e4fb76bc44d945137d053639ca"
-
-[[package]]
-name = "sep-41-token"
-version = "2.0.0"
-source = "git+https://github.com/levinson/sep-41-token.git?rev=2b9eb2fac1354034b50aa9e6e72c51f85db5d168#2b9eb2fac1354034b50aa9e6e72c51f85db5d168"
-dependencies = [
- "soroban-sdk",
-]
 
 [[package]]
 name = "serde"

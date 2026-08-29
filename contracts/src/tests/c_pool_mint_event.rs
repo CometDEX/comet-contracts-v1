@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use sep_41_token::testutils::MockTokenClient;
+use crate::tests::utils::MockTokenClient;
 use soroban_sdk::{
     symbol_short, testutils::Address as _, vec, Address, Env, Symbol, TryFromVal, Vec,
 };

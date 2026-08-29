@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use sep_41_token::testutils::MockTokenClient;
+use crate::tests::utils::MockTokenClient;
 use soroban_sdk::{testutils::Address as _, vec, Address, Env, Vec};
 
 use crate::{

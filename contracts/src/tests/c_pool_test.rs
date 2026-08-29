@@ -5,7 +5,7 @@ extern crate std;
 use crate::c_consts::{INIT_POOL_SUPPLY, MIN_POOL_SUPPLY};
 use crate::c_pool::comet::CometPoolContractClient;
 use crate::tests::utils::create_comet_pool;
-use sep_41_token::testutils::MockTokenClient;
+use crate::tests::utils::MockTokenClient;
 use soroban_sdk::{testutils::Address as _, Address};
 use soroban_sdk::{vec, Env};
 
