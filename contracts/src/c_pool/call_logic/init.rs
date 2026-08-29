@@ -4,7 +4,10 @@ use soroban_sdk::{
 use soroban_token_sdk::metadata::TokenMetadata;
 
 use crate::{
-    c_consts::{INIT_POOL_SUPPLY, MAX_FEE, MAX_WEIGHT, MIN_BALANCE, MIN_FEE, MIN_WEIGHT, STROOP},
+    c_consts::{
+        INIT_POOL_SUPPLY, MAX_FEE, MAX_WEIGHT, MIN_BALANCE, MIN_FEE, MIN_POOL_SUPPLY, MIN_WEIGHT,
+        STROOP,
+    },
     c_pool::{
         error::Error,
         metadata::{write_controller, write_metadata, write_record, write_swap_fee, write_tokens},
@@ -73,7 +76,8 @@ pub fn execute_init(
         records.set(token.clone(), record);
     }
     assert_with_error!(&e, total_weight == STROOP, Error::ErrTotalWeight);
-    mint_shares(&e, &controller, INIT_POOL_SUPPLY);
+    mint_shares(&e, &e.current_contract_address(), MIN_POOL_SUPPLY);
+    mint_shares(&e, &controller, INIT_POOL_SUPPLY - MIN_POOL_SUPPLY);
     write_swap_fee(&e, swap_fee);
 
     write_record(e, records);

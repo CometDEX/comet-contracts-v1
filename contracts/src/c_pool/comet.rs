@@ -16,15 +16,15 @@ use crate::c_pool::{
         extend_pool_ttl, get_total_shares, read_controller, read_decimal, read_name, read_record,
         read_swap_fee, read_symbol, read_tokens,
     },
-    token_utility::check_nonnegative_amount,
+    token_utility::{burn_shares_from, check_nonnegative_amount},
 };
 use soroban_sdk::{
     contract, contractimpl, token::TokenInterface, unwrap::UnwrapOptimized, Address, Env,
     MuxedAddress, String, Vec,
 };
-use soroban_token_sdk::events::{Approve, Burn, Transfer, TransferWithAmountOnly};
+use soroban_token_sdk::events::{Approve, Transfer, TransferWithAmountOnly};
 
-use super::metadata::{put_total_shares, write_controller, write_freeze};
+use super::metadata::{write_controller, write_freeze};
 
 #[contract]
 pub struct CometPoolContract;
@@ -314,27 +314,20 @@ impl TokenInterface for CometPoolContract {
 
     fn burn(e: Env, from: Address, amount: i128) {
         from.require_auth();
-        let total = get_total_shares(&e);
-        check_nonnegative_amount(amount);
 
         extend_pool_ttl(&e);
 
-        spend_balance(&e, from.clone(), amount);
-        Burn { from, amount }.publish(&e);
-        put_total_shares(&e, total - amount);
+        burn_shares_from(&e, &from, amount);
     }
 
     fn burn_from(e: Env, spender: Address, from: Address, amount: i128) {
         spender.require_auth();
-        let total = get_total_shares(&e);
         check_nonnegative_amount(amount);
 
         extend_pool_ttl(&e);
 
         spend_allowance(&e, from.clone(), spender, amount);
-        spend_balance(&e, from.clone(), amount);
-        Burn { from, amount }.publish(&e);
-        put_total_shares(&e, total - amount);
+        burn_shares_from(&e, &from, amount);
     }
 
     fn decimals(e: Env) -> u32 {

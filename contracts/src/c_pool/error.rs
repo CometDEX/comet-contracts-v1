@@ -43,4 +43,5 @@ pub enum Error {
     ErrNegativeOrZero = 37,
     ErrTokenInvalid = 38,
     ErrSameToken = 39,
+    ErrMinPoolSupply = 40,
 }
