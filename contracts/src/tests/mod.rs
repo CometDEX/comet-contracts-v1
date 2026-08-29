@@ -15,3 +15,4 @@ pub mod c_pool_swap;
 pub mod c_pool_test;
 pub mod c_pool_token_errors;
 pub mod c_pool_ttl;
+mod generated_c_pow_vectors;
