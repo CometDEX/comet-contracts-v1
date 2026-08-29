@@ -1,6 +1,6 @@
 //! Utilities for the LP Token
 use soroban_sdk::{assert_with_error, Address, Env};
-use soroban_token_sdk::events::{Burn, TransferWithAmountOnly};
+use soroban_token_sdk::events::{Burn, MintWithAmountOnly, TransferWithAmountOnly};
 
 use crate::c_consts::MIN_POOL_SUPPLY;
 
@@ -36,6 +36,11 @@ pub fn mint_shares(e: &Env, to: &Address, amount: i128) {
     put_total_shares(e, total + amount);
     check_nonnegative_amount(amount);
     receive_balance(e, to.clone(), amount);
+    MintWithAmountOnly {
+        to: to.clone(),
+        amount,
+    }
+    .publish(e);
 }
 
 // Transfer the LP Tokens from the given 'from' Address to the contract Address
