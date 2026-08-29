@@ -1,7 +1,13 @@
 [workspace]
 resolver = "2"
 
-members = ["contracts", "factory"]
+members = [
+    "contracts",
+    "factory",
+]
+
+[workspace.package]
+rust-version = "1.91.1"
 
 [profile.release-with-logs]
 inherits = "release"
@@ -18,7 +24,12 @@ codegen-units = 1
 lto = true
 
 [workspace.dependencies.soroban-sdk]
-version = "20.5.0"
+version = "=27.0.3"
 
 [workspace.dependencies.soroban-token-sdk]
-version = "20.5.0"
+version = "=27.0.3"
+
+[workspace.dependencies.soroban-fixed-point-math]
+version = "=1.6.0"
+git = "https://github.com/levinson/soroban-fixed-point-math.git"
+rev = "417905c4e9c7ddea114455e98bd9e4abe6f9f5e7"

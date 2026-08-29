@@ -6,13 +6,17 @@ use crate::{DataKeyFactory, NewPoolEvent};
 
 pub(crate) const DAY_IN_LEDGERS: u32 = 17280;
 
-pub(crate) const SHARED_BUMP_AMOUNT: u32 = 31 * DAY_IN_LEDGERS;
-pub(crate) const SHARED_LIFETIME_THRESHOLD: u32 = SHARED_BUMP_AMOUNT - DAY_IN_LEDGERS;
+pub(crate) const FACTORY_BUMP_AMOUNT: u32 = 120 * DAY_IN_LEDGERS;
+pub(crate) const FACTORY_LIFETIME_THRESHOLD: u32 = FACTORY_BUMP_AMOUNT - 20 * DAY_IN_LEDGERS;
 
-pub(crate) const LARGE_BUMP_AMOUNT: u32 = 120 * DAY_IN_LEDGERS;
-pub(crate) const LARGE_LIFETIME_THRESHOLD: u32 = LARGE_BUMP_AMOUNT - 20 * DAY_IN_LEDGERS;
+fn extend_instance_ttl(e: &Env) {
+    e.storage()
+        .instance()
+        .extend_ttl(FACTORY_LIFETIME_THRESHOLD, FACTORY_BUMP_AMOUNT);
+}
 
 pub fn execute_init(e: Env, pool_wasm_hash: BytesN<32>) {
+    extend_instance_ttl(&e);
     e.storage()
         .instance()
         .set(&DataKeyFactory::WasmHash, &pool_wasm_hash);
@@ -27,9 +31,7 @@ pub fn execute_new_c_pool(
     balances: Vec<i128>,
     swap_fee: i128,
 ) -> Address {
-    e.storage()
-        .instance()
-        .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+    extend_instance_ttl(&e);
     let wasm_hash = e
         .storage()
         .instance()
@@ -46,7 +48,7 @@ pub fn execute_new_c_pool(
     let id = e
         .deployer()
         .with_current_contract(new_salt)
-        .deploy(wasm_hash);
+        .deploy_v2(wasm_hash, ());
 
     let init_args: Vec<Val> = vec![
         &e,
@@ -62,23 +64,23 @@ pub fn execute_new_c_pool(
     e.storage().persistent().set(&key, &true);
     e.storage()
         .persistent()
-        .extend_ttl(&key, LARGE_LIFETIME_THRESHOLD, LARGE_BUMP_AMOUNT);
+        .extend_ttl(&key, FACTORY_LIFETIME_THRESHOLD, FACTORY_BUMP_AMOUNT);
     let event: NewPoolEvent = NewPoolEvent {
         caller: controller,
         pool: id.clone(),
     };
-    e.events()
-        .publish((symbol_short!("LOG"), symbol_short!("NEW_POOL")), event);
+    event.publish(&e);
     id
 }
 
 // Returns true if the passed Address is a valid Pool
 pub fn execute_is_c_pool(e: Env, addr: Address) -> bool {
+    extend_instance_ttl(&e);
     let key = DataKeyFactory::IsCpool(addr);
     if let Some(is_cpool) = e.storage().persistent().get::<DataKeyFactory, bool>(&key) {
         e.storage()
             .persistent()
-            .extend_ttl(&key, LARGE_LIFETIME_THRESHOLD, LARGE_BUMP_AMOUNT);
+            .extend_ttl(&key, FACTORY_LIFETIME_THRESHOLD, FACTORY_BUMP_AMOUNT);
         is_cpool
     } else {
         false

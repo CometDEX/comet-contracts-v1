@@ -1,13 +1,13 @@
 #![cfg(test)]
 
-use sep_41_token::testutils::MockTokenClient;
+use crate::tests::utils::MockTokenClient;
 use soroban_sdk::{
     testutils::{Address as _, MockAuth, MockAuthInvoke},
     vec, Address, Env, Error, IntoVal,
 };
 
 use crate::{
-    c_consts::STROOP,
+    c_consts::{INIT_POOL_SUPPLY, MIN_POOL_SUPPLY, STROOP},
     c_pool::{
         comet::{CometPoolContract, CometPoolContractClient},
         error::Error as CometError,
@@ -19,13 +19,17 @@ fn test_init() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let contract_id = env.register_contract(None, CometPoolContract);
+    let contract_id = env.register(CometPoolContract, ());
     let comet = CometPoolContractClient::new(&env, &contract_id);
 
     let controller = Address::generate(&env);
-    let token_1 = env.register_stellar_asset_contract(controller.clone());
+    let token_1 = env
+        .register_stellar_asset_contract_v2(controller.clone())
+        .address();
     let token_1_client = MockTokenClient::new(&env, &token_1);
-    let token_2 = env.register_stellar_asset_contract(controller.clone());
+    let token_2 = env
+        .register_stellar_asset_contract_v2(controller.clone())
+        .address();
     let token_2_client = MockTokenClient::new(&env, &token_2);
     token_1_client.mint(&controller, &STROOP);
     token_2_client.mint(&controller, &STROOP);
@@ -203,8 +207,12 @@ fn test_init() {
     assert_eq!(comet.get_normalized_weight(&token_2), 0_6000000);
     assert_eq!(comet.get_balance(&token_1), STROOP);
     assert_eq!(comet.get_balance(&token_2), STROOP);
-    assert_eq!(comet.get_total_supply(), 100 * STROOP);
-    assert_eq!(comet.balance(&controller), 100 * STROOP);
+    assert_eq!(comet.get_total_supply(), INIT_POOL_SUPPLY);
+    assert_eq!(
+        comet.balance(&controller),
+        INIT_POOL_SUPPLY - MIN_POOL_SUPPLY
+    );
+    assert_eq!(comet.balance(&contract_id), MIN_POOL_SUPPLY);
     assert_eq!(token_1_client.balance(&controller), 0);
     assert_eq!(token_2_client.balance(&controller), 0);
     assert_eq!(token_1_client.balance(&contract_id), STROOP);

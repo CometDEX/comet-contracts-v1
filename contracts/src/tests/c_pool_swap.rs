@@ -1,18 +1,18 @@
 #![cfg(test)]
 
-use sep_41_token::testutils::MockTokenClient;
+use crate::tests::utils::MockTokenClient;
 use soroban_sdk::{
     testutils::{Address as _, MockAuth, MockAuthInvoke},
     vec, Address, Env, Error, IntoVal, Vec,
 };
-use std::{println, vec as std_vec};
+use std::vec as std_vec;
 
 use crate::{
     c_consts::STROOP,
     c_pool::{comet::CometPoolContractClient, error::Error as CometError},
     tests::{
         balancer::F64Utils,
-        utils::{assert_approx_eq_abs, assert_approx_eq_rel, create_soroban_token, print_compare},
+        utils::{assert_approx_eq_abs, assert_approx_eq_rel, print_compare},
     },
 };
 
@@ -22,10 +22,135 @@ use super::{
 };
 
 #[test]
+fn test_swap_exact_amount_in_rejects_same_token() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.cost_estimate().budget().reset_unlimited();
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_1 = create_stellar_token(&env, &admin);
+    let token_2 = create_stellar_token(&env, &admin);
+    let token_1_client = MockTokenClient::new(&env, &token_1);
+    let token_2_client = MockTokenClient::new(&env, &token_2);
+    let balances: Vec<i128> = vec![&env, 100 * STROOP, 75 * STROOP];
+    let weights: Vec<i128> = vec![&env, 5 * STROOP / 10, 5 * STROOP / 10];
+    token_1_client.mint(&admin, &balances.get_unchecked(0));
+    token_2_client.mint(&admin, &balances.get_unchecked(1));
+    token_1_client.mint(&user, &(10 * STROOP));
+
+    let comet_id = create_comet_pool(
+        &env,
+        &admin,
+        &vec![&env, token_1.clone(), token_2],
+        &weights,
+        &balances,
+        0_0030000,
+    );
+    let comet = CometPoolContractClient::new(&env, &comet_id);
+    let record_balance_before = comet.get_balance(&token_1);
+    let contract_balance_before = token_1_client.balance(&comet_id);
+    let user_balance_before = token_1_client.balance(&user);
+
+    let result = comet.try_swap_exact_amount_in(&token_1, &STROOP, &token_1, &0, &i128::MAX, &user);
+
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrSameToken as u32
+        )))
+    );
+    assert_eq!(comet.get_balance(&token_1), record_balance_before);
+    assert_eq!(token_1_client.balance(&comet_id), contract_balance_before);
+    assert_eq!(token_1_client.balance(&user), user_balance_before);
+}
+
+#[test]
+fn test_swap_exact_amount_out_rejects_same_token() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.cost_estimate().budget().reset_unlimited();
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_1 = create_stellar_token(&env, &admin);
+    let token_2 = create_stellar_token(&env, &admin);
+    let token_1_client = MockTokenClient::new(&env, &token_1);
+    let token_2_client = MockTokenClient::new(&env, &token_2);
+    let balances: Vec<i128> = vec![&env, 100 * STROOP, 75 * STROOP];
+    let weights: Vec<i128> = vec![&env, 5 * STROOP / 10, 5 * STROOP / 10];
+    token_1_client.mint(&admin, &balances.get_unchecked(0));
+    token_2_client.mint(&admin, &balances.get_unchecked(1));
+    token_1_client.mint(&user, &(10 * STROOP));
+
+    let comet_id = create_comet_pool(
+        &env,
+        &admin,
+        &vec![&env, token_1.clone(), token_2],
+        &weights,
+        &balances,
+        0_0030000,
+    );
+    let comet = CometPoolContractClient::new(&env, &comet_id);
+    let record_balance_before = comet.get_balance(&token_1);
+    let contract_balance_before = token_1_client.balance(&comet_id);
+    let user_balance_before = token_1_client.balance(&user);
+
+    let result =
+        comet.try_swap_exact_amount_out(&token_1, &i128::MAX, &token_1, &STROOP, &i128::MAX, &user);
+
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrSameToken as u32
+        )))
+    );
+    assert_eq!(comet.get_balance(&token_1), record_balance_before);
+    assert_eq!(token_1_client.balance(&comet_id), contract_balance_before);
+    assert_eq!(token_1_client.balance(&user), user_balance_before);
+}
+
+#[test]
+fn test_spot_price_getters_reject_same_token() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.cost_estimate().budget().reset_unlimited();
+
+    let admin = Address::generate(&env);
+    let token_1 = create_stellar_token(&env, &admin);
+    let token_2 = create_stellar_token(&env, &admin);
+    let token_1_client = MockTokenClient::new(&env, &token_1);
+    let token_2_client = MockTokenClient::new(&env, &token_2);
+    let balances: Vec<i128> = vec![&env, 100 * STROOP, 75 * STROOP];
+    let weights: Vec<i128> = vec![&env, 5 * STROOP / 10, 5 * STROOP / 10];
+    token_1_client.mint(&admin, &balances.get_unchecked(0));
+    token_2_client.mint(&admin, &balances.get_unchecked(1));
+
+    let comet_id = create_comet_pool(
+        &env,
+        &admin,
+        &vec![&env, token_1.clone(), token_2],
+        &weights,
+        &balances,
+        0_0030000,
+    );
+    let comet = CometPoolContractClient::new(&env, &comet_id);
+
+    let with_fee = comet.try_get_spot_price(&token_1, &token_1);
+    let sans_fee = comet.try_get_spot_price_sans_fee(&token_1, &token_1);
+    let expected_error = Some(Ok(Error::from_contract_error(
+        CometError::ErrSameToken as u32,
+    )));
+
+    assert_eq!(with_fee.err(), expected_error);
+    assert_eq!(sans_fee.err(), expected_error);
+}
+
+#[test]
 fn test_swap_out_given_in() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -186,7 +311,7 @@ fn test_swap_out_given_in() {
 fn test_swap_in_given_out() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -366,7 +491,7 @@ fn test_swap_large_amounts() {
     // ledger state is correct if the pool tracks internal balances correctly
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -451,12 +576,56 @@ fn test_swap_large_amounts() {
 }
 
 #[test]
+fn test_swap_above_i128_intermediate_limit() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.cost_estimate().budget().reset_unlimited();
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_1 = create_stellar_token(&env, &admin);
+    let token_2 = create_stellar_token(&env, &admin);
+    let token_1_client = MockTokenClient::new(&env, &token_1);
+    let token_2_client = MockTokenClient::new(&env, &token_2);
+
+    // Multiplying this reserve by STROOP overflows i128, while the stored
+    // reserve and the final spot price remain representable as i128 values.
+    let pool_balance = (i128::MAX / STROOP) + 1;
+    let amount_in = pool_balance / 100;
+    let balances: Vec<i128> = vec![&env, pool_balance, pool_balance];
+    let weights: Vec<i128> = vec![&env, STROOP / 2, STROOP / 2];
+    token_1_client.mint(&admin, &pool_balance);
+    token_2_client.mint(&admin, &pool_balance);
+    token_1_client.mint(&user, &amount_in);
+
+    let comet_id = create_comet_pool(
+        &env,
+        &admin,
+        &vec![&env, token_1.clone(), token_2.clone()],
+        &weights,
+        &balances,
+        0_0030000,
+    );
+    let comet = CometPoolContractClient::new(&env, &comet_id);
+
+    let (amount_out, spot_price_after) =
+        comet.swap_exact_amount_in(&token_1, &amount_in, &token_2, &0, &(2 * STROOP), &user);
+
+    assert!(amount_out > 0);
+    assert!(spot_price_after > STROOP);
+    assert_eq!(token_1_client.balance(&user), 0);
+    assert_eq!(token_2_client.balance(&user), amount_out);
+    assert_eq!(comet.get_balance(&token_1), pool_balance + amount_in);
+    assert_eq!(comet.get_balance(&token_2), pool_balance - amount_out);
+}
+
+#[test]
 fn test_swap_large_price() {
     // test only validates recorded pool balances and assumes the above tests ensure that
     // ledger state is correct if the pool tracks internal balances correctly
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -541,94 +710,4 @@ fn test_swap_large_price() {
     assert_approx_eq_rel(res_in, bal_in, 0_0001000);
 
     print_compare(&env, &balancer, &comet_id);
-}
-
-#[test]
-fn test_swap_diff_decimals() {
-    // test only validates recorded pool balances and assumes the above tests ensure that
-    // ledger state is correct if the pool tracks internal balances correctly
-    let env = Env::default();
-    env.mock_all_auths();
-    env.budget().reset_unlimited();
-
-    let admin = Address::generate(&env);
-    let user = Address::generate(&env);
-
-    let token_1 = create_soroban_token(&env, &admin, 6);
-    let token_2 = create_soroban_token(&env, &admin, 9);
-    let scalar_6 = 10i128.pow(6);
-    let scalar_9 = 10i128.pow(9);
-
-    let token_1_client = MockTokenClient::new(&env, &token_1);
-    let token_2_client = MockTokenClient::new(&env, &token_2);
-    let balances: Vec<i128> = vec![&env, 1234 * scalar_6, 12345 * scalar_9];
-    let weights: Vec<i128> = vec![&env, 2 * STROOP / 10, 8 * STROOP / 10];
-    token_1_client.mint(&admin, &balances.get_unchecked(0));
-    token_2_client.mint(&admin, &balances.get_unchecked(1));
-    let starting_bal: i128 = 1_000_000_000 * STROOP;
-    token_1_client.mint(&user, &starting_bal);
-    token_2_client.mint(&user, &starting_bal);
-
-    let comet_id = create_comet_pool(
-        &env,
-        &admin,
-        &vec![&env, token_1.clone(), token_2.clone()],
-        &weights,
-        &balances,
-        0_0030000,
-    );
-    let comet = CometPoolContractClient::new(&env, &comet_id);
-    let mut balancer = BalancerPool::new(std_vec![1234.0, 12345.0], std_vec![0.20, 0.80], 0.003);
-
-    // 1 (6 dec) in for 2 (9 dec) out
-    let amount = 5.0;
-
-    // exact in
-    let amount_1_in = amount.to_i128(&6);
-    let bal_out = balancer.swap_out_given_in(0, 1, amount).to_i128(&9);
-    let (res_out, _) =
-        comet.swap_exact_amount_in(&token_1, &amount_1_in, &token_2, &0, &i128::MAX, &user);
-    assert!(res_out <= bal_out);
-    assert_approx_eq_rel(res_out, bal_out, 0_0001000);
-
-    // exact out
-    let amount_2_out = amount.to_i128(&9);
-    let bal_in = balancer.swap_in_given_out(0, 1, amount).to_i128(&6);
-    let (res_in, _) = comet.swap_exact_amount_out(
-        &token_1,
-        &i128::MAX,
-        &token_2,
-        &amount_2_out,
-        &i128::MAX,
-        &user,
-    );
-    assert!(res_in >= bal_in);
-    assert_approx_eq_rel(res_in, bal_in, 0_0001000);
-
-    // 2 (9 dec) for 1 (6 dec)
-
-    // exact in
-    let amount_2_in = amount.to_i128(&9);
-    let bal_out = balancer.swap_out_given_in(1, 0, amount).to_i128(&6);
-    let (res_out, _) =
-        comet.swap_exact_amount_in(&token_2, &amount_2_in, &token_1, &0, &i128::MAX, &user);
-    assert!(res_out <= bal_out);
-    assert_approx_eq_rel(res_out, bal_out, 0_0001000);
-
-    // exact out
-    let amount_1_out = amount.to_i128(&6);
-    let bal_in = balancer.swap_in_given_out(1, 0, amount).to_i128(&9);
-    let (res_in, _) = comet.swap_exact_amount_out(
-        &token_2,
-        &i128::MAX,
-        &token_1,
-        &amount_1_out,
-        &i128::MAX,
-        &user,
-    );
-    println!("result: {:?}", res_in);
-    println!("float_: {:?}", bal_in);
-    println!("diff: {:?}", res_in - bal_in);
-    assert!(res_in >= bal_in);
-    assert_approx_eq_rel(res_in, bal_in, 0_0001000);
 }

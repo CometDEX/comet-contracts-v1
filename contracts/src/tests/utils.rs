@@ -3,9 +3,13 @@ use std::println;
 use std::vec as std_vec;
 use std::vec::Vec as std_Vec;
 
-use sep_41_token::testutils::{MockTokenClient, MockTokenWASM};
 use soroban_fixed_point_math::FixedPoint;
-use soroban_sdk::{token::TokenClient, Address, Env, String, Vec};
+use soroban_sdk::{
+    testutils::Events as _,
+    token::{StellarAssetClient, TokenClient},
+    xdr::{ContractEventBody, ScAddress, ScVal},
+    Address, Env, TryFromVal, Val, Vec,
+};
 
 use crate::{
     c_consts::STROOP,
@@ -15,6 +19,41 @@ use crate::{
 
 use super::balancer::BalancerPool;
 
+/// Test helper exposing both the SAC administrator and standard token interfaces.
+pub struct MockTokenClient<'a> {
+    pub address: Address,
+    admin: StellarAssetClient<'a>,
+    token: TokenClient<'a>,
+}
+
+impl<'a> MockTokenClient<'a> {
+    pub fn new(env: &'a Env, address: &Address) -> Self {
+        Self {
+            address: address.clone(),
+            admin: StellarAssetClient::new(env, address),
+            token: TokenClient::new(env, address),
+        }
+    }
+
+    pub fn mint(&self, to: &Address, amount: &i128) {
+        self.admin.mint(to, amount);
+    }
+
+    pub fn balance(&self, id: &Address) -> i128 {
+        self.token.balance(id)
+    }
+
+    pub fn approve(
+        &self,
+        from: &Address,
+        spender: &Address,
+        amount: &i128,
+        expiration_ledger: &u32,
+    ) {
+        self.token.approve(from, spender, amount, expiration_ledger);
+    }
+}
+
 pub fn create_comet_pool(
     env: &Env,
     controller: &Address,
@@ -23,7 +62,7 @@ pub fn create_comet_pool(
     balances: &Vec<i128>,
     swap_fee: i128,
 ) -> Address {
-    let contract_id = env.register_contract(None, CometPoolContract);
+    let contract_id = env.register(CometPoolContract, ());
     let client = CometPoolContractClient::new(&env, &contract_id);
 
     client.init(&controller, &tokens, &weights, &balances, &swap_fee);
@@ -31,20 +70,23 @@ pub fn create_comet_pool(
 }
 
 pub fn create_stellar_token(env: &Env, admin: &Address) -> Address {
-    let contract_id = env.register_stellar_asset_contract(admin.clone());
-    contract_id
+    env.register_stellar_asset_contract_v2(admin.clone())
+        .address()
 }
 
-pub fn create_soroban_token(env: &Env, admin: &Address, decimal: u32) -> Address {
-    let contract_id = env.register_contract_wasm(None, MockTokenWASM);
-    let client = MockTokenClient::new(&env, &contract_id);
-    client.initialize(
-        &admin,
-        &decimal,
-        &String::from_str(env, "NAME"),
-        &String::from_str(env, "SYMBOL"),
-    );
-    contract_id
+pub fn event_from_end(env: &Env, offset: usize) -> (Address, Vec<Val>, Val) {
+    let events = env.events().all();
+    let event = &events.events()[events.events().len() - offset];
+    let contract_id = event.contract_id.clone().unwrap();
+    let contract =
+        Address::try_from_val(env, &ScVal::Address(ScAddress::Contract(contract_id))).unwrap();
+    let ContractEventBody::V0(body) = &event.body;
+    let mut topics = Vec::new(env);
+    for topic in body.topics.iter() {
+        topics.push_back(Val::try_from_val(env, topic).unwrap());
+    }
+    let data = Val::try_from_val(env, &body.data).unwrap();
+    (contract, topics, data)
 }
 
 /// Asset that `b` is within `percentage` of `a` where `percentage`

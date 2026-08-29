@@ -1,25 +1,20 @@
-use soroban_fixed_point_math::FixedPoint;
 use soroban_sdk::I256;
 use soroban_sdk::{
-    assert_with_error, panic_with_error, symbol_short, token, unwrap::UnwrapOptimized, Address,
-    Env, Symbol, Vec,
+    assert_with_error, panic_with_error, token, unwrap::UnwrapOptimized, Address, Env, Vec,
 };
 
-use crate::c_consts::STROOP;
 use crate::{
     c_consts::{MAX_IN_RATIO, MAX_OUT_RATIO},
     c_math,
     c_pool::{
         error::Error,
-        event::{DepositEvent, ExitEvent, JoinEvent, SwapEvent, WithdrawEvent},
+        event::{DepositEvent, ExitEvent, GulpEvent, JoinEvent, SwapEvent, WithdrawEvent},
         metadata::{
             get_total_shares, read_freeze, read_record, read_swap_fee, read_tokens, write_record,
         },
         token_utility::{burn_shares, mint_shares, pull_shares, pull_underlying, push_underlying},
     },
 };
-const POOL: Symbol = symbol_short!("POOL");
-
 // Absorbing tokens into the pool directly sent to the current contract
 pub fn execute_gulp(e: Env, t: Address) {
     let mut records = read_record(&e);
@@ -27,21 +22,36 @@ pub fn execute_gulp(e: Env, t: Address) {
         .get(t.clone())
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
 
-    rec.balance = token::Client::new(&e, &t).balance(&e.current_contract_address());
-    records.set(t, rec);
+    let previous_balance = rec.balance;
+    let new_balance = token::Client::new(&e, &t).balance(&e.current_contract_address());
+    rec.balance = new_balance;
+    records.set(t.clone(), rec);
     write_record(&e, records);
+
+    GulpEvent {
+        token: t,
+        previous_balance,
+        new_balance,
+    }
+    .publish(&e);
 }
 
 pub fn execute_join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128>, user: Address) {
     assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
     assert_with_error!(&e, pool_amount_out > 0, Error::ErrNegativeOrZero);
 
+    let tokens = read_tokens(&e);
+    assert_with_error!(
+        &e,
+        max_amounts_in.len() == tokens.len(),
+        Error::ErrInvalidVectorLen
+    );
+
     let pool_total = get_total_shares(&e);
     let zero = I256::from_i32(&e, 0);
     let ratio = c_math::calc_join_ratio(&e, pool_total, pool_amount_out);
     assert_with_error!(&e, ratio > zero, Error::ErrMathApprox);
 
-    let tokens = read_tokens(&e);
     let mut records = read_record(&e);
     for i in 0..tokens.len() {
         let t = tokens.get_unchecked(i);
@@ -59,8 +69,7 @@ pub fn execute_join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128
             token_in: t.clone(),
             token_amount_in,
         };
-        e.events()
-            .publish((POOL, symbol_short!("join_pool")), event);
+        event.publish(&e);
         pull_underlying(&e, &t, &user, token_amount_in, max_amount_in);
     }
 
@@ -72,6 +81,13 @@ pub fn execute_join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128
 pub fn execute_exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128>, user: Address) {
     assert_with_error!(&e, pool_amount_in > 0, Error::ErrNegativeOrZero);
 
+    let tokens = read_tokens(&e);
+    assert_with_error!(
+        &e,
+        min_amounts_out.len() == tokens.len(),
+        Error::ErrInvalidVectorLen
+    );
+
     let pool_total = get_total_shares(&e);
     let zero = I256::from_i32(&e, 0);
     let ratio = c_math::calc_exit_ratio(&e, pool_total, pool_amount_in);
@@ -79,7 +95,6 @@ pub fn execute_exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128
     pull_shares(&e, &user, pool_amount_in);
     burn_shares(&e, pool_amount_in);
 
-    let tokens = read_tokens(&e);
     let mut records = read_record(&e);
     for i in 0..tokens.len() {
         let t = tokens.get_unchecked(i);
@@ -101,8 +116,7 @@ pub fn execute_exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128
             token_out: t.clone(),
             token_amount_out,
         };
-        e.events()
-            .publish((POOL, symbol_short!("exit_pool")), event);
+        event.publish(&e);
         push_underlying(&e, &t, &user, token_amount_out)
     }
 
@@ -119,6 +133,7 @@ pub fn execute_swap_exact_amount_in(
     user: Address,
 ) -> (i128, i128) {
     assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
+    assert_with_error!(&e, token_in != token_out, Error::ErrSameToken);
     assert_with_error!(&e, token_amount_in > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, min_amount_out >= 0, Error::ErrNegative);
     assert_with_error!(&e, max_price >= 0, Error::ErrNegative);
@@ -133,15 +148,11 @@ pub fn execute_swap_exact_amount_in(
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
     assert_with_error!(
         &e,
-        token_amount_in
-            <= in_record
-                .balance
-                .fixed_mul_floor(MAX_IN_RATIO, STROOP)
-                .unwrap_optimized(),
+        c_math::amount_within_max_ratio(&e, token_amount_in, in_record.balance, MAX_IN_RATIO),
         Error::ErrMaxInRatio
     );
 
-    let spot_price_before = c_math::calc_spot_price(&in_record, &out_record, swap_fee);
+    let spot_price_before = c_math::calc_spot_price(&e, &in_record, &out_record, swap_fee);
 
     assert_with_error!(&e, spot_price_before <= max_price, Error::ErrBadLimitPrice);
     let token_amount_out = c_math::calc_token_out_given_token_in(
@@ -164,7 +175,7 @@ pub fn execute_swap_exact_amount_in(
     );
     out_record.balance = out_record.balance - token_amount_out;
 
-    let spot_price_after = c_math::calc_spot_price(&in_record, &out_record, swap_fee);
+    let spot_price_after = c_math::calc_spot_price(&e, &in_record, &out_record, swap_fee);
 
     assert_with_error!(
         &e,
@@ -174,10 +185,7 @@ pub fn execute_swap_exact_amount_in(
     assert_with_error!(&e, spot_price_after <= max_price, Error::ErrLimitPrice);
     assert_with_error!(
         &e,
-        spot_price_before
-            <= token_amount_in
-                .fixed_div_floor(token_amount_out, STROOP)
-                .unwrap_optimized(),
+        c_math::realized_price_meets_spot(&e, spot_price_before, token_amount_in, token_amount_out),
         Error::ErrMathApprox
     );
 
@@ -188,7 +196,7 @@ pub fn execute_swap_exact_amount_in(
         token_amount_in,
         token_amount_out,
     };
-    e.events().publish((POOL, symbol_short!("swap")), event);
+    event.publish(&e);
 
     pull_underlying(
         &e,
@@ -217,12 +225,14 @@ pub fn execute_swap_exact_amount_out(
     user: Address,
 ) -> (i128, i128) {
     assert_with_error!(&e, !read_freeze(&e), Error::ErrFreezeOnlyWithdrawals);
+    assert_with_error!(&e, token_in != token_out, Error::ErrSameToken);
     assert_with_error!(&e, token_amount_out > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, max_amount_in > 0, Error::ErrNegativeOrZero);
     assert_with_error!(&e, max_price >= 0, Error::ErrNegative);
 
     let swap_fee = read_swap_fee(&e);
-    let record_map = read_record(&e);
+    // Price and commit against one consistent reserve snapshot.
+    let mut record_map = read_record(&e);
     let mut in_record = record_map
         .get(token_in.clone())
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
@@ -231,15 +241,11 @@ pub fn execute_swap_exact_amount_out(
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
     assert_with_error!(
         &e,
-        token_amount_out
-            <= out_record
-                .balance
-                .fixed_mul_floor(MAX_OUT_RATIO, STROOP)
-                .unwrap_optimized(),
+        c_math::amount_within_max_ratio(&e, token_amount_out, out_record.balance, MAX_OUT_RATIO),
         Error::ErrMaxOutRatio
     );
 
-    let spot_price_before = c_math::calc_spot_price(&in_record, &out_record, swap_fee);
+    let spot_price_before = c_math::calc_spot_price(&e, &in_record, &out_record, swap_fee);
     assert_with_error!(&e, spot_price_before <= max_price, Error::ErrBadLimitPrice);
     let token_amount_in = c_math::calc_token_in_given_token_out(
         &e,
@@ -263,7 +269,7 @@ pub fn execute_swap_exact_amount_out(
     );
     out_record.balance = out_record.balance - token_amount_out;
 
-    let spot_price_after = c_math::calc_spot_price(&in_record, &out_record, swap_fee);
+    let spot_price_after = c_math::calc_spot_price(&e, &in_record, &out_record, swap_fee);
 
     assert_with_error!(
         &e,
@@ -273,10 +279,7 @@ pub fn execute_swap_exact_amount_out(
     assert_with_error!(&e, spot_price_after <= max_price, Error::ErrLimitPrice);
     assert_with_error!(
         &e,
-        spot_price_before
-            <= token_amount_in
-                .fixed_div_floor(token_amount_out, STROOP)
-                .unwrap_optimized(),
+        c_math::realized_price_meets_spot(&e, spot_price_before, token_amount_in, token_amount_out),
         Error::ErrMathApprox
     );
 
@@ -287,11 +290,10 @@ pub fn execute_swap_exact_amount_out(
         token_amount_in,
         token_amount_out,
     };
-    e.events().publish((POOL, symbol_short!("swap")), event);
+    event.publish(&e);
     pull_underlying(&e, &token_in, &user, token_amount_in, max_amount_in);
     push_underlying(&e, &token_out, &user, token_amount_out);
 
-    let mut record_map = read_record(&e);
     record_map.set(token_in, in_record);
     record_map.set(token_out, out_record);
 
@@ -318,11 +320,7 @@ pub fn execute_dep_tokn_amt_in_get_lp_tokns_out(
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
     assert_with_error!(
         &e,
-        token_amount_in
-            <= in_record
-                .balance
-                .fixed_mul_floor(MAX_IN_RATIO, STROOP)
-                .unwrap_optimized(),
+        c_math::amount_within_max_ratio(&e, token_amount_in, in_record.balance, MAX_IN_RATIO),
         Error::ErrMaxInRatio
     );
 
@@ -334,6 +332,7 @@ pub fn execute_dep_tokn_amt_in_get_lp_tokns_out(
         token_amount_in,
         swap_fee,
     );
+    assert_with_error!(&e, pool_amount_out > 0, Error::ErrMathApprox);
     assert_with_error!(
         &e,
         pool_amount_out >= min_pool_amount_out,
@@ -353,7 +352,7 @@ pub fn execute_dep_tokn_amt_in_get_lp_tokns_out(
         token_in: token_in.clone(),
         token_amount_in,
     };
-    e.events().publish((POOL, symbol_short!("deposit")), event);
+    event.publish(&e);
     pull_underlying(&e, &token_in, &user, token_amount_in, token_amount_in);
     mint_shares(&e, &user, pool_amount_out);
 
@@ -389,11 +388,7 @@ pub fn execute_dep_lp_tokn_amt_out_get_tokn_in(
     assert_with_error!(&e, token_amount_in <= max_amount_in, Error::ErrLimitIn);
     assert_with_error!(
         &e,
-        token_amount_in
-            <= in_record
-                .balance
-                .fixed_mul_floor(MAX_IN_RATIO, STROOP)
-                .unwrap_optimized(),
+        c_math::amount_within_max_ratio(&e, token_amount_in, in_record.balance, MAX_IN_RATIO),
         Error::ErrMaxInRatio
     );
     in_record.balance = in_record
@@ -409,7 +404,7 @@ pub fn execute_dep_lp_tokn_amt_out_get_tokn_in(
         token_in: token_in.clone(),
         token_amount_in,
     };
-    e.events().publish((POOL, symbol_short!("deposit")), event);
+    event.publish(&e);
     pull_underlying(&e, &token_in, &user, token_amount_in, max_amount_in);
     mint_shares(&e, &user, pool_amount_out);
 
@@ -441,14 +436,11 @@ pub fn execute_wdr_tokn_amt_in_get_lp_tokns_out(
         swap_fee,
     );
 
+    assert_with_error!(&e, token_amount_out > 0, Error::ErrMathApprox);
     assert_with_error!(&e, token_amount_out >= min_amount_out, Error::ErrLimitOut);
     assert_with_error!(
         &e,
-        token_amount_out
-            <= out_record
-                .balance
-                .fixed_mul_floor(MAX_OUT_RATIO, STROOP)
-                .unwrap_optimized(),
+        c_math::amount_within_max_ratio(&e, token_amount_out, out_record.balance, MAX_OUT_RATIO),
         Error::ErrMaxOutRatio
     );
     assert_with_error!(
@@ -464,7 +456,7 @@ pub fn execute_wdr_tokn_amt_in_get_lp_tokns_out(
         token_amount_out,
         pool_amount_in,
     };
-    e.events().publish((POOL, symbol_short!("withdraw")), event);
+    event.publish(&e);
 
     pull_shares(&e, &user, pool_amount_in);
     burn_shares(&e, pool_amount_in);
@@ -492,11 +484,7 @@ pub fn execute_wdr_tokn_amt_out_get_lp_tokns_in(
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
     assert_with_error!(
         &e,
-        token_amount_out
-            <= out_record
-                .balance
-                .fixed_mul_floor(MAX_OUT_RATIO, STROOP)
-                .unwrap_optimized(),
+        c_math::amount_within_max_ratio(&e, token_amount_out, out_record.balance, MAX_OUT_RATIO),
         Error::ErrMaxOutRatio
     );
 
@@ -524,7 +512,7 @@ pub fn execute_wdr_tokn_amt_out_get_lp_tokns_in(
         token_amount_out,
         pool_amount_in,
     };
-    e.events().publish((POOL, symbol_short!("withdraw")), event);
+    event.publish(&e);
 
     pull_shares(&e, &user, pool_amount_in);
     burn_shares(&e, pool_amount_in);

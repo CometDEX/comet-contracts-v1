@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use sep_41_token::testutils::MockTokenClient;
+use crate::tests::utils::MockTokenClient;
 use soroban_sdk::{
     testutils::{Address as _, MockAuth, MockAuthInvoke},
     vec, Address, Env, Error, IntoVal, Vec,
@@ -21,11 +21,116 @@ use super::{
     utils::{create_comet_pool, create_stellar_token},
 };
 
+fn sync_balancer_state(
+    comet: &CometPoolContractClient<'_>,
+    balancer: &mut BalancerPool,
+    token_1: &Address,
+    token_2: &Address,
+) {
+    balancer.balances[0] = comet.get_balance(token_1) as f64 / STROOP as f64;
+    balancer.balances[1] = comet.get_balance(token_2) as f64 / STROOP as f64;
+    balancer.supply = comet.get_total_supply() as f64 / STROOP as f64;
+}
+
+#[test]
+fn test_single_sided_deposit_rejects_zero_lp_output() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.cost_estimate().budget().reset_unlimited();
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_1 = create_stellar_token(&env, &admin);
+    let token_2 = create_stellar_token(&env, &admin);
+    let token_1_client = MockTokenClient::new(&env, &token_1);
+    let token_2_client = MockTokenClient::new(&env, &token_2);
+    let balances: Vec<i128> = vec![&env, 100 * STROOP, 50 * STROOP];
+    let weights: Vec<i128> = vec![&env, 8 * STROOP / 10, 2 * STROOP / 10];
+    token_1_client.mint(&admin, &balances.get_unchecked(0));
+    token_2_client.mint(&admin, &balances.get_unchecked(1));
+    token_1_client.mint(&user, &1);
+
+    let comet_id = create_comet_pool(
+        &env,
+        &admin,
+        &vec![&env, token_1.clone(), token_2],
+        &weights,
+        &balances,
+        0_0030000,
+    );
+    let comet = CometPoolContractClient::new(&env, &comet_id);
+    let record_balance_before = comet.get_balance(&token_1);
+    let contract_balance_before = token_1_client.balance(&comet_id);
+    let user_balance_before = token_1_client.balance(&user);
+    let user_shares_before = comet.balance(&user);
+    let supply_before = comet.get_total_supply();
+
+    let result = comet.try_dep_tokn_amt_in_get_lp_tokns_out(&token_1, &1, &0, &user);
+
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrMathApprox as u32
+        )))
+    );
+    assert_eq!(comet.get_balance(&token_1), record_balance_before);
+    assert_eq!(token_1_client.balance(&comet_id), contract_balance_before);
+    assert_eq!(token_1_client.balance(&user), user_balance_before);
+    assert_eq!(comet.balance(&user), user_shares_before);
+    assert_eq!(comet.get_total_supply(), supply_before);
+}
+
+#[test]
+fn test_single_sided_withdraw_rejects_zero_token_output() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.cost_estimate().budget().reset_unlimited();
+
+    let admin = Address::generate(&env);
+    let token_1 = create_stellar_token(&env, &admin);
+    let token_2 = create_stellar_token(&env, &admin);
+    let token_1_client = MockTokenClient::new(&env, &token_1);
+    let token_2_client = MockTokenClient::new(&env, &token_2);
+    let balances: Vec<i128> = vec![&env, 100, 100];
+    let weights: Vec<i128> = vec![&env, 5 * STROOP / 10, 5 * STROOP / 10];
+    token_1_client.mint(&admin, &balances.get_unchecked(0));
+    token_2_client.mint(&admin, &balances.get_unchecked(1));
+
+    let comet_id = create_comet_pool(
+        &env,
+        &admin,
+        &vec![&env, token_1.clone(), token_2],
+        &weights,
+        &balances,
+        0_0030000,
+    );
+    let comet = CometPoolContractClient::new(&env, &comet_id);
+    let record_balance_before = comet.get_balance(&token_1);
+    let contract_balance_before = token_1_client.balance(&comet_id);
+    let admin_balance_before = token_1_client.balance(&admin);
+    let admin_shares_before = comet.balance(&admin);
+    let supply_before = comet.get_total_supply();
+
+    let result = comet.try_wdr_tokn_amt_in_get_lp_tokns_out(&token_1, &1, &0, &admin);
+
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrMathApprox as u32
+        )))
+    );
+    assert_eq!(comet.get_balance(&token_1), record_balance_before);
+    assert_eq!(token_1_client.balance(&comet_id), contract_balance_before);
+    assert_eq!(token_1_client.balance(&admin), admin_balance_before);
+    assert_eq!(comet.balance(&admin), admin_shares_before);
+    assert_eq!(comet.get_total_supply(), supply_before);
+}
+
 #[test]
 fn test_single_sided_dep() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -144,6 +249,7 @@ fn test_single_sided_dep() {
 
     //***** single sided dep given pool mint ******//
 
+    sync_balancer_state(&comet, &mut balancer, &token_1, &token_2);
     env.mock_all_auths();
     let mint_amount = 1.0;
     let mint_amount_fixed = mint_amount.to_i128(&7);
@@ -236,7 +342,7 @@ fn test_single_sided_dep() {
 fn test_single_sided_wdr() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -288,8 +394,17 @@ fn test_single_sided_wdr() {
     let bal_token_out_fixed = bal_token_out.to_i128(&7);
     let under_out = bal_token_out_fixed - 1000;
 
-    // verify MAX_OUT_RATIO
+    // verify unconverged power approximation
     let result = comet.try_wdr_tokn_amt_in_get_lp_tokns_out(&token_1, &99_9999999, &0, &admin);
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrMathApprox as u32
+        )))
+    );
+
+    // verify MAX_OUT_RATIO after a converged power approximation
+    let result = comet.try_wdr_tokn_amt_in_get_lp_tokns_out(&token_1, &(60 * STROOP), &0, &admin);
     assert_eq!(
         result.err(),
         Some(Ok(Error::from_contract_error(
@@ -363,6 +478,7 @@ fn test_single_sided_wdr() {
 
     //***** single sided wdr given token out ******//
 
+    sync_balancer_state(&comet, &mut balancer, &token_1, &token_2);
     env.mock_all_auths();
     let bal_token_out = 1.0;
     let token_out_fixed = bal_token_out.to_i128(&7);
@@ -457,7 +573,7 @@ fn test_single_sided_deposit_large_price() {
     // ledger state is correct if the pool tracks internal balances correctly
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -498,6 +614,7 @@ fn test_single_sided_deposit_large_price() {
     assert!(res_lp_out_1 <= bal_lp_out_1);
     assert_approx_eq_rel(res_lp_out_1, bal_lp_out_1, 0_0001000);
 
+    sync_balancer_state(&comet, &mut balancer, &token_1, &token_2);
     let lp_out_1 = 5.0;
     let lp_out_1_fixed = lp_out_1.to_i128(&7);
     let bal_token_in_1 = balancer.single_sided_dep_given_out(0, lp_out_1).to_i128(&7);
@@ -507,6 +624,7 @@ fn test_single_sided_deposit_large_price() {
     assert_approx_eq_rel(res_token_in_1, bal_token_in_1, 0_0001000);
 
     // token 2
+    sync_balancer_state(&comet, &mut balancer, &token_1, &token_2);
     let token_in_2 = 30_000_000.2;
     let token_in_2_fixed = token_in_2.to_i128(&7);
     let bal_lp_out_2 = balancer
@@ -517,6 +635,7 @@ fn test_single_sided_deposit_large_price() {
     assert!(res_lp_out_2 <= bal_lp_out_2);
     assert_approx_eq_rel(res_lp_out_2, bal_lp_out_2, 0_0001000);
 
+    sync_balancer_state(&comet, &mut balancer, &token_1, &token_2);
     let lp_out_2 = 0.000042;
     let lp_out_2_fixed = lp_out_2.to_i128(&7);
     let bal_token_in_2 = balancer.single_sided_dep_given_out(1, lp_out_2).to_i128(&7);
@@ -532,7 +651,7 @@ fn test_single_sided_withdraw_large_price() {
     // ledger state is correct if the pool tracks internal balances correctly
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
 
@@ -570,6 +689,7 @@ fn test_single_sided_withdraw_large_price() {
     assert!(res_token_out_1 <= bal_token_out_1);
     assert_approx_eq_rel(res_token_out_1, bal_token_out_1, 0_0001000);
 
+    sync_balancer_state(&comet, &mut balancer, &token_1, &token_2);
     let token_out_1 = 30.0;
     let token_out_1_fixed = token_out_1.to_i128(&7);
     let bal_lp_in_1 = balancer
@@ -581,17 +701,16 @@ fn test_single_sided_withdraw_large_price() {
     assert_approx_eq_rel(res_lp_in_1, bal_lp_in_1, 0_0001000);
 
     // token 2
+    sync_balancer_state(&comet, &mut balancer, &token_1, &token_2);
     let lp_in_2 = 25.0;
     let lp_in_2_fixed = lp_in_2.to_i128(&7);
     let bal_token_out_2 = balancer.single_sided_wd_given_in(1, lp_in_2).to_i128(&7);
     let res_token_out_2 =
         comet.wdr_tokn_amt_in_get_lp_tokns_out(&token_2, &lp_in_2_fixed, &1, &admin);
-    // assert!(res_token_out_2 <= bal_token_out_2); -> fails
-    // -> next check ensures result is close to floating point result by a basis point
-    //    while its possible float error is worse than rounding error at these scales, this
-    //    ensures the diff is held within the min fee to avoid abuse
+    assert!(res_token_out_2 <= bal_token_out_2);
     assert_approx_eq_rel(res_token_out_2, bal_token_out_2, 0_0001000);
 
+    sync_balancer_state(&comet, &mut balancer, &token_1, &token_2);
     let token_out_2 = 4.2;
     let token_out_2_fixed = token_out_2.to_i128(&7);
     let bal_lp_in_2 = balancer

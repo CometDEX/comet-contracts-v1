@@ -2,7 +2,8 @@
 
 use call_logic::factory::{execute_is_c_pool, execute_new_c_pool};
 use soroban_sdk::{
-    assert_with_error, contract, contractimpl, contracttype, Address, BytesN, Env, Vec,
+    assert_with_error, contract, contractevent, contractimpl, contracttype, Address, BytesN, Env,
+    Vec,
 };
 
 // Errors Listed
@@ -19,8 +20,7 @@ pub enum DataKeyFactory {
 }
 
 // Event to signal a new pool has been created
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[contractevent(topics = ["LOG", "NEW_POOL"], data_format = "map")]
 pub struct NewPoolEvent {
     pub caller: Address,
     pub pool: Address,
@@ -31,8 +31,16 @@ pub struct Factory;
 
 #[contractimpl]
 impl Factory {
-    // Initialize the Admin for the Factory Contract
-    pub fn init(e: Env, pool_wasm_hash: BytesN<32>) {
+    // Bind the factory to its pool WASM. Only the address that produced this
+    // contract ID with the matching deployment salt may initialize it.
+    pub fn init(e: Env, deployer: Address, salt: BytesN<32>, pool_wasm_hash: BytesN<32>) {
+        deployer.require_auth();
+        let expected_address = e.deployer().with_address(deployer, salt).deployed_address();
+        assert_with_error!(
+            &e,
+            e.current_contract_address() == expected_address,
+            Error::ErrInvalidDeployer
+        );
         assert_with_error!(
             &e,
             !e.storage().instance().has(&DataKeyFactory::WasmHash),

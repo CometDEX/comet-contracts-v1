@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use sep_41_token::testutils::MockTokenClient;
+use crate::tests::utils::MockTokenClient;
 use soroban_sdk::{
     testutils::{Address as _, MockAuth, MockAuthInvoke},
     vec, Address, Env, Error, IntoVal, Vec,
@@ -22,7 +22,7 @@ use super::{
 fn test_join_exit() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -89,6 +89,35 @@ fn test_join_exit() {
         result.err(),
         Some(Ok(Error::from_contract_error(
             CometError::ErrNegativeOrZero as u32
+        )))
+    );
+
+    // verify input vector length checks
+    let short_amounts_in = vec![
+        &env,
+        above_in_fixed.get_unchecked(0),
+        above_in_fixed.get_unchecked(1),
+    ];
+    let result = comet.try_join_pool(&join_amount_fixed, &short_amounts_in, &user);
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrInvalidVectorLen as u32
+        )))
+    );
+
+    let long_amounts_in = vec![
+        &env,
+        above_in_fixed.get_unchecked(0),
+        above_in_fixed.get_unchecked(1),
+        above_in_fixed.get_unchecked(2),
+        i128::MAX,
+    ];
+    let result = comet.try_join_pool(&join_amount_fixed, &long_amounts_in, &user);
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrInvalidVectorLen as u32
         )))
     );
 
@@ -223,6 +252,35 @@ fn test_join_exit() {
         result.err(),
         Some(Ok(Error::from_contract_error(
             CometError::ErrNegativeOrZero as u32
+        )))
+    );
+
+    // verify output vector length checks
+    let short_amounts_out = vec![
+        &env,
+        below_out_fixed.get_unchecked(0),
+        below_out_fixed.get_unchecked(1),
+    ];
+    let result = comet.try_exit_pool(&exit_amount_fixed, &short_amounts_out, &user);
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrInvalidVectorLen as u32
+        )))
+    );
+
+    let long_amounts_out = vec![
+        &env,
+        below_out_fixed.get_unchecked(0),
+        below_out_fixed.get_unchecked(1),
+        below_out_fixed.get_unchecked(2),
+        0,
+    ];
+    let result = comet.try_exit_pool(&exit_amount_fixed, &long_amounts_out, &user);
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrInvalidVectorLen as u32
         )))
     );
 

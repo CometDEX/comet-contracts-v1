@@ -6,6 +6,7 @@ use soroban_sdk::contracterror;
 #[repr(u32)]
 pub enum Error {
     ErrNotCPool = 1,
+    ErrInvalidDeployer = 2,
     ErrNotController = 5,
     AlreadyInitialized = 7,
 }

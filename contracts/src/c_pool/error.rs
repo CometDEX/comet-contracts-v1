@@ -42,4 +42,7 @@ pub enum Error {
     ErrInvalidExpirationLedger = 36,
     ErrNegativeOrZero = 37,
     ErrTokenInvalid = 38,
+    ErrSameToken = 39,
+    ErrMinPoolSupply = 40,
+    ErrNoPendingController = 41,
 }
