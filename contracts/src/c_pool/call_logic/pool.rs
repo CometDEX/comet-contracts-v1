@@ -231,7 +231,8 @@ pub fn execute_swap_exact_amount_out(
     assert_with_error!(&e, max_price >= 0, Error::ErrNegative);
 
     let swap_fee = read_swap_fee(&e);
-    let record_map = read_record(&e);
+    // Price and commit against one consistent reserve snapshot.
+    let mut record_map = read_record(&e);
     let mut in_record = record_map
         .get(token_in.clone())
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
@@ -293,7 +294,6 @@ pub fn execute_swap_exact_amount_out(
     pull_underlying(&e, &token_in, &user, token_amount_in, max_amount_in);
     push_underlying(&e, &token_out, &user, token_amount_out);
 
-    let mut record_map = read_record(&e);
     record_map.set(token_in, in_record);
     record_map.set(token_out, out_record);
 
