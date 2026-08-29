@@ -1,10 +1,13 @@
+.PHONY: default build test clean
+
+COMET_TEST_ARGS ?=
 WASM_TARGET_DIR := target/wasm32v1-none
 OPTIMIZED_DIR := $(WASM_TARGET_DIR)/optimized
 
 default: build
 
 test: build
-	cargo test --workspace --all-targets --locked
+	cargo test --workspace --all-targets --locked $(COMET_TEST_ARGS)
 
 build:
 	stellar contract build --optimize --locked

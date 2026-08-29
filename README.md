@@ -13,8 +13,7 @@ make test
 ### With logs
 
 ```sh
-make build
-cargo test --workspace --all-targets -- --nocapture
+make test COMET_TEST_ARGS='-- --nocapture'
 ```
 
 ## Create a WASM Release Build
@@ -30,6 +29,20 @@ The deployable artifacts are written to:
 
 - `target/wasm32v1-none/optimized/comet.wasm`
 - `target/wasm32v1-none/optimized/comet_factory.wasm`
+
+## Secure Factory Deployment
+
+Factory initialization requires authorization from the address used to deploy
+the factory and verifies that address and the deployment salt reproduce the
+factory's contract ID. This prevents another account from selecting the pool
+WASM hash between factory deployment and initialization.
+
+After building the optimized contracts, the deployment script creates and
+initializes a factory using the same source identity and salt:
+
+```bash
+./deploy_factory.sh <network> <source-identity> [32-byte-hex-salt]
+```
 
 ## Best Practices Used
 

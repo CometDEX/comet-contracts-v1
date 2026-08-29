@@ -114,7 +114,7 @@ fn test_swap_exact_amount_out_rejects_same_token() {
 fn test_spot_price_getters_reject_same_token() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let token_1 = create_stellar_token(&env, &admin);
