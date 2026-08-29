@@ -1,23 +1,117 @@
 name: Stellar Expert WASM Release
-on:
-  push: 
-    tags:
-      - 'v*'  # triggered whenever a new tag (previxed with "v") is pushed to the repository
-jobs:
-  release-contract-governor:
-    uses: stellar-expert/soroban-build-workflow/.github/workflows/release.yml@main
-    with:
-      release_name: ${{ github.ref_name }}
-      release_description: 'Comet Factory Release'
-      package: 'factory'
-    secrets:
-      release_token: ${{ secrets.GITHUB_TOKEN }}
 
-  release-contract-votes:
-    uses: stellar-expert/soroban-build-workflow/.github/workflows/release.yml@main
-    with:
-      release_name: ${{ github.ref_name }}
-      release_description: 'Comet Pool Release'
-      package: 'contracts'
-    secrets:
-      release_token: ${{ secrets.GITHUB_TOKEN }}
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions: {}
+
+jobs:
+  release:
+    name: Release ${{ matrix.package }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: factory
+            description: Comet Factory Release
+          - package: contracts
+            description: Comet Pool Release
+
+    steps:
+      - name: Checkout source
+        # actions/checkout v4.3.0
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+        with:
+          path: source
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        working-directory: source
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.91.1 --profile minimal --no-self-update
+          rustup target add wasm32v1-none --toolchain 1.91.1
+
+      - name: Install pinned Stellar CLI
+        # stellar/stellar-cli v27.0.0
+        uses: stellar/stellar-cli@5a7c5fe76530bf4248477ac812fc757146b98cc4
+        with:
+          version: 27.0.0
+
+      - name: Build optimized WASM
+        working-directory: source
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: |
+          set -euo pipefail
+          stellar contract build --package "$PACKAGE" --optimize --locked
+          cargo_metadata="$(cargo metadata --locked --format-version 1 --no-deps)"
+          package_version="$(jq -er --arg package "$PACKAGE" '.packages[] | select(.name == $package) | .version' <<< "$cargo_metadata")"
+          release_dir="$PWD/compilation_workflow_release"
+          mkdir -p "$release_dir"
+          cp "target/wasm32v1-none/release/${PACKAGE}.wasm" "$release_dir/${PACKAGE}_v${package_version}.wasm"
+
+      - name: Verify release artifact
+        id: artifact
+        working-directory: source
+        env:
+          EXPECTED_PACKAGE: ${{ matrix.package }}
+        run: |
+          set -euo pipefail
+          release_dir="$PWD/compilation_workflow_release"
+          cargo_metadata="$(cargo metadata --locked --format-version 1 --no-deps)"
+          package_version="$(jq -er --arg package "$EXPECTED_PACKAGE" '.packages[] | select(.name == $package) | .version' <<< "$cargo_metadata")"
+          wasm_file="${EXPECTED_PACKAGE}_v${package_version}.wasm"
+          wasm_path="$release_dir/$wasm_file"
+          test -f "$wasm_path"
+
+          wasm_count="$(find "$release_dir" -maxdepth 1 -type f -name '*.wasm' | wc -l | tr -d ' ')"
+          test "$wasm_count" = 1
+          actual_hash="$(sha256sum "$wasm_path" | cut -d ' ' -f 1)"
+
+          {
+            echo "file=$wasm_file"
+            echo "path=$wasm_path"
+            echo "hash=$actual_hash"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_DESCRIPTION: ${{ matrix.description }}
+          WASM_FILE: ${{ steps.artifact.outputs.file }}
+          WASM_PATH: ${{ steps.artifact.outputs.path }}
+        run: |
+          set -euo pipefail
+          release_tag="${GITHUB_REF_NAME}_${WASM_FILE}"
+          gh release create "$release_tag" "$WASM_PATH" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$release_tag" \
+            --notes "$RELEASE_DESCRIPTION"
+
+      - name: Send release information to Stellar Expert
+        env:
+          CONTRACT_HASH: ${{ steps.artifact.outputs.hash }}
+          PACKAGE_NAME: ${{ matrix.package }}
+        run: |
+          set -euo pipefail
+          payload="$(jq -n \
+            --arg repository "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --arg commitHash "$GITHUB_SHA" \
+            --arg jobId "$GITHUB_JOB" \
+            --arg runId "$GITHUB_RUN_ID" \
+            --arg contractHash "$CONTRACT_HASH" \
+            --arg packageName "$PACKAGE_NAME" \
+            '{repository: $repository, commitHash: $commitHash, jobId: $jobId, runId: $runId, contractHash: $contractHash, packageName: $packageName}')"
+          curl --fail-with-body --silent --show-error \
+            --max-time 15 \
+            --header 'Content-Type: application/json' \
+            --data "$payload" \
+            https://api.stellar.expert/explorer/public/contract-validation/match
