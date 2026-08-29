@@ -119,3 +119,15 @@ fn test_c_pow_high_precision_corpus() {
         );
     }
 }
+
+#[test]
+#[should_panic = "Error(Contract, #18)"]
+fn test_c_pow_rejects_unconverged_approximation() {
+    let env: Env = Env::default();
+    c_pow(
+        &env,
+        &I256::from_i128(&env, BONE / 100),
+        &I256::from_i128(&env, BONE / 5),
+        false,
+    );
+}

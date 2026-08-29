@@ -104,6 +104,7 @@ fn c_pow_approx(e: &Env, base: &I256, exp: &I256, precision: &I256, round_up: bo
     let mut term = bone.clone();
     let mut sum = term.clone();
     let prec = precision.clone();
+    let mut converged = false;
     // Capped to limit iterations in the event of a poor approximation
     // Max resource impact at 50 iterations:
     //  -> CPU: 5M inst
@@ -121,9 +122,12 @@ fn c_pow_approx(e: &Env, base: &I256, exp: &I256, precision: &I256, round_up: bo
             term.clone()
         };
         if abs_term <= prec {
+            converged = true;
             break;
         }
     }
+    assert_with_error!(e, converged, Error::ErrMathApprox);
+
     // The series has predictable approximation bounds, so adjust the final sum by the final
     // term to put it on the requested side of the approximation.
     if x > zero {
