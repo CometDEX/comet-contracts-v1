@@ -288,8 +288,17 @@ fn test_single_sided_wdr() {
     let bal_token_out_fixed = bal_token_out.to_i128(&7);
     let under_out = bal_token_out_fixed - 1000;
 
-    // verify MAX_OUT_RATIO
+    // verify unconverged power approximation
     let result = comet.try_wdr_tokn_amt_in_get_lp_tokns_out(&token_1, &99_9999999, &0, &admin);
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrMathApprox as u32
+        )))
+    );
+
+    // verify MAX_OUT_RATIO after a converged power approximation
+    let result = comet.try_wdr_tokn_amt_in_get_lp_tokns_out(&token_1, &(60 * STROOP), &0, &admin);
     assert_eq!(
         result.err(),
         Some(Ok(Error::from_contract_error(
