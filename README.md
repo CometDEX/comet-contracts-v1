@@ -6,15 +6,30 @@ Smart Contracts explicitly written for Soroban.
 
 ### Without logs
 
-```cargo test```
+```sh
+make test
+```
 
 ### With logs
 
-```cargo test -- --nocapture```
+```sh
+make build
+cargo test --workspace --all-targets -- --nocapture
+```
 
 ## Create a WASM Release Build
 
-```cargo build --target wasm32-unknown-unknown --release```
+The repository pins Rust 1.91.1 and the `wasm32v1-none` target in
+`rust-toolchain.toml`. Build and optimize both contracts with Stellar CLI:
+
+```sh
+make build
+```
+
+The deployable artifacts are written to:
+
+- `target/wasm32v1-none/optimized/comet.wasm`
+- `target/wasm32v1-none/optimized/comet_factory.wasm`
 
 ## Best Practices Used
 

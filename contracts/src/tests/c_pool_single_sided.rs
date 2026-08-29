@@ -25,7 +25,7 @@ use super::{
 fn test_single_sided_dep() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -236,7 +236,7 @@ fn test_single_sided_dep() {
 fn test_single_sided_wdr() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -457,7 +457,7 @@ fn test_single_sided_deposit_large_price() {
     // ledger state is correct if the pool tracks internal balances correctly
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -532,7 +532,7 @@ fn test_single_sided_withdraw_large_price() {
     // ledger state is correct if the pool tracks internal balances correctly
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
 

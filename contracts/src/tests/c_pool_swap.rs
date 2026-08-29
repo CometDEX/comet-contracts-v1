@@ -25,7 +25,7 @@ use super::{
 fn test_swap_exact_amount_in_rejects_same_token() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -69,7 +69,7 @@ fn test_swap_exact_amount_in_rejects_same_token() {
 fn test_swap_exact_amount_out_rejects_same_token() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -150,7 +150,7 @@ fn test_spot_price_getters_reject_same_token() {
 fn test_swap_out_given_in() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -311,7 +311,7 @@ fn test_swap_out_given_in() {
 fn test_swap_in_given_out() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -491,7 +491,7 @@ fn test_swap_large_amounts() {
     // ledger state is correct if the pool tracks internal balances correctly
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -581,7 +581,7 @@ fn test_swap_large_price() {
     // ledger state is correct if the pool tracks internal balances correctly
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -674,7 +674,7 @@ fn test_swap_diff_decimals() {
     // ledger state is correct if the pool tracks internal balances correctly
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
