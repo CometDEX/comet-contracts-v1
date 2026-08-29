@@ -22,6 +22,100 @@ use super::{
 };
 
 #[test]
+fn test_single_sided_deposit_rejects_zero_lp_output() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.budget().reset_unlimited();
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_1 = create_stellar_token(&env, &admin);
+    let token_2 = create_stellar_token(&env, &admin);
+    let token_1_client = MockTokenClient::new(&env, &token_1);
+    let token_2_client = MockTokenClient::new(&env, &token_2);
+    let balances: Vec<i128> = vec![&env, 100 * STROOP, 50 * STROOP];
+    let weights: Vec<i128> = vec![&env, 8 * STROOP / 10, 2 * STROOP / 10];
+    token_1_client.mint(&admin, &balances.get_unchecked(0));
+    token_2_client.mint(&admin, &balances.get_unchecked(1));
+    token_1_client.mint(&user, &1);
+
+    let comet_id = create_comet_pool(
+        &env,
+        &admin,
+        &vec![&env, token_1.clone(), token_2],
+        &weights,
+        &balances,
+        0_0030000,
+    );
+    let comet = CometPoolContractClient::new(&env, &comet_id);
+    let record_balance_before = comet.get_balance(&token_1);
+    let contract_balance_before = token_1_client.balance(&comet_id);
+    let user_balance_before = token_1_client.balance(&user);
+    let user_shares_before = comet.balance(&user);
+    let supply_before = comet.get_total_supply();
+
+    let result = comet.try_dep_tokn_amt_in_get_lp_tokns_out(&token_1, &1, &0, &user);
+
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrMathApprox as u32
+        )))
+    );
+    assert_eq!(comet.get_balance(&token_1), record_balance_before);
+    assert_eq!(token_1_client.balance(&comet_id), contract_balance_before);
+    assert_eq!(token_1_client.balance(&user), user_balance_before);
+    assert_eq!(comet.balance(&user), user_shares_before);
+    assert_eq!(comet.get_total_supply(), supply_before);
+}
+
+#[test]
+fn test_single_sided_withdraw_rejects_zero_token_output() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.budget().reset_unlimited();
+
+    let admin = Address::generate(&env);
+    let token_1 = create_stellar_token(&env, &admin);
+    let token_2 = create_stellar_token(&env, &admin);
+    let token_1_client = MockTokenClient::new(&env, &token_1);
+    let token_2_client = MockTokenClient::new(&env, &token_2);
+    let balances: Vec<i128> = vec![&env, 100, 100];
+    let weights: Vec<i128> = vec![&env, 5 * STROOP / 10, 5 * STROOP / 10];
+    token_1_client.mint(&admin, &balances.get_unchecked(0));
+    token_2_client.mint(&admin, &balances.get_unchecked(1));
+
+    let comet_id = create_comet_pool(
+        &env,
+        &admin,
+        &vec![&env, token_1.clone(), token_2],
+        &weights,
+        &balances,
+        0_0030000,
+    );
+    let comet = CometPoolContractClient::new(&env, &comet_id);
+    let record_balance_before = comet.get_balance(&token_1);
+    let contract_balance_before = token_1_client.balance(&comet_id);
+    let admin_balance_before = token_1_client.balance(&admin);
+    let admin_shares_before = comet.balance(&admin);
+    let supply_before = comet.get_total_supply();
+
+    let result = comet.try_wdr_tokn_amt_in_get_lp_tokns_out(&token_1, &1, &0, &admin);
+
+    assert_eq!(
+        result.err(),
+        Some(Ok(Error::from_contract_error(
+            CometError::ErrMathApprox as u32
+        )))
+    );
+    assert_eq!(comet.get_balance(&token_1), record_balance_before);
+    assert_eq!(token_1_client.balance(&comet_id), contract_balance_before);
+    assert_eq!(token_1_client.balance(&admin), admin_balance_before);
+    assert_eq!(comet.balance(&admin), admin_shares_before);
+    assert_eq!(comet.get_total_supply(), supply_before);
+}
+
+#[test]
 fn test_single_sided_dep() {
     let env = Env::default();
     env.mock_all_auths();

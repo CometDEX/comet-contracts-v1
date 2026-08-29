@@ -331,6 +331,7 @@ pub fn execute_dep_tokn_amt_in_get_lp_tokns_out(
         token_amount_in,
         swap_fee,
     );
+    assert_with_error!(&e, pool_amount_out > 0, Error::ErrMathApprox);
     assert_with_error!(
         &e,
         pool_amount_out >= min_pool_amount_out,
@@ -438,6 +439,7 @@ pub fn execute_wdr_tokn_amt_in_get_lp_tokns_out(
         swap_fee,
     );
 
+    assert_with_error!(&e, token_amount_out > 0, Error::ErrMathApprox);
     assert_with_error!(&e, token_amount_out >= min_amount_out, Error::ErrLimitOut);
     assert_with_error!(
         &e,
