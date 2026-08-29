@@ -48,3 +48,20 @@ pub struct WithdrawEvent {
     pub token_amount_out: i128,
     pub pool_amount_in: i128,
 }
+
+// Freeze Event, emitted when the controller updates the pool's freeze status
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FreezeEvent {
+    pub controller: Address,
+    pub frozen: bool,
+}
+
+// Gulp Event, emitted when recorded reserves are synchronized with the token balance
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GulpEvent {
+    pub token: Address,
+    pub previous_balance: i128,
+    pub new_balance: i128,
+}

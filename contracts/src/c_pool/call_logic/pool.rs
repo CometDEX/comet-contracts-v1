@@ -11,7 +11,7 @@ use crate::{
     c_math,
     c_pool::{
         error::Error,
-        event::{DepositEvent, ExitEvent, JoinEvent, SwapEvent, WithdrawEvent},
+        event::{DepositEvent, ExitEvent, GulpEvent, JoinEvent, SwapEvent, WithdrawEvent},
         metadata::{
             get_total_shares, read_freeze, read_record, read_swap_fee, read_tokens, write_record,
         },
@@ -27,9 +27,18 @@ pub fn execute_gulp(e: Env, t: Address) {
         .get(t.clone())
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
 
-    rec.balance = token::Client::new(&e, &t).balance(&e.current_contract_address());
-    records.set(t, rec);
+    let previous_balance = rec.balance;
+    let new_balance = token::Client::new(&e, &t).balance(&e.current_contract_address());
+    rec.balance = new_balance;
+    records.set(t.clone(), rec);
     write_record(&e, records);
+
+    let event = GulpEvent {
+        token: t,
+        previous_balance,
+        new_balance,
+    };
+    e.events().publish((POOL, symbol_short!("gulp")), event);
 }
 
 pub fn execute_join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128>, user: Address) {
