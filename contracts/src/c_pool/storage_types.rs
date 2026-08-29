@@ -3,11 +3,11 @@ use soroban_sdk::{contracttype, Address};
 
 pub(crate) const DAY_IN_LEDGERS: u32 = 17280;
 
-pub(crate) const SHARED_BUMP_AMOUNT: u32 = 31 * DAY_IN_LEDGERS;
-pub(crate) const SHARED_LIFETIME_THRESHOLD: u32 = SHARED_BUMP_AMOUNT - DAY_IN_LEDGERS;
+pub(crate) const POOL_BUMP_AMOUNT: u32 = 120 * DAY_IN_LEDGERS;
+pub(crate) const POOL_LIFETIME_THRESHOLD: u32 = POOL_BUMP_AMOUNT - 20 * DAY_IN_LEDGERS;
 
-pub(crate) const BALANCE_BUMP_AMOUNT: u32 = 120 * DAY_IN_LEDGERS;
-pub(crate) const BALANCE_LIFETIME_THRESHOLD: u32 = BALANCE_BUMP_AMOUNT - 20 * DAY_IN_LEDGERS;
+pub(crate) const BALANCE_BUMP_AMOUNT: u32 = POOL_BUMP_AMOUNT;
+pub(crate) const BALANCE_LIFETIME_THRESHOLD: u32 = POOL_LIFETIME_THRESHOLD;
 
 // Token Details Struct
 #[contracttype]

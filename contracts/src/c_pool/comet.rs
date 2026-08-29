@@ -13,10 +13,9 @@ use crate::c_pool::{
         },
     },
     metadata::{
-        get_total_shares, read_controller, read_decimal, read_name, read_record, read_swap_fee,
-        read_symbol, read_tokens,
+        extend_pool_ttl, get_total_shares, read_controller, read_decimal, read_name, read_record,
+        read_swap_fee, read_symbol, read_tokens,
     },
-    storage_types::{SHARED_BUMP_AMOUNT, SHARED_LIFETIME_THRESHOLD},
     token_utility::check_nonnegative_amount,
 };
 use soroban_sdk::{
@@ -42,26 +41,20 @@ impl CometPoolContract {
         swap_fee: i128,
     ) {
         controller.require_auth();
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         execute_init(&e, controller, tokens, weights, balances, swap_fee);
+        extend_pool_ttl(&e);
     }
 
     // Absorbing tokens into the pool directly sent to the current contract
     pub fn gulp(e: Env, t: Address) {
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
         execute_gulp(e, t);
     }
 
     // Helps a users join the pool
     pub fn join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128>, user: Address) {
         user.require_auth();
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
 
         execute_join_pool(e, pool_amount_out, max_amounts_in, user);
     }
@@ -69,9 +62,7 @@ impl CometPoolContract {
     // Helps a user exit the pool
     pub fn exit_pool(e: Env, pool_amount_in: i128, min_amounts_out: Vec<i128>, user: Address) {
         user.require_auth();
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
         execute_exit_pool(e, pool_amount_in, min_amounts_out, user);
     }
 
@@ -87,9 +78,7 @@ impl CometPoolContract {
         user: Address,
     ) -> (i128, i128) {
         user.require_auth();
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
         execute_swap_exact_amount_in(
             e,
             token_in,
@@ -113,9 +102,7 @@ impl CometPoolContract {
         user: Address,
     ) -> (i128, i128) {
         user.require_auth();
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
         execute_swap_exact_amount_out(
             e,
             token_in,
@@ -137,9 +124,7 @@ impl CometPoolContract {
         user: Address,
     ) -> i128 {
         user.require_auth();
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
         execute_dep_tokn_amt_in_get_lp_tokns_out(
             e,
             token_in,
@@ -158,9 +143,7 @@ impl CometPoolContract {
         user: Address,
     ) -> i128 {
         user.require_auth();
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
         execute_dep_lp_tokn_amt_out_get_tokn_in(e, token_in, pool_amount_out, max_amount_in, user)
     }
 
@@ -175,9 +158,7 @@ impl CometPoolContract {
         user: Address,
     ) -> i128 {
         user.require_auth();
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
         execute_wdr_tokn_amt_in_get_lp_tokns_out(e, token_out, pool_amount_in, min_amount_out, user)
     }
 
@@ -192,9 +173,7 @@ impl CometPoolContract {
         user: Address,
     ) -> i128 {
         user.require_auth();
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
         execute_wdr_tokn_amt_out_get_lp_tokns_in(
             e,
             token_out,
@@ -207,9 +186,7 @@ impl CometPoolContract {
     // Sets the value of the controller address, only can be set by the current controller
     pub fn set_controller(e: Env, manager: Address) {
         read_controller(&e).require_auth();
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
         write_controller(&e, manager);
     }
 
@@ -217,9 +194,7 @@ impl CometPoolContract {
     // Freezes Functions and only allows withdrawals
     pub fn set_freeze_status(e: Env, val: bool) {
         read_controller(&e).require_auth();
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
         write_freeze(&e, val);
     }
 
@@ -227,6 +202,7 @@ impl CometPoolContract {
 
     // Get the Controller Address
     pub fn get_total_supply(e: Env) -> i128 {
+        extend_pool_ttl(&e);
         get_total_shares(&e)
     }
 
@@ -237,23 +213,27 @@ impl CometPoolContract {
 
     // Get the Current Tokens in the Pool
     pub fn get_tokens(e: Env) -> Vec<Address> {
+        extend_pool_ttl(&e);
         read_tokens(&e)
     }
 
     // Get the balance of the Token
     pub fn get_balance(e: Env, token: Address) -> i128 {
+        extend_pool_ttl(&e);
         let val = read_record(&e).get(token).unwrap_optimized();
         val.balance
     }
 
     // Get the weight of the token in decimal form with 7 decimals
     pub fn get_normalized_weight(e: Env, token: Address) -> i128 {
+        extend_pool_ttl(&e);
         let val = read_record(&e).get(token).unwrap_optimized();
         val.weight
     }
 
     // Calculate the spot considering the swap fee
     pub fn get_spot_price(e: Env, token_in: Address, token_out: Address) -> i128 {
+        extend_pool_ttl(&e);
         execute_get_spot_price(e, token_in, token_out)
     }
 
@@ -264,6 +244,7 @@ impl CometPoolContract {
 
     // Get the spot price without considering the swap fee
     pub fn get_spot_price_sans_fee(e: Env, token_in: Address, token_out: Address) -> i128 {
+        extend_pool_ttl(&e);
         execute_get_spot_price_sans_fee(e, token_in, token_out)
     }
 }
@@ -272,9 +253,7 @@ impl CometPoolContract {
 #[contractimpl]
 impl TokenInterface for CometPoolContract {
     fn allowance(e: Env, from: Address, spender: Address) -> i128 {
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
         read_allowance(&e, from, spender).amount
     }
 
@@ -283,9 +262,7 @@ impl TokenInterface for CometPoolContract {
 
         check_nonnegative_amount(amount);
 
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
 
         write_allowance(&e, from.clone(), spender.clone(), amount, expiration_ledger);
 
@@ -299,9 +276,7 @@ impl TokenInterface for CometPoolContract {
     }
 
     fn balance(e: Env, id: Address) -> i128 {
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
         read_balance(&e, id)
     }
 
@@ -310,9 +285,7 @@ impl TokenInterface for CometPoolContract {
 
         check_nonnegative_amount(amount);
 
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
 
         let to_address = to.address();
         spend_balance(&e, from.clone(), amount);
@@ -331,9 +304,7 @@ impl TokenInterface for CometPoolContract {
 
         check_nonnegative_amount(amount);
 
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
 
         spend_allowance(&e, from.clone(), spender, amount);
         spend_balance(&e, from.clone(), amount);
@@ -346,9 +317,7 @@ impl TokenInterface for CometPoolContract {
         let total = get_total_shares(&e);
         check_nonnegative_amount(amount);
 
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
 
         spend_balance(&e, from.clone(), amount);
         Burn { from, amount }.publish(&e);
@@ -360,9 +329,7 @@ impl TokenInterface for CometPoolContract {
         let total = get_total_shares(&e);
         check_nonnegative_amount(amount);
 
-        e.storage()
-            .instance()
-            .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
+        extend_pool_ttl(&e);
 
         spend_allowance(&e, from.clone(), spender, amount);
         spend_balance(&e, from.clone(), amount);
