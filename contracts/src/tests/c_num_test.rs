@@ -5,6 +5,7 @@ use soroban_sdk::I256;
 
 use crate::c_consts::BONE;
 use crate::c_num::c_pow;
+use crate::tests::generated_c_pow_vectors::C_POW_HIGH_PRECISION_CASES;
 
 #[test]
 #[should_panic = "Error(Contract, #34)"]
@@ -84,6 +85,37 @@ fn test_c_pow_fractional_rounding_direction() {
         assert!(
             rounded_up >= expected_ceil,
             "round up fell below base={base} exp={exp}: result={rounded_up} ceil={expected_ceil}"
+        );
+    }
+}
+
+#[test]
+fn test_c_pow_high_precision_corpus() {
+    let env = Env::default();
+    env.cost_estimate().budget().reset_unlimited();
+
+    assert!(C_POW_HIGH_PRECISION_CASES.len() >= 1_000);
+    for &(base, exponent, expected_floor, expected_ceil) in C_POW_HIGH_PRECISION_CASES {
+        let base_256 = I256::from_i128(&env, base);
+        let exponent_256 = I256::from_i128(&env, exponent);
+        let rounded_down = c_pow(&env, &base_256, &exponent_256, false)
+            .to_i128()
+            .unwrap();
+        let rounded_up = c_pow(&env, &base_256, &exponent_256, true)
+            .to_i128()
+            .unwrap();
+
+        assert!(
+            rounded_down <= expected_floor,
+            "round down exceeded base={base} exponent={exponent}: result={rounded_down} floor={expected_floor}"
+        );
+        assert!(
+            rounded_up >= expected_ceil,
+            "round up fell below base={base} exponent={exponent}: result={rounded_up} ceil={expected_ceil}"
+        );
+        assert!(
+            rounded_down <= rounded_up,
+            "bounds crossed for base={base} exponent={exponent}: down={rounded_down} up={rounded_up}"
         );
     }
 }
