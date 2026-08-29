@@ -3,9 +3,8 @@ use std::println;
 use std::vec as std_vec;
 use std::vec::Vec as std_Vec;
 
-use sep_41_token::testutils::{MockToken, MockTokenClient};
 use soroban_fixed_point_math::FixedPoint;
-use soroban_sdk::{token::TokenClient, Address, Env, String, Vec};
+use soroban_sdk::{token::TokenClient, Address, Env, Vec};
 
 use crate::{
     c_consts::STROOP,
@@ -33,18 +32,6 @@ pub fn create_comet_pool(
 pub fn create_stellar_token(env: &Env, admin: &Address) -> Address {
     env.register_stellar_asset_contract_v2(admin.clone())
         .address()
-}
-
-pub fn create_soroban_token(env: &Env, admin: &Address, decimal: u32) -> Address {
-    let contract_id = env.register(MockToken, ());
-    let client = MockTokenClient::new(&env, &contract_id);
-    client.initialize(
-        &admin,
-        &decimal,
-        &String::from_str(env, "NAME"),
-        &String::from_str(env, "SYMBOL"),
-    );
-    contract_id
 }
 
 /// Asset that `b` is within `percentage` of `a` where `percentage`

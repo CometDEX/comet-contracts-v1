@@ -5,27 +5,15 @@ extern crate std;
 use crate::c_consts::STROOP;
 use crate::c_pool::comet::CometPoolContractClient;
 use crate::tests::utils::create_comet_pool;
-use sep_41_token::testutils::{MockToken, MockTokenClient};
-use soroban_sdk::String;
+use sep_41_token::testutils::MockTokenClient;
 use soroban_sdk::{testutils::Address as _, Address};
 use soroban_sdk::{vec, Env};
 
-fn create_and_init_token_contract<'a>(
-    env: &'a Env,
-    admin_id: &'a Address,
-    decimals: &'a u32,
-    name: &'a str,
-    symbol: &'a str,
-) -> MockTokenClient<'a> {
-    let token_id = env.register(MockToken, ());
-    let client = MockTokenClient::new(&env, &token_id);
-    client.initialize(
-        &admin_id,
-        decimals,
-        &String::from_str(&env, name),
-        &String::from_str(&env, symbol),
-    );
-    client
+fn create_token_contract<'a>(env: &'a Env, admin_id: &'a Address) -> MockTokenClient<'a> {
+    let token_id = env
+        .register_stellar_asset_contract_v2(admin_id.clone())
+        .address();
+    MockTokenClient::new(env, &token_id)
 }
 
 fn to_stroop<T: Into<f64>>(a: T) -> i128 {
@@ -42,10 +30,10 @@ fn test_pool_functions() {
     let admin1: Address = soroban_sdk::Address::generate(&env);
 
     // // Create 4 tokens
-    let token1 = create_and_init_token_contract(&env, &admin1, &7, "NebulaCoin", "NBC");
-    let token2 = create_and_init_token_contract(&env, &admin1, &7, "QuantumToken", "QTK");
-    let token3 = create_and_init_token_contract(&env, &admin1, &7, "SolariumCoin", "SLC");
-    let token4 = create_and_init_token_contract(&env, &admin1, &7, "StellarBit", "XBT");
+    let token1 = create_token_contract(&env, &admin1);
+    let token2 = create_token_contract(&env, &admin1);
+    let token3 = create_token_contract(&env, &admin1);
+    let token4 = create_token_contract(&env, &admin1);
 
     // // Create 2 users
     let user1 = soroban_sdk::Address::generate(&env);
