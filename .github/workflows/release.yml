@@ -8,8 +8,59 @@ on:
 permissions: {}
 
 jobs:
+  verify:
+    name: Verify release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout source
+        # actions/checkout v4.3.0
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+        with:
+          path: source
+          persist-credentials: false
+
+      - name: Install pinned Rust toolchain
+        working-directory: source
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.91.1 --profile minimal --no-self-update
+          rustup target add wasm32v1-none --toolchain 1.91.1
+
+      - name: Install pinned Stellar CLI
+        # stellar/stellar-cli v27.0.0
+        uses: stellar/stellar-cli@5a7c5fe76530bf4248477ac812fc757146b98cc4
+        with:
+          version: 27.0.0
+
+      - name: Verify tag matches package versions
+        working-directory: source
+        run: |
+          set -euo pipefail
+          cargo_metadata="$(cargo metadata --locked --format-version 1 --no-deps)"
+          package_version="$(jq -er '
+            [.packages[] | select(.name == "contracts" or .name == "factory") | .version] as $versions
+            | if (($versions | length) == 2 and ($versions | unique | length) == 1)
+              then $versions[0]
+              else error("contracts and factory must have the same package version")
+              end
+          ' <<< "$cargo_metadata")"
+          expected_tag="v${package_version}"
+          if [[ "$GITHUB_REF_NAME" != "$expected_tag" ]]; then
+            echo "release tag $GITHUB_REF_NAME does not match package version $expected_tag" >&2
+            exit 1
+          fi
+
+      - name: Run release tests
+        working-directory: source
+        run: make test
+
   release:
     name: Release ${{ matrix.package }}
+    needs: verify
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
