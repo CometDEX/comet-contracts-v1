@@ -44,4 +44,5 @@ pub enum Error {
     ErrTokenInvalid = 38,
     ErrSameToken = 39,
     ErrMinPoolSupply = 40,
+    ErrNoPendingController = 41,
 }

@@ -74,6 +74,23 @@ pub fn write_controller(e: &Env, d: Address) {
     e.storage().instance().set(&key, &d);
 }
 
+// Read the pending controller. Off-chain SDKs may decode this instance-storage key directly.
+pub fn read_pending_controller(e: &Env) -> Option<Address> {
+    e.storage()
+        .instance()
+        .get::<DataKey, Address>(&DataKey::PendingController)
+}
+
+// Write the pending controller.
+pub fn write_pending_controller(e: &Env, d: Address) {
+    e.storage().instance().set(&DataKey::PendingController, &d);
+}
+
+// Clear the pending controller.
+pub fn remove_pending_controller(e: &Env) {
+    e.storage().instance().remove(&DataKey::PendingController);
+}
+
 // Read Swap Fee
 pub fn read_swap_fee(e: &Env) -> i128 {
     let key = DataKey::SwapFee;

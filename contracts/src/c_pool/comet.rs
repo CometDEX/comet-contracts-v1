@@ -15,18 +15,27 @@ use crate::c_pool::{
             execute_wdr_tokn_amt_out_get_lp_tokns_in,
         },
     },
+    error::Error,
     metadata::{
         extend_pool_ttl, get_total_shares, read_controller, read_decimal, read_name, read_swap_fee,
-        read_symbol, read_tokens,
+        read_pending_controller, read_symbol, read_tokens, remove_pending_controller,
+        write_pending_controller,
     },
     token_utility::{burn_shares_from, check_nonnegative_amount},
 };
 use soroban_sdk::{
-    contract, contractimpl, token::TokenInterface, Address, Env, MuxedAddress, String, Vec,
+    contract, contractimpl, panic_with_error, symbol_short, token::TokenInterface, Address, Env,
+    MuxedAddress, String, Vec,
 };
 use soroban_token_sdk::events::{Approve, Transfer, TransferWithAmountOnly};
 
 use super::metadata::{write_controller, write_freeze};
+
+pub(crate) fn pending_controller_or_error(
+    pending_controller: Option<Address>,
+) -> Result<Address, Error> {
+    pending_controller.ok_or(Error::ErrNoPendingController)
+}
 
 #[contract]
 pub struct CometPoolContract;
@@ -185,11 +194,42 @@ impl CometPoolContract {
         )
     }
 
-    // Sets the value of the controller address, only can be set by the current controller
+    // Proposes a new controller, replacing any existing proposal. Passing the current controller
+    // cancels the pending transfer. The proposed controller must accept before the change applies.
     pub fn set_controller(e: Env, manager: Address) {
-        read_controller(&e).require_auth();
+        let controller = read_controller(&e);
+        controller.require_auth();
         extend_pool_ttl(&e);
-        write_controller(&e, manager);
+
+        if manager == controller {
+            remove_pending_controller(&e);
+        } else {
+            write_pending_controller(&e, manager.clone());
+        }
+        e.events().publish(
+            (symbol_short!("POOL"), symbol_short!("set_ctrl"), controller),
+            manager,
+        );
+    }
+
+    // Accepts a pending controller transfer. Only the pending controller can authorize acceptance.
+    pub fn accept_controller(e: Env) {
+        extend_pool_ttl(&e);
+        let new_controller = pending_controller_or_error(read_pending_controller(&e))
+            .unwrap_or_else(|error| panic_with_error!(&e, error));
+        new_controller.require_auth();
+
+        let previous_controller = read_controller(&e);
+        write_controller(&e, new_controller.clone());
+        remove_pending_controller(&e);
+        e.events().publish(
+            (
+                symbol_short!("POOL"),
+                symbol_short!("acpt_ctrl"),
+                previous_controller,
+            ),
+            new_controller,
+        );
     }
 
     // Only Callable by the Pool Admin

@@ -33,6 +33,8 @@ pub enum DataKey {
     PublicSwap,    // bool
     Finalize,      // bool
     Freeze,        // bool
+    // Address proposed by set_controller; exposed to off-chain SDKs through instance storage.
+    PendingController,
 }
 
 // Data Keys for the LP Token
