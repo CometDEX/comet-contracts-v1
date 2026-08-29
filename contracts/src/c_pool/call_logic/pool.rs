@@ -1,6 +1,7 @@
 use soroban_sdk::I256;
 use soroban_sdk::{
-    assert_with_error, panic_with_error, token, unwrap::UnwrapOptimized, Address, Env, Vec,
+    assert_with_error, panic_with_error, symbol_short, token, unwrap::UnwrapOptimized, Address, Env,
+    Symbol, Vec,
 };
 
 use crate::{
@@ -8,13 +9,15 @@ use crate::{
     c_math,
     c_pool::{
         error::Error,
-        event::{DepositEvent, ExitEvent, JoinEvent, SwapEvent, WithdrawEvent},
+        event::{DepositEvent, ExitEvent, GulpEvent, JoinEvent, SwapEvent, WithdrawEvent},
         metadata::{
             get_total_shares, read_freeze, read_record, read_swap_fee, read_tokens, write_record,
         },
         token_utility::{burn_shares, mint_shares, pull_shares, pull_underlying, push_underlying},
     },
 };
+const POOL: Symbol = symbol_short!("POOL");
+
 // Absorbing tokens into the pool directly sent to the current contract
 pub fn execute_gulp(e: Env, t: Address) {
     let mut records = read_record(&e);
@@ -22,9 +25,18 @@ pub fn execute_gulp(e: Env, t: Address) {
         .get(t.clone())
         .unwrap_or_else(|| panic_with_error!(&e, Error::ErrNotBound));
 
-    rec.balance = token::Client::new(&e, &t).balance(&e.current_contract_address());
-    records.set(t, rec);
+    let previous_balance = rec.balance;
+    let new_balance = token::Client::new(&e, &t).balance(&e.current_contract_address());
+    rec.balance = new_balance;
+    records.set(t.clone(), rec);
     write_record(&e, records);
+
+    let event = GulpEvent {
+        token: t,
+        previous_balance,
+        new_balance,
+    };
+    e.events().publish((POOL, symbol_short!("gulp")), event);
 }
 
 pub fn execute_join_pool(e: Env, pool_amount_out: i128, max_amounts_in: Vec<i128>, user: Address) {

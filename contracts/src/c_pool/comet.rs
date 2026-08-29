@@ -16,6 +16,7 @@ use crate::c_pool::{
         },
     },
     error::Error,
+    event::FreezeEvent,
     metadata::{
         extend_pool_ttl, get_total_shares, read_controller, read_decimal, read_name, read_swap_fee,
         read_pending_controller, read_symbol, read_tokens, remove_pending_controller,
@@ -235,9 +236,16 @@ impl CometPoolContract {
     // Only Callable by the Pool Admin
     // Freezes Functions and only allows withdrawals
     pub fn set_freeze_status(e: Env, val: bool) {
-        read_controller(&e).require_auth();
+        let controller = read_controller(&e);
+        controller.require_auth();
         extend_pool_ttl(&e);
         write_freeze(&e, val);
+        let event = FreezeEvent {
+            controller,
+            frozen: val,
+        };
+        e.events()
+            .publish((symbol_short!("POOL"), symbol_short!("freeze")), event);
     }
 
     // GETTER FUNCTIONS
