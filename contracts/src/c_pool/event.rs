@@ -1,5 +1,5 @@
 //! Definition of the Events used in the contract
-use soroban_sdk::{contractevent, contracttype, Address};
+use soroban_sdk::{contractevent, Address};
 
 // Swap Token Event, emitted when tokens are swapped
 #[contractevent(topics = ["POOL", "swap"], data_format = "map")]
@@ -45,7 +45,7 @@ pub struct WithdrawEvent {
 }
 
 // Freeze Event, emitted when the controller updates the pool's freeze status
-#[contracttype]
+#[contractevent(topics = ["POOL", "freeze"], data_format = "map")]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FreezeEvent {
     pub controller: Address,
@@ -53,10 +53,26 @@ pub struct FreezeEvent {
 }
 
 // Gulp Event, emitted when recorded reserves are synchronized with the token balance
-#[contracttype]
+#[contractevent(topics = ["POOL", "gulp"], data_format = "map")]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GulpEvent {
     pub token: Address,
     pub previous_balance: i128,
     pub new_balance: i128,
+}
+
+// Controller Proposal Event, emitted when the current controller proposes or cancels a transfer
+#[contractevent(topics = ["POOL", "set_ctrl"], data_format = "single-value")]
+pub struct SetControllerEvent {
+    #[topic]
+    pub controller: Address,
+    pub manager: Address,
+}
+
+// Controller Acceptance Event, emitted when a pending controller accepts the transfer
+#[contractevent(topics = ["POOL", "acpt_ctrl"], data_format = "single-value")]
+pub struct AcceptControllerEvent {
+    #[topic]
+    pub previous_controller: Address,
+    pub new_controller: Address,
 }

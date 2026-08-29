@@ -16,17 +16,17 @@ use crate::c_pool::{
         },
     },
     error::Error,
-    event::FreezeEvent,
+    event::{AcceptControllerEvent, FreezeEvent, SetControllerEvent},
     metadata::{
-        extend_pool_ttl, get_total_shares, read_controller, read_decimal, read_name, read_swap_fee,
-        read_pending_controller, read_symbol, read_tokens, remove_pending_controller,
-        write_pending_controller,
+        extend_pool_ttl, get_total_shares, read_controller, read_decimal, read_name,
+        read_pending_controller, read_swap_fee, read_symbol, read_tokens,
+        remove_pending_controller, write_pending_controller,
     },
     token_utility::{burn_shares_from, check_nonnegative_amount},
 };
 use soroban_sdk::{
-    contract, contractimpl, panic_with_error, symbol_short, token::TokenInterface, Address, Env,
-    MuxedAddress, String, Vec,
+    contract, contractimpl, panic_with_error, token::TokenInterface, Address, Env, MuxedAddress,
+    String, Vec,
 };
 use soroban_token_sdk::events::{Approve, Transfer, TransferWithAmountOnly};
 
@@ -207,10 +207,11 @@ impl CometPoolContract {
         } else {
             write_pending_controller(&e, manager.clone());
         }
-        e.events().publish(
-            (symbol_short!("POOL"), symbol_short!("set_ctrl"), controller),
+        SetControllerEvent {
+            controller,
             manager,
-        );
+        }
+        .publish(&e);
     }
 
     // Accepts a pending controller transfer. Only the pending controller can authorize acceptance.
@@ -223,14 +224,11 @@ impl CometPoolContract {
         let previous_controller = read_controller(&e);
         write_controller(&e, new_controller.clone());
         remove_pending_controller(&e);
-        e.events().publish(
-            (
-                symbol_short!("POOL"),
-                symbol_short!("acpt_ctrl"),
-                previous_controller,
-            ),
+        AcceptControllerEvent {
+            previous_controller,
             new_controller,
-        );
+        }
+        .publish(&e);
     }
 
     // Only Callable by the Pool Admin
@@ -240,12 +238,11 @@ impl CometPoolContract {
         controller.require_auth();
         extend_pool_ttl(&e);
         write_freeze(&e, val);
-        let event = FreezeEvent {
+        FreezeEvent {
             controller,
             frozen: val,
-        };
-        e.events()
-            .publish((symbol_short!("POOL"), symbol_short!("freeze")), event);
+        }
+        .publish(&e);
     }
 
     // GETTER FUNCTIONS

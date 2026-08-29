@@ -1,5 +1,6 @@
 use soroban_sdk::{
-    assert_with_error, token::TokenClient, unwrap::UnwrapOptimized, Address, Env, Map, String, Vec,
+    assert_with_error, token::TokenClient, unwrap::UnwrapOptimized, Address, Env, Executable, Map,
+    String, Vec,
 };
 use soroban_token_sdk::metadata::TokenMetadata;
 
@@ -52,6 +53,11 @@ pub fn execute_init(
         let balance = balances.get(i).unwrap_optimized();
 
         assert_with_error!(&e, !records.contains_key(token.clone()), Error::ErrIsBound);
+        assert_with_error!(
+            &e,
+            token.executable() == Some(Executable::StellarAsset),
+            Error::ErrTokenInvalid
+        );
 
         assert_with_error!(&e, weight >= MIN_WEIGHT, Error::ErrMinWeight);
         assert_with_error!(&e, weight <= MAX_WEIGHT, Error::ErrMaxWeight);

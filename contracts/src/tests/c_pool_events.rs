@@ -2,23 +2,17 @@
 
 use sep_41_token::testutils::MockTokenClient;
 use soroban_sdk::{
-    symbol_short,
-    testutils::{Address as _, Events as _},
-    vec, Address, Env, Symbol, TryFromVal, Vec,
+    symbol_short, testutils::Address as _, vec, Address, Env, Map, Symbol, TryFromVal, Val, Vec,
 };
 
 use crate::{
     c_consts::STROOP,
-    c_pool::{
-        comet::CometPoolContractClient,
-        event::{FreezeEvent, GulpEvent},
-    },
-    tests::utils::{create_comet_pool, create_stellar_token},
+    c_pool::comet::CometPoolContractClient,
+    tests::utils::{create_comet_pool, create_stellar_token, event_from_end},
 };
 
 fn assert_pool_event(e: &Env, pool: &Address, name: Symbol) -> soroban_sdk::Val {
-    let events = e.events().all();
-    let (contract, topics, data) = events.last().unwrap();
+    let (contract, topics, data) = event_from_end(e, 1);
     assert_eq!(contract, pool.clone());
     assert_eq!(topics.len(), 2);
     assert_eq!(
@@ -30,6 +24,10 @@ fn assert_pool_event(e: &Env, pool: &Address, name: Symbol) -> soroban_sdk::Val 
         name
     );
     data
+}
+
+fn event_data_map(e: &Env, data: &Val) -> Map<Symbol, Val> {
+    Map::try_from_val(e, data).unwrap()
 }
 
 fn create_pool(e: &Env) -> (Address, Address, Address) {
@@ -66,23 +64,21 @@ fn test_set_freeze_status_emits_event() {
 
     comet.set_freeze_status(&true);
     let data = assert_pool_event(&e, &pool, symbol_short!("freeze"));
+    let data = event_data_map(&e, &data);
     assert_eq!(
-        FreezeEvent::try_from_val(&e, &data).unwrap(),
-        FreezeEvent {
-            controller: controller.clone(),
-            frozen: true,
-        }
+        Address::try_from_val(&e, &data.get(Symbol::new(&e, "controller")).unwrap()).unwrap(),
+        controller.clone()
     );
+    assert!(bool::try_from_val(&e, &data.get(symbol_short!("frozen")).unwrap()).unwrap());
 
     comet.set_freeze_status(&false);
     let data = assert_pool_event(&e, &pool, symbol_short!("freeze"));
+    let data = event_data_map(&e, &data);
     assert_eq!(
-        FreezeEvent::try_from_val(&e, &data).unwrap(),
-        FreezeEvent {
-            controller,
-            frozen: false,
-        }
+        Address::try_from_val(&e, &data.get(Symbol::new(&e, "controller")).unwrap()).unwrap(),
+        controller
     );
+    assert!(!bool::try_from_val(&e, &data.get(symbol_short!("frozen")).unwrap()).unwrap());
 }
 
 #[test]
@@ -101,14 +97,19 @@ fn test_gulp_emits_reserve_transition() {
     comet.gulp(&token);
 
     let new_balance = previous_balance + donation;
-    assert_eq!(comet.get_balance(&token), new_balance);
     let data = assert_pool_event(&e, &pool, symbol_short!("gulp"));
+    let data = event_data_map(&e, &data);
     assert_eq!(
-        GulpEvent::try_from_val(&e, &data).unwrap(),
-        GulpEvent {
-            token,
-            previous_balance,
-            new_balance,
-        }
+        Address::try_from_val(&e, &data.get(symbol_short!("token")).unwrap()).unwrap(),
+        token.clone()
     );
+    assert_eq!(
+        i128::try_from_val(&e, &data.get(Symbol::new(&e, "previous_balance")).unwrap()).unwrap(),
+        previous_balance
+    );
+    assert_eq!(
+        i128::try_from_val(&e, &data.get(Symbol::new(&e, "new_balance")).unwrap()).unwrap(),
+        new_balance
+    );
+    assert_eq!(comet.get_balance(&token), new_balance);
 }

@@ -36,7 +36,7 @@ fn sync_balancer_state(
 fn test_single_sided_deposit_rejects_zero_lp_output() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
@@ -84,7 +84,7 @@ fn test_single_sided_deposit_rejects_zero_lp_output() {
 fn test_single_sided_withdraw_rejects_zero_token_output() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let token_1 = create_stellar_token(&env, &admin);

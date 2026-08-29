@@ -2,6 +2,12 @@
 
 Smart Contracts explicitly written for Soroban.
 
+## Supported Pool Assets
+
+Pools accept only deployed Stellar Asset Contracts, including native XLM and
+classic issued assets. Pool initialization rejects Wasm token contracts. SAC
+acceptance does not imply endorsement of an asset or its issuer controls.
+
 ## How to Test
 
 ### Without logs

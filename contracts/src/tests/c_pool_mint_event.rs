@@ -2,20 +2,17 @@
 
 use sep_41_token::testutils::MockTokenClient;
 use soroban_sdk::{
-    symbol_short,
-    testutils::{Address as _, Events as _},
-    vec, Address, Env, Symbol, TryFromVal, Vec,
+    symbol_short, testutils::Address as _, vec, Address, Env, Symbol, TryFromVal, Vec,
 };
 
 use crate::{
     c_consts::{INIT_POOL_SUPPLY, MIN_POOL_SUPPLY, STROOP},
     c_pool::comet::CometPoolContractClient,
-    tests::utils::{create_comet_pool, create_stellar_token},
+    tests::utils::{create_comet_pool, create_stellar_token, event_from_end},
 };
 
 fn assert_last_mint_event(e: &Env, pool: &Address, to: &Address, amount: i128) {
-    let events = e.events().all();
-    let (contract, topics, data) = events.last().unwrap();
+    let (contract, topics, data) = event_from_end(e, 1);
     assert_eq!(contract, pool.clone());
     assert_eq!(topics.len(), 2);
     assert_eq!(
@@ -58,12 +55,7 @@ fn test_lp_issuance_emits_mint_events() {
     );
     let comet = CometPoolContractClient::new(&e, &pool);
 
-    assert_last_mint_event(
-        &e,
-        &pool,
-        &controller,
-        INIT_POOL_SUPPLY - MIN_POOL_SUPPLY,
-    );
+    assert_last_mint_event(&e, &pool, &controller, INIT_POOL_SUPPLY - MIN_POOL_SUPPLY);
 
     let join_amount = 10 * STROOP;
     comet.join_pool(&join_amount, &vec![&e, i128::MAX, i128::MAX], &user);

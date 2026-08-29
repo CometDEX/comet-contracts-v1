@@ -3,9 +3,13 @@ use std::println;
 use std::vec as std_vec;
 use std::vec::Vec as std_Vec;
 
-use sep_41_token::testutils::{MockToken, MockTokenClient};
 use soroban_fixed_point_math::FixedPoint;
-use soroban_sdk::{token::TokenClient, Address, Env, String, Vec};
+use soroban_sdk::{
+    testutils::Events as _,
+    token::TokenClient,
+    xdr::{ContractEventBody, ScAddress, ScVal},
+    Address, Env, TryFromVal, Val, Vec,
+};
 
 use crate::{
     c_consts::STROOP,
@@ -35,16 +39,19 @@ pub fn create_stellar_token(env: &Env, admin: &Address) -> Address {
         .address()
 }
 
-pub fn create_soroban_token(env: &Env, admin: &Address, decimal: u32) -> Address {
-    let contract_id = env.register(MockToken, ());
-    let client = MockTokenClient::new(&env, &contract_id);
-    client.initialize(
-        &admin,
-        &decimal,
-        &String::from_str(env, "NAME"),
-        &String::from_str(env, "SYMBOL"),
-    );
-    contract_id
+pub fn event_from_end(env: &Env, offset: usize) -> (Address, Vec<Val>, Val) {
+    let events = env.events().all();
+    let event = &events.events()[events.events().len() - offset];
+    let contract_id = event.contract_id.clone().unwrap();
+    let contract =
+        Address::try_from_val(env, &ScVal::Address(ScAddress::Contract(contract_id))).unwrap();
+    let ContractEventBody::V0(body) = &event.body;
+    let mut topics = Vec::new(env);
+    for topic in body.topics.iter() {
+        topics.push_back(Val::try_from_val(env, topic).unwrap());
+    }
+    let data = Val::try_from_val(env, &body.data).unwrap();
+    (contract, topics, data)
 }
 
 /// Asset that `b` is within `percentage` of `a` where `percentage`

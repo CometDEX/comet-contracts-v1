@@ -11,7 +11,7 @@ use crate::{
 
 fn create_pool(e: &Env) -> (Address, Address, Vec<Address>) {
     e.mock_all_auths();
-    e.budget().reset_unlimited();
+    e.cost_estimate().budget().reset_unlimited();
 
     let controller = Address::generate(e);
     let token_1 = create_stellar_token(e, &controller);

@@ -62,7 +62,7 @@ fn pool_ttls(e: &Env, pool: &Address, holder: &Address) -> [u32; 2] {
 fn test_lp_balance_activity_extends_all_critical_pool_state() {
     let env = Env::default();
     env.mock_all_auths();
-    env.budget().reset_unlimited();
+    env.cost_estimate().budget().reset_unlimited();
 
     let admin = Address::generate(&env);
     let token_1 = create_stellar_token(&env, &admin);

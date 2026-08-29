@@ -5,11 +5,11 @@ use crate::{
         error::Error as CometError,
         metadata::read_pending_controller,
     },
-    tests::utils::{create_comet_pool, create_stellar_token},
+    tests::utils::{create_comet_pool, create_stellar_token, event_from_end},
 };
 use soroban_sdk::{
     symbol_short,
-    testutils::{Address as _, Events as _, MockAuth, MockAuthInvoke},
+    testutils::{Address as _, MockAuth, MockAuthInvoke},
     token::StellarAssetClient,
     vec, Address, Env, IntoVal,
 };
@@ -107,9 +107,9 @@ fn test_set_controller_to_current_controller_cancels_transfer() {
     assert_eq!(pending_controller(&e, &pool), Some(candidate));
 
     set_controller(&e, &client, &controller, &controller);
+    let event = vec![&e, event_from_end(&e, 1)];
     assert_eq!(client.get_controller(), controller);
     assert_eq!(pending_controller(&e, &pool), None);
-    let event = vec![&e, e.events().all().last_unchecked()];
     assert_eq!(
         event,
         vec![
