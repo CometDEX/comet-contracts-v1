@@ -3,7 +3,10 @@ use crate::c_pool::{
     allowance::{read_allowance, spend_allowance, write_allowance},
     balance::{read_balance, receive_balance, spend_balance},
     call_logic::{
-        getter::{execute_get_spot_price, execute_get_spot_price_sans_fee},
+        getter::{
+            execute_get_balance, execute_get_normalized_weight, execute_get_spot_price,
+            execute_get_spot_price_sans_fee,
+        },
         init::execute_init,
         pool::{
             execute_dep_lp_tokn_amt_out_get_tokn_in, execute_dep_tokn_amt_in_get_lp_tokns_out,
@@ -13,14 +16,13 @@ use crate::c_pool::{
         },
     },
     metadata::{
-        extend_pool_ttl, get_total_shares, read_controller, read_decimal, read_name, read_record,
-        read_swap_fee, read_symbol, read_tokens,
+        extend_pool_ttl, get_total_shares, read_controller, read_decimal, read_name, read_swap_fee,
+        read_symbol, read_tokens,
     },
     token_utility::{burn_shares_from, check_nonnegative_amount},
 };
 use soroban_sdk::{
-    contract, contractimpl, token::TokenInterface, unwrap::UnwrapOptimized, Address, Env,
-    MuxedAddress, String, Vec,
+    contract, contractimpl, token::TokenInterface, Address, Env, MuxedAddress, String, Vec,
 };
 use soroban_token_sdk::events::{Approve, Transfer, TransferWithAmountOnly};
 
@@ -220,15 +222,13 @@ impl CometPoolContract {
     // Get the balance of the Token
     pub fn get_balance(e: Env, token: Address) -> i128 {
         extend_pool_ttl(&e);
-        let val = read_record(&e).get(token).unwrap_optimized();
-        val.balance
+        execute_get_balance(e, token)
     }
 
     // Get the weight of the token in decimal form with 7 decimals
     pub fn get_normalized_weight(e: Env, token: Address) -> i128 {
         extend_pool_ttl(&e);
-        let val = read_record(&e).get(token).unwrap_optimized();
-        val.weight
+        execute_get_normalized_weight(e, token)
     }
 
     // Calculate the spot considering the swap fee
