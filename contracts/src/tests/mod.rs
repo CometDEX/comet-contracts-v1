@@ -10,3 +10,4 @@ pub mod c_pool_mint_event;
 pub mod c_pool_single_sided;
 pub mod c_pool_swap;
 pub mod c_pool_test;
+pub mod c_pool_token_errors;
