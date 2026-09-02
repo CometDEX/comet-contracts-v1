@@ -12,6 +12,7 @@ use crate::c_pool::{
             execute_wdr_tokn_amt_out_get_lp_tokns_in,
         },
     },
+    event::FreezeEvent,
     metadata::{
         get_total_shares, read_controller, read_decimal, read_name, read_record, read_swap_fee,
         read_symbol, read_tokens,
@@ -20,8 +21,8 @@ use crate::c_pool::{
     token_utility::check_nonnegative_amount,
 };
 use soroban_sdk::{
-    contract, contractimpl, token::TokenInterface, unwrap::UnwrapOptimized, Address, Env, String,
-    Vec,
+    contract, contractimpl, symbol_short, token::TokenInterface, unwrap::UnwrapOptimized, Address,
+    Env, String, Vec,
 };
 use soroban_token_sdk::TokenUtils;
 
@@ -216,11 +217,18 @@ impl CometPoolContract {
     // Only Callable by the Pool Admin
     // Freezes Functions and only allows withdrawals
     pub fn set_freeze_status(e: Env, val: bool) {
-        read_controller(&e).require_auth();
+        let controller = read_controller(&e);
+        controller.require_auth();
         e.storage()
             .instance()
             .extend_ttl(SHARED_LIFETIME_THRESHOLD, SHARED_BUMP_AMOUNT);
         write_freeze(&e, val);
+        let event = FreezeEvent {
+            controller,
+            frozen: val,
+        };
+        e.events()
+            .publish((symbol_short!("POOL"), symbol_short!("freeze")), event);
     }
 
     // GETTER FUNCTIONS
