@@ -704,6 +704,10 @@ fn test_swap_diff_decimals() {
     );
     let comet = CometPoolContractClient::new(&env, &comet_id);
     let mut balancer = BalancerPool::new(std_vec![1234.0, 12345.0], std_vec![0.20, 0.80], 0.003);
+    let sync_reference_balances = |balancer: &mut BalancerPool| {
+        balancer.balances[0] = comet.get_balance(&token_1) as f64 / scalar_6 as f64;
+        balancer.balances[1] = comet.get_balance(&token_2) as f64 / scalar_9 as f64;
+    };
 
     // 1 (6 dec) in for 2 (9 dec) out
     let amount = 5.0;
@@ -715,6 +719,7 @@ fn test_swap_diff_decimals() {
         comet.swap_exact_amount_in(&token_1, &amount_1_in, &token_2, &0, &i128::MAX, &user);
     assert!(res_out <= bal_out);
     assert_approx_eq_rel(res_out, bal_out, 0_0001000);
+    sync_reference_balances(&mut balancer);
 
     // exact out
     let amount_2_out = amount.to_i128(&9);
@@ -729,6 +734,7 @@ fn test_swap_diff_decimals() {
     );
     assert!(res_in >= bal_in);
     assert_approx_eq_rel(res_in, bal_in, 0_0001000);
+    sync_reference_balances(&mut balancer);
 
     // 2 (9 dec) for 1 (6 dec)
 
@@ -739,6 +745,7 @@ fn test_swap_diff_decimals() {
         comet.swap_exact_amount_in(&token_2, &amount_2_in, &token_1, &0, &i128::MAX, &user);
     assert!(res_out <= bal_out);
     assert_approx_eq_rel(res_out, bal_out, 0_0001000);
+    sync_reference_balances(&mut balancer);
 
     // exact out
     let amount_1_out = amount.to_i128(&6);

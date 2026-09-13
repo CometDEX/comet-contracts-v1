@@ -443,8 +443,8 @@ mod tests {
             index: 0,
         };
 
-        // At this supply one unit (1e-18) of the pool ratio is worth 10 stroops of LP, so results
-        // land within ~10 stroops of the exact value rather than within 1.
+        // At this supply one unit (1e-18) of the pool ratio is worth 10 stroops of LP. The
+        // certified c_pow error and remainder bounds can therefore move results by tens of stroops.
 
         // deposit
         // exact 59.999958 LP out -> rounds down
@@ -472,7 +472,7 @@ mod tests {
         let result = calc_lp_token_amount_given_token_withdrawal_amount(
             &env, &record_1, supply, 1, swap_fee,
         );
-        assert_eq!(result, 80);
+        assert_eq!(result, 90);
 
         // exact 0.016667 token out -> rounds down
         let result = calc_token_withdrawal_amount_given_lp_token_amount(
@@ -484,7 +484,7 @@ mod tests {
         let result = calc_lp_token_amount_given_token_withdrawal_amount(
             &env, &record_2, supply, 1, swap_fee,
         );
-        assert_eq!(result, 130);
+        assert_eq!(result, 140);
 
         // exact 0.008571 token out -> rounds down
         let result = calc_token_withdrawal_amount_given_lp_token_amount(

@@ -43,4 +43,7 @@ pub enum Error {
     ErrNegativeOrZero = 37,
     ErrTokenInvalid = 38,
     ErrSameToken = 39,
+    /// Internal invariant violation: pool math supplied `c_pow` an exponent outside
+    /// `[0, MAX_CPOW_EXP]`. Valid initialized pool state cannot trigger this error.
+    ErrCPowExpOutOfRange = 40,
 }

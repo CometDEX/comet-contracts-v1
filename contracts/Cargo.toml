@@ -8,7 +8,8 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-soroban-fixed-point-math = "1.5.0"
+# The upstream Lean refinement covers this exact I256 implementation.
+soroban-fixed-point-math = "=1.5.0"
 soroban-sdk = { workspace = true }
 soroban-token-sdk = { workspace = true }
 
