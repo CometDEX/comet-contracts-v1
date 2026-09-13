@@ -1,0 +1,60 @@
+name: Comet pool formal verification
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/comet-pool-proof.yml'
+      - 'verification/**'
+      - 'contracts/CPOW_BOUNDS.md'
+      - 'contracts/src/c_num.rs'
+      - 'contracts/src/c_consts.rs'
+      - 'contracts/src/c_math.rs'
+      - 'contracts/src/c_pool/comet.rs'
+      - 'contracts/src/c_pool/call_logic/**'
+      - 'contracts/src/c_pool/storage_types.rs'
+      - 'contracts/Cargo.toml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/comet-pool-proof.yml'
+      - 'verification/**'
+      - 'contracts/CPOW_BOUNDS.md'
+      - 'contracts/src/c_num.rs'
+      - 'contracts/src/c_consts.rs'
+      - 'contracts/src/c_math.rs'
+      - 'contracts/src/c_pool/comet.rs'
+      - 'contracts/src/c_pool/call_logic/**'
+      - 'contracts/src/c_pool/storage_types.rs'
+      - 'contracts/Cargo.toml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check generated proof constants
+        run: |
+          rustc --edition=2021 verification/generate_constants.rs -o "${RUNNER_TEMP}/generate-comet-pool-constants"
+          "${RUNNER_TEMP}/generate-comet-pool-constants" --check verification/CometPool/Config/GeneratedConstants.lean
+      - name: Reject proof escape hatches
+        run: |
+          if grep -R -n -E --include='*.lean' '\b(sorry|admit|axiom)\b' verification; then
+            exit 1
+          fi
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: verification
+          use-mathlib-cache: true
+          axiom-audit: true
+          axiom-audit-root: CometPool
+          # `lcProof` is an unsafe compiler-only placeholder used in generated
+          # `_cstage1` declarations; Lean cannot use it in kernel-checked theorems.
+          axiom-audit-allow: propext,Classical.choice,Quot.sound,lcProof

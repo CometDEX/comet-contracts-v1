@@ -1,0 +1,17 @@
+name = "cometPoolVerification"
+version = "0.1.0"
+defaultTargets = ["CometPool"]
+
+[[lean_lib]]
+name = "CometPool"
+
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4.git"
+rev = "v4.19.0"
+
+[[require]]
+name = "sorobanFixedPointMathVerification"
+git = "https://github.com/blnt-protocol/soroban-fixed-point-math.git"
+rev = "2867a65e1c999f9a4242500e58aca0be22c32afa"
+subDir = "verification"
